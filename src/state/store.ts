@@ -97,6 +97,15 @@ interface SaveState {
   totals: { questions: number; correct: number; ms: number }
   answerStreak: number
   bestAnswerStreak: number
+  /**
+   * Signatures of recently-seen questions, per skill, newest first.
+   *
+   * Generators can produce huge numbers of distinct questions, but random
+   * draws still collide — the birthday problem bites long before a pool is
+   * exhausted. Remembering the last few dozen per skill and refusing to
+   * repeat them is what makes practice actually feel fresh day to day.
+   */
+  seenItems: Record<string, string[]>
   lastAwards: Awards | null
 }
 
@@ -113,6 +122,8 @@ interface Actions {
   setCurriculum: (curriculumId: string, yearBand: string) => void
   setAge: (age: number) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
+  /** Remember a question so it is not served again for a while. */
+  recordSeen: (skillId: string, signature: string) => void
   /** Returns the scored result plus anything newly unlocked, for the results screen. */
   finishSession: (result: SessionResult) => { awards: Awards; result: SessionResult }
   clearAwards: () => void
@@ -161,8 +172,12 @@ const initialState = (): SaveState => ({
   totals: { questions: 0, correct: 0, ms: 0 },
   answerStreak: 0,
   bestAnswerStreak: 0,
+  seenItems: {},
   lastAwards: null,
 })
+
+/** How many past questions to remember per skill. ~3 sessions' worth. */
+const SEEN_PER_SKILL = 24
 
 /** Monday-of-week key, used to grant one streak freeze per week. */
 function weekKey(d = new Date()): string {
@@ -213,6 +228,18 @@ export const useStore = create<Store>()(
               questions: s.totals.questions + 1,
               correct: s.totals.correct + (outcome.correct ? 1 : 0),
               ms: s.totals.ms,
+            },
+          }
+        }),
+
+      recordSeen: (skillId, signature) =>
+        set((s) => {
+          const previous = s.seenItems[skillId] ?? []
+          if (previous[0] === signature) return s
+          return {
+            seenItems: {
+              ...s.seenItems,
+              [skillId]: [signature, ...previous.filter((x) => x !== signature)].slice(0, SEEN_PER_SKILL),
             },
           }
         }),
@@ -360,6 +387,7 @@ export const useStore = create<Store>()(
           totals: { questions: 0, correct: 0, ms: 0 },
           answerStreak: 0,
           bestAnswerStreak: 0,
+          seenItems: {},
           streak: { current: 0, longest: 0, lastPlayed: null, freezes: 1, lastFreezeGrant: null },
         }),
 

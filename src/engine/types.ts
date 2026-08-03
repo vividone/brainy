@@ -240,6 +240,15 @@ export interface SubjectDef {
   color: string
   /** False for subjects planned but not yet authored. */
   available: boolean
+  /**
+   * Restricts the subject to particular classes. Omit for subjects taught
+   * right through primary.
+   *
+   * Nigerian UBE only introduces Home Economics, Agricultural Science and
+   * Vocational Studies at upper basic (Basic 4–6), and showing a Basic 1
+   * child a locked Agric card is noise, not motivation.
+   */
+  yearBands?: string[]
   comingSoon?: string
   /** Shown on the coming-soon card so the plan is visible, not just a promise. */
   plannedTopics?: string[]

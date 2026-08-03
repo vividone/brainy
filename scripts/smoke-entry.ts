@@ -138,6 +138,8 @@ registerAllCurricula()
 let skillCount = 0
 let itemCount = 0
 const noExplanation: string[] = []
+/** Distinct questions observed per skill, for the content-depth report. */
+const depth: { id: string; distinct: number; draws: number }[] = []
 
 for (const curriculum of listCurricula()) {
   for (const subject of curriculum.subjects) {
@@ -170,6 +172,7 @@ for (const curriculum of listCurricula()) {
         // A skill with a tiny question space gets memorised rather than
         // learned, which is the whole failure mode generation exists to avoid.
         const draws = 5 * SAMPLES_PER_DIFFICULTY
+        depth.push({ id: skill.id, distinct: signatures.size, draws })
         if (signatures.size / draws < 0.3) {
           warnings.push(
             `${skill.id}: low variety — only ${signatures.size} distinct questions in ${draws} draws`,
@@ -202,6 +205,27 @@ for (const curriculum of listCurricula()) {
 for (const id of noExplanation) warnings.push(`${id}: never sets an explanation`)
 
 console.log(`\nChecked ${itemCount} generated items across ${skillCount} skills.\n`)
+
+/*
+ * Content depth. `distinct/draws` is a *sample* of each skill's question
+ * space, not its size: a skill that returns 200 distinct questions in 200
+ * draws has not been exhausted, it has simply never repeated. Skills whose
+ * ratio drops well below 1.0 are the ones a child will start recognising.
+ */
+{
+  const saturated = depth.filter((d) => d.distinct === d.draws).length
+  const thin = [...depth].sort((a, b) => a.distinct - b.distinct).slice(0, 8)
+  console.log('Content depth')
+  console.log(`  ${saturated}/${depth.length} skills never repeated in ${5 * SAMPLES_PER_DIFFICULTY} draws`)
+  console.log('  thinnest skills:')
+  for (const d of thin) {
+    // A child meeting this skill ~6 times a session sees a repeat once the
+    // pool runs dry; this is the rough runway in daily sessions.
+    const sessions = Math.max(1, Math.round(d.distinct / 6))
+    console.log(`    ${d.id.padEnd(42)} ${String(d.distinct).padStart(3)} distinct  (~${sessions} sessions)`)
+  }
+  console.log()
+}
 
 if (warnings.length) {
   console.log(`⚠ ${warnings.length} warning(s):`)

@@ -163,6 +163,10 @@ export const SUBJECT_STYLE: Record<string, { grad: string; soft: string; text: s
   emerald: { grad: 'from-emerald-400 to-green-600', soft: 'bg-emerald-50', text: 'text-emerald-700' },
   slate: { grad: 'from-slate-400 to-slate-600', soft: 'bg-slate-50', text: 'text-slate-700' },
   orange: { grad: 'from-orange-400 to-red-500', soft: 'bg-orange-50', text: 'text-orange-700' },
+  stone: { grad: 'from-stone-400 to-stone-600', soft: 'bg-stone-50', text: 'text-stone-700' },
+  cyan: { grad: 'from-cyan-400 to-teal-600', soft: 'bg-cyan-50', text: 'text-cyan-700' },
+  pink: { grad: 'from-pink-400 to-fuchsia-600', soft: 'bg-pink-50', text: 'text-pink-700' },
+  lime: { grad: 'from-lime-400 to-green-600', soft: 'bg-lime-50', text: 'text-lime-700' },
 }
 
 export const subjectStyle = (colour: string) => SUBJECT_STYLE[colour] ?? SUBJECT_STYLE.violet

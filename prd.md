@@ -16,17 +16,31 @@
 
 Kolo is a gamified practice app for lower-primary children. It turns curriculum-aligned drilling into a short daily game: 5–10 minute sessions, immediate feedback, coins, streaks, a mascot to dress up, and a world map that opens up as skills are mastered.
 
-It spans the whole of primary — **Basic 1 to Basic 6** — across seven subjects, with British and American equivalents of each class:
+It spans the whole of primary — **Basic 1 to Basic 6** — with British and American equivalents of each class.
+
+**Taught throughout primary (Basic 1–6):**
 
 1. **Mathematics**
 2. **Quantitative Reasoning**
 3. **Verbal Reasoning**
 4. **English Grammar**
-5. **Basic Science**
-6. **Basic Technology**
-7. **Social Studies**
+5. **Basic Science & Technology**
+6. **Social Studies**
+7. **History**
+8. **Computer Studies**
 
-Quantitative and Verbal Reasoning are deliberately kept **separate subjects** rather than the single combined "QR & VR" line some schemes use. Nigerian schools timetable and examine them separately, common entrance assesses them separately, and — the reason that actually matters here — a child is very often strong at one and weak at the other. A blended score would hide exactly the gap a parent needs to see.
+**Upper basic only (Basic 4–6):**
+
+9. **Home Economics**
+10. **Agricultural Science**
+11. **Vocational Studies**
+
+Two grouping decisions worth stating, because both could reasonably have gone the other way:
+
+- **Science and Technology are one subject**, as NERDC timetables them ("Basic Science and Technology"). Splitting them would invent a distinction the syllabus does not make.
+- **Quantitative and Verbal Reasoning are two subjects**, not the combined "QR & VR" line some schemes use. Nigerian schools timetable and examine them separately, common entrance assesses them separately, and — the reason that actually matters here — a child is very often strong at one and weak at the other. A blended score would hide exactly the gap a parent needs to see.
+
+Subjects can declare which classes they belong to. A Basic 1 child never sees an Agricultural Science card, locked or otherwise: an option they cannot take is noise, not motivation.
 
 The immediate goal is one child staying sharp across the Basic 2 → Basic 3 transition — consolidating what he already knows and meeting Basic 3 material before school does. The secondary goal is that the same product can be handed to other parents, initially free, potentially paid.
 
@@ -312,13 +326,35 @@ Together these are the subjects international apps simply don't have, and the ma
 
 Verbal is the harder of the two to build: it needs curated word lists per year band, vetted for reading level, so authored items will outnumber generated ones. Coding/decoding, letter sequences and alphabetical ordering do generate well, and should be built first.
 
-### 8.4 Basic Science and Technology *(phase 3)*
+### 8.4 Basic Science & Technology *(phase 3)*
 
-Living and non-living things · parts of the body and the five senses · plants: parts and needs · animals: groups, habitats, young · food and nutrition, balanced diet · water: sources, uses, safety · air and weather · our environment and keeping it clean · personal hygiene · safety at home and school · materials and their properties · simple machines · light, sound and heat · energy and where it comes from · basic technology: tools and simple machines around us.
+Living and non-living things · parts of the body and the five senses · plants: parts and needs · animals: groups, habitats, young · food and nutrition · water: sources, uses, safety · air and weather · our environment · personal hygiene · safety at home and school · materials and their properties · everyday tools and workshop safety · simple machines and levers · electricity and circuits · light, sound and heat · technical drawing basics.
+
+One subject, not two — NERDC timetables it as "Basic Science and Technology", and splitting it would invent a distinction the syllabus does not make.
 
 Science is the most diagram-dependent subject and will need a small library of inline SVG illustrations. Plan for that; don't let it block phases 1 and 2.
 
-### 8.5 UK curriculum *(phase 4)*
+### 8.5 Social Studies, History and Computer Studies *(phase 3)*
+
+**Social Studies** — family and relationships · our community and its leaders · Nigerian states and capitals · culture, festivals and languages · national symbols · rights and responsibilities · transport and communication · safety and road signs.
+
+**History** — my family history · our town and its origins · early Nigerian kingdoms · Benin, Oyo and Kanem-Borno · the Sokoto Caliphate · colonial Nigeria · independence and after · national heroes.
+
+**Computer Studies** — parts of a computer · input and output devices · keyboard and mouse · files and folders · the internet and staying safe · word processing · spreadsheets · first steps in coding.
+
+These three are fact-heavy rather than generatable, so they need the most careful checking and the most authored (rather than generated) items. History in particular must be accurate and even-handed; get it reviewed by someone who teaches it.
+
+### 8.6 Upper basic: Home Economics, Agricultural Science, Vocational Studies *(phase 3)*
+
+Introduced at Basic 4 and hidden entirely for younger classes.
+
+**Home Economics** — food groups and balanced diet · kitchen safety and hygiene · cooking methods · sewing and mending · caring for clothes · keeping the home clean · family and childcare · managing money at home.
+
+**Agricultural Science** — what farming is · farm tools · crop plants of Nigeria · planting and harvesting · farm animals · soil types · pests and diseases · processing and storing food.
+
+**Vocational Studies** — trades and occupations · local crafts and materials · simple woodwork and metalwork · basic electrical work · starting a small business · buying, selling and profit · saving and budgeting · safety at work.
+
+### 8.7 UK and US curricula *(phase 4)*
 
 Year 2 → Year 3 National Curriculum for maths, reasoning framed as 11+ preparation, and Key Stage 2 science. Sterling replaces naira, names and settings shift, Roman numerals move to Year 4 (where the National Curriculum actually puts them), and the two reasoning subjects keep the split but take the names British 11+ practice uses — "Non-Verbal Reasoning (11+)" and "Verbal Reasoning (11+)". A v1 stub ships to prove the switch works end to end.
 

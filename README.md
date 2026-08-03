@@ -54,14 +54,25 @@ src/
     ng-ube/   Nigerian pack: locale + 42 maths skills across 7 strands
     uk-nc/    British pack (small, proves the switch)
     shared/   authoring helpers used by packs, never by the engine
-  state/      zustand store persisted to localStorage, plus selectors
-  screens/    onboarding, map, island, session, results, shop, room, parent
+  state/      zustand store persisted to localStorage, selectors, and the
+              parent-report analytics
+  screens/    onboarding, home, subject, island, session, results, shop, room, parent
   components/ question renderers, SVG visual renderer, mascot, UI primitives
   lib/        speech, synthesised sound, date helpers
   game/       cosmetics, badges, island theming
 ```
 
 **The one architectural rule:** `engine/` never imports from `content/`. Packs register themselves through `engine/registry`. That is what makes a second curriculum cheap.
+
+### Keeping questions fresh
+
+Three mechanisms, in order of leverage:
+
+1. **Generation, not a bank** (below). The question space is a product of the generator's parameters, not a list someone typed.
+2. **Locale pools.** Every word problem draws a name, an object and often a place from `src/content/<pack>/locale.ts`. The Nigerian pack has 48 names × 34 objects × 14 shops, so the *same* sum arrives in over 22,000 different dressings. **Adding a name to that list is worth more than adding a generator** — it multiplies across every skill at once.
+3. **Per-skill recent-question memory.** Random draws collide long before a pool is exhausted (the birthday problem). The save remembers the last 24 question signatures per skill and the builder refuses to regenerate them, so "fresh" means fresh across days rather than only within one session.
+
+`npm run smoke` prints a **content depth** report — how many skills never repeated in 200 draws, and the thinnest skills with a rough runway in sessions. Use it to decide where more variety is actually needed rather than guessing.
 
 ### Questions are generated, not stored
 

@@ -7,7 +7,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { checkAnswer, describeAnswer, describeResponse, type Response } from '../engine/answer'
+import {
+  checkAnswer,
+  describeAnswer,
+  describeResponse,
+  itemSignature,
+  type Response,
+} from '../engine/answer'
 import { getSkill } from '../engine/registry'
 import { makeRng } from '../engine/rng'
 import { generateItem } from '../engine/session'
@@ -31,7 +37,7 @@ interface Props {
 }
 
 export function Session({ plan, onFinish, onQuit }: Props) {
-  const { profile, settings, economy, recordAnswer } = useStore()
+  const { profile, settings, economy, recordAnswer, recordSeen } = useStore()
 
   const [queue, setQueue] = useState<PlannedItem[]>(plan.items)
   const [index, setIndex] = useState(0)
@@ -138,6 +144,8 @@ export function Session({ plan, onFinish, onQuit }: Props) {
       }
       const nextAnswers = [...answers, answer]
       setAnswers(nextAnswers)
+      // Remember the exact question so tomorrow's session does not repeat it.
+      recordSeen(current.skillId, itemSignature(current.item))
 
       recordAnswer(current.skillId, {
         correct,
@@ -200,6 +208,7 @@ export function Session({ plan, onFinish, onQuit }: Props) {
       plan.seed,
       queue,
       recordAnswer,
+      recordSeen,
       requeues,
       settings.speech,
       settings.difficultyOverride,

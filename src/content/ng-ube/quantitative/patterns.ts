@@ -160,37 +160,36 @@ const doubling: SkillDef = {
   hint: 'The jumps are not the same size — try multiplying instead of adding.',
   helpAtHome: 'Double a number over and over: 3, 6, 12, 24 — see how fast it runs away.',
   generate: ({ rng, difficulty }): Item => {
-    const modes = difficulty <= 2 ? ['double'] : difficulty === 3 ? ['double', 'halve'] : ['double', 'halve', 'triple']
-    const mode = rng.pick(modes)
+    const times = rng.pick([[2], [2], [2, 3], [2, 3], [2, 3, 4]][difficulty - 1])
+    // Four steps of ×4 already reaches the hundreds, so the bigger the
+    // multiplier the shorter the run.
+    const length = times >= 4 ? 4 : 5
+    const capStart =
+      times === 2 ? [6, 10, 14, 18, 22][difficulty - 1] : times === 3 ? [2, 3, 5, 7, 9][difficulty - 1] : 4
+    const start = rng.int(1, capStart)
+    const up = rng.chance(0.5)
 
-    if (mode === 'triple') {
-      const start = rng.int(1, [2, 3, 4, 6, 8][difficulty - 1])
-      const run = [0, 1, 2, 3].map((i) => start * 3 ** i)
-      const answer = start * 81
-      return entry(`What comes next?\n${run.join(', ')}, ?`, answer, {
-        speak: `What comes next after ${run.join(', ')}?`,
+    const climbing = Array.from({ length }, (_, i) => start * times ** i)
+    const run = up ? climbing : [...climbing].reverse()
+    // A gap in the middle is harder: the run reads both ways.
+    const hole = difficulty >= 3 && rng.chance(0.45) ? rng.int(1, length - 2) : length - 1
+    const answer = run[hole]
+    const shown = run.map((v, i) => (i === hole ? '?' : String(v))).join(', ')
+    const rule = up ? `${times} times the one before` : `the one before divided by ${times}`
+    const spoken = run.map((v, i) => (i === hole ? 'blank' : v)).join(', ')
+
+    if (hole === length - 1) {
+      return entry(`What comes next?\n${run.slice(0, -1).join(', ')}, ?`, answer, {
+        speak: `What comes next after ${run.slice(0, -1).join(', ')}?`,
         maxDigits: 4,
-        explanation: `Each number is 3 times the one before: ${[...run, answer].join(', ')}`,
+        explanation: `Each number is ${rule}: ${run.join(', ')}`,
       })
     }
 
-    if (mode === 'halve') {
-      const last = rng.int(1, [3, 5, 8, 10, 12][difficulty - 1])
-      const run = [16, 8, 4, 2].map((m) => last * m)
-      return entry(`What comes next?\n${run.join(', ')}, ?`, last, {
-        speak: `What comes next after ${run.join(', ')}?`,
-        maxDigits: 4,
-        explanation: `Each number is half the one before: ${[...run, last].join(', ')}`,
-      })
-    }
-
-    const start = rng.int(1, [6, 10, 12, 15, 20][difficulty - 1])
-    const run = [0, 1, 2, 3].map((i) => start * 2 ** i)
-    const answer = start * 16
-    return entry(`What comes next?\n${run.join(', ')}, ?`, answer, {
-      speak: `What comes next after ${run.join(', ')}?`,
+    return entry(`What is missing?\n${shown}`, answer, {
+      speak: `What is missing? ${spoken}`,
       maxDigits: 4,
-      explanation: `Each number is double the one before: ${[...run, answer].join(', ')}`,
+      explanation: `Each number is ${rule}: ${run.join(', ')}`,
     })
   },
 }

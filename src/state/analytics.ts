@@ -6,7 +6,7 @@
  */
 
 import { currentMastery } from '../engine/mastery'
-import { getSkill, skillsInStrand } from '../engine/registry'
+import { getSkill, skillsInStrand, subjectsForBand } from '../engine/registry'
 import type { Curriculum, ProgressMap, SessionResult, SubjectDef } from '../engine/types'
 import { dayKey, recentDays } from '../lib/dates'
 import type { DayStat } from './store'
@@ -88,7 +88,7 @@ export function buildAnalytics(
   const rows: SkillRow[] = []
   const subjects: SubjectRow[] = []
 
-  for (const subject of curriculum.subjects as SubjectDef[]) {
+  for (const subject of subjectsForBand(curriculum.id, currentBand) as SubjectDef[]) {
     let questions = 0
     let correct = 0
     const subjectSkills: SkillRow[] = []

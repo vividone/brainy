@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { buildSession } from './engine/session'
-import type { Level } from './engine/registry'
+import { subjectsForBand, type Level } from './engine/registry'
 import type { SessionPlan, SessionResult } from './engine/types'
 import { Home } from './screens/Home'
 import { Island } from './screens/Island'
@@ -34,6 +34,8 @@ export default function App() {
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
+  const yearBand = useStore((s) => s.profile.yearBand)
+  const seenItems = useStore((s) => s.seenItems)
 
   const [route, setRoute] = useState<Route>({ name: 'home' })
   /** Remembered so "Play again" can rebuild the same kind of session. */
@@ -71,13 +73,13 @@ export default function App() {
    * is stable within a day — the child gets the same quest if they reopen it.
    */
   const dailySubjectId = useMemo(() => {
-    const playable = curriculum.subjects.filter(
+    const playable = subjectsForBand(curriculum.id, yearBand).filter(
       (s) => s.available && s.strands.some((strand) => strand.skills.length > 0),
     )
     if (playable.length === 0) return 'maths'
     const dayIndex = Math.floor(new Date().setHours(0, 0, 0, 0) / 86_400_000)
     return playable[dayIndex % playable.length].id
-  }, [curriculum])
+  }, [curriculum.id, yearBand])
 
   const startDaily = useCallback(() => {
     const plan = buildSession({
@@ -88,11 +90,12 @@ export default function App() {
       progress,
       length: settings.sessionLength,
       difficultyOverride: settings.difficultyOverride,
+      avoid: seenItems,
     })
     if (plan.items.length === 0) return
     setLastLaunch({ kind: 'daily' })
     setRoute({ name: 'session', plan })
-  }, [bands, curriculum.id, dailySubjectId, progress, settings.sessionLength, settings.difficultyOverride])
+  }, [bands, curriculum.id, dailySubjectId, progress, seenItems, settings.sessionLength, settings.difficultyOverride])
 
   const startLevel = useCallback(
     (level: Level) => {
@@ -107,12 +110,13 @@ export default function App() {
         progress,
         length: settings.sessionLength,
         difficultyOverride: settings.difficultyOverride,
+        avoid: seenItems,
       })
       if (plan.items.length === 0) return
       setLastLaunch({ kind: 'level', level })
       setRoute({ name: 'session', plan })
     },
-    [bands, curriculum.id, progress, settings.sessionLength, settings.difficultyOverride],
+    [bands, curriculum.id, progress, seenItems, settings.sessionLength, settings.difficultyOverride],
   )
 
   const handleFinish = useCallback(

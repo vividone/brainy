@@ -59,6 +59,18 @@ export function getSubject(curriculumId: string, subjectId: string): SubjectDef 
   return getCurriculum(curriculumId).subjects.find((s) => s.id === subjectId)
 }
 
+/**
+ * The subjects a child in this class actually takes.
+ *
+ * A subject with no `yearBands` runs through all of primary; one that
+ * declares them appears only for those classes.
+ */
+export function subjectsForBand(curriculumId: string, yearBandId: string): SubjectDef[] {
+  return getCurriculum(curriculumId).subjects.filter(
+    (s) => !s.yearBands || s.yearBands.includes(yearBandId),
+  )
+}
+
 export function getStrand(curriculumId: string, strandId: string): StrandDef | undefined {
   for (const subject of getCurriculum(curriculumId).subjects) {
     const strand = subject.strands.find((s) => s.id === strandId)

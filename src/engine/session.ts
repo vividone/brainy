@@ -37,6 +37,11 @@ export interface BuildSessionOpts {
    * who pins level 2 expects level 2, not level 2 drifting upward.
    */
   difficultyOverride?: Difficulty | null
+  /**
+   * Signatures of questions the child has seen recently, keyed by skill.
+   * The builder will avoid regenerating any of them.
+   */
+  avoid?: Record<string, string[]>
 }
 
 /** Generate one question, retrying to avoid one the child has just seen. */
@@ -52,7 +57,7 @@ export function generateItem(
   const locale = getCurriculum(curriculumId).locale
 
   let fallback: Item | undefined
-  for (let attempt = 0; attempt < 12; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     let item: Item
     try {
       item = skill.generate({ rng, difficulty, locale })
@@ -148,7 +153,12 @@ export function buildSession(opts: BuildSessionOpts): SessionPlan {
   const now = opts.now ?? Date.now()
   const slots = planSlots({ ...opts, now }, rng)
 
+  // Seed the dedup set with what the child has already seen recently, so
+  // "fresh" means fresh across days rather than only within one session.
   const seen = new Set<string>()
+  for (const signatures of Object.values(opts.avoid ?? {})) {
+    for (const signature of signatures) seen.add(signature)
+  }
   const items: PlannedItem[] = []
 
   // Stretch work is always pitched at the easiest level — it's an

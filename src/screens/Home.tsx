@@ -20,6 +20,7 @@ import {
   useLevelStars,
   useProgress,
 } from '../state/selectors'
+import { subjectsForBand } from '../engine/registry'
 import { sfx } from '../lib/sound'
 
 interface Props {
@@ -41,10 +42,14 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
   const stars = totalStarsEarned(levelStars)
   const bandLabel = curriculum.yearBands.find((b) => b.id === profile.yearBand)?.label ?? ''
 
+  /* Only the subjects this class actually takes — Agric Science on a Basic 1
+     child's home screen would be noise, not motivation. */
   const subjects = useMemo(
     () =>
-      curriculum.subjects.map((s) => summariseSubject(curriculum.id, s, bands, progress, levelStars)),
-    [curriculum, bands, progress, levelStars],
+      subjectsForBand(curriculum.id, profile.yearBand).map((s) =>
+        summariseSubject(curriculum.id, s, bands, progress, levelStars),
+      ),
+    [curriculum.id, profile.yearBand, bands, progress, levelStars],
   )
 
   return (
