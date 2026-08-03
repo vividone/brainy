@@ -8,8 +8,8 @@
  */
 
 import type { Choice, Item, MatchItem, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc, order } from '../../shared/authoring'
-import { ARROWS, ARROW_WORDS, COMPASS, GRID_GLYPHS, TURN_NAMES } from './figures'
+import { entry, mc, order, tapMany, tf } from '../../shared/authoring'
+import { ARROWS, ARROW_WORDS, COMPASS, GRID_GLYPHS, nearMiss, TURN_NAMES } from './figures'
 
 const orderSize: SkillDef = {
   id: 'ng.qr.spatial.order-size',
@@ -21,20 +21,62 @@ const orderSize: SkillDef = {
   generate: ({ rng, difficulty, locale }): Item => {
     const count = difficulty <= 2 ? 3 : difficulty === 3 ? 4 : 5
     const top = [5, 6, 7, 8, 9][difficulty - 1]
-    const glyph = rng.pick(locale.objects).glyph
+    const noun = rng.pick(locale.objects)
+    const glyph = noun.glyph
     const sizes = rng.sample(
       Array.from({ length: top }, (_, i) => i + 1),
       count,
     )
-    const ascending = rng.chance(0.5)
-    const sorted = [...sizes].sort((a, b) => (ascending ? a - b : b - a))
+    const rising = [...sizes].sort((a, b) => a - b)
+    const pile = (n: number) => glyph.repeat(n)
 
-    return order(
-      rng,
-      ascending ? 'Tap the groups from smallest to biggest' : 'Tap the groups from biggest to smallest',
-      sorted.map((n) => glyph.repeat(n)),
-      { explanation: `In order they are ${sorted.join(', ')}.` },
-    )
+    switch (rng.pick(['order', 'most', 'middle', 'more'] as const)) {
+      // Picking one group out is a smaller step than ordering all of them,
+      // and it is where a child who cannot yet order should start.
+      case 'most': {
+        const biggest = rng.chance(0.5)
+        const want = biggest ? rising[rising.length - 1] : rising[0]
+        return mc(
+          rng,
+          `Which group has the ${biggest ? 'most' : 'fewest'} ${noun.many}?`,
+          pile(want),
+          rising.filter((n) => n !== want).map(pile),
+          { explanation: `The groups have ${rising.join(', ')} ${noun.many}.` },
+        )
+      }
+
+      case 'middle': {
+        const three = rng.sample(rising, 3).sort((a, b) => a - b)
+        return mc(
+          rng,
+          'Which group is in the middle — not the most, not the fewest?',
+          pile(three[1]),
+          [pile(three[0]), pile(three[2])],
+          { explanation: `These three have ${three.join(', ')} ${noun.many}, so ${three[1]} sits in the middle.` },
+        )
+      }
+
+      case 'more': {
+        const line = rising[Math.floor(rising.length / 2)]
+        return tapMany(
+          rng,
+          `Tap every group with more than ${line} ${noun.many}.`,
+          rising.map((n) => ({ value: pile(n), correct: n > line })),
+          { explanation: `The groups have ${rising.join(', ')} ${noun.many}.` },
+        )
+      }
+
+      default: {
+        const ascending = rng.chance(0.5)
+        const sorted = ascending ? rising : [...rising].reverse()
+        return order(
+          rng,
+          ascending ? 'Tap the groups from smallest to biggest' : 'Tap the groups from biggest to smallest',
+          sorted.map(pile),
+          { explanation: `In order they are ${sorted.join(', ')}.` },
+        )
+      }
+    }
   },
 }
 
@@ -160,34 +202,111 @@ const areaSquares: SkillDef = {
     const cols = rng.int(2, cap)
     const glyph = rng.pick(GRID_GLYPHS)
     const visual = { kind: 'array', rows, cols, glyph } as const
-    const variant = difficulty <= 2 ? 1 : rng.int(1, 3)
+    const area = rows * cols
 
-    if (variant === 2 && (rows * cols) % 2 === 0) {
-      return entry('Half of this shape is painted.\nWhat is the area of the painted half?', (rows * cols) / 2, {
-        visual,
-        suffix: ' squares',
-        maxDigits: 3,
-        explanation: `The whole shape is ${rows} × ${cols} = ${rows * cols} squares, and half of that is ${(rows * cols) / 2}.`,
-      })
+    // Halving and dividing back out of an area both need a step the youngest
+    // children have not met yet.
+    const forms =
+      difficulty <= 2
+        ? (['area', 'check', 'compare', 'tapArea'] as const)
+        : (['area', 'check', 'compare', 'tapArea', 'half', 'side'] as const)
+
+    switch (rng.pick(forms)) {
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const claimed = ok ? area : nearMiss(rng, area, 2)
+        return tf(`Each square is 1 square centimetre.\nIs the area of this shape ${claimed} cm²?`, ok, {
+          visual,
+          explanation: `${rows} rows of ${cols} squares is ${area} square centimetres.`,
+        })
+      }
+
+      // Comparing two areas without drawing either of them.
+      case 'compare': {
+        let r2 = rng.int(2, cap + 1)
+        let c2 = rng.int(2, cap + 1)
+        let guard = 0
+        while (r2 * c2 === area && guard++ < 20) {
+          r2 = rng.int(2, cap + 1)
+          c2 = rng.int(2, cap + 1)
+        }
+        if (r2 * c2 === area) c2 += 1
+        const mine = `${rows} by ${cols}`
+        const other = `${r2} by ${c2}`
+        const mineWins = area > r2 * c2
+        return mc(rng, 'Which rectangle has the bigger area?', mineWins ? mine : other, [
+          mineWins ? other : mine,
+        ], {
+          explanation: `${rows} × ${cols} = ${area} squares, and ${r2} × ${c2} = ${r2 * c2} squares.`,
+        })
+      }
+
+      // One area, several shapes: the point that area does not fix the shape.
+      case 'tapArea': {
+        const fits: string[] = []
+        for (let x = 2; x * x <= area; x++) {
+          if (area % x === 0 && area / x >= 2) fits.push(`${x} by ${area / x}`)
+        }
+        // Turning the one rectangle on its side is a second right answer, and
+        // a useful one: the area does not change when the shape does.
+        if (fits.length === 1) {
+          const [w, h] = fits[0].split(' by ')
+          if (w !== h) fits.push(`${h} by ${w}`)
+        }
+        const right = rng.sample(fits, 2)
+        const seen = new Set(right)
+        let guard = 0
+        while (seen.size < 4 && guard++ < 200) {
+          const x = rng.int(2, cap + 2)
+          const y = rng.int(2, cap + 2)
+          if (x * y !== area) seen.add(`${x} by ${y}`)
+        }
+        const wrong = [...seen].filter((s) => !right.includes(s))
+        // area × area is never area itself once area is 2 or more.
+        if (!wrong.length) wrong.push(`${area} by ${area}`)
+        return tapMany(
+          rng,
+          `Tap every rectangle with an area of ${area} squares.`,
+          [
+            ...right.map((s) => ({ value: s, correct: true })),
+            ...wrong.map((s) => ({ value: s, correct: false })),
+          ],
+          {
+            explanation:
+              right.length > 1
+                ? `${right.join(' and ')} both cover ${area} squares.`
+                : `${right[0]} covers ${area} squares.`,
+          },
+        )
+      }
+
+      case 'half': {
+        // An odd number of squares cannot be halved into whole ones.
+        const wide = area % 2 === 0 ? cols : cols + 1
+        const whole = rows * wide
+        return entry('Half of this shape is painted.\nWhat is the area of the painted half?', whole / 2, {
+          visual: { kind: 'array', rows, cols: wide, glyph },
+          suffix: ' squares',
+          maxDigits: 3,
+          explanation: `The whole shape is ${rows} × ${wide} = ${whole} squares, and half of that is ${whole / 2}.`,
+        })
+      }
+
+      case 'side':
+        return entry(
+          `A rectangle covers ${area} squares. It is ${cols} squares wide.\nHow many squares long is it?`,
+          rows,
+          { maxDigits: 2, explanation: `${area} ÷ ${cols} = ${rows}` },
+        )
+
+      default:
+        return entry('Each square is 1 square centimetre.\nWhat is the area of this shape?', area, {
+          visual,
+          suffix: ' cm²',
+          maxDigits: 3,
+          explanation: `${rows} rows of ${cols} squares is ${area} square centimetres.`,
+        })
     }
-
-    if (variant === 3) {
-      return entry(
-        `A rectangle covers ${rows * cols} squares. It is ${cols} squares wide.\nHow many squares long is it?`,
-        rows,
-        {
-          maxDigits: 2,
-          explanation: `${rows * cols} ÷ ${cols} = ${rows}`,
-        },
-      )
-    }
-
-    return entry('Each square is 1 square centimetre.\nWhat is the area of this shape?', rows * cols, {
-      visual,
-      suffix: ' cm²',
-      maxDigits: 3,
-      explanation: `${rows} rows of ${cols} squares is ${rows * cols} square centimetres.`,
-    })
   },
 }
 
@@ -268,37 +387,75 @@ const gridMove: SkillDef = {
     const dx = rng.int(1, 3)
     const dy = rng.int(1, 3)
     const at = (a: number, b: number) => `(${a}, ${b})`
-    const variant = difficulty <= 2 ? 1 : rng.int(1, 3)
 
-    if (variant === 2) {
-      return entry(
-        `A counter moves from ${at(x, y)} to ${at(x + dx, y + dy)}.\nHow many squares did it move to the RIGHT?`,
-        dx,
-        {
-          maxDigits: 2,
-          explanation: `${x + dx} − ${x} = ${dx} squares to the right.`,
-        },
-      )
+    const forms =
+      difficulty <= 2
+        ? (['right', 'howRight', 'howUp', 'check'] as const)
+        : (['right', 'left', 'howRight', 'howUp', 'back', 'check'] as const)
+
+    switch (rng.pick(forms)) {
+      case 'howRight':
+        return entry(
+          `A counter moves from ${at(x, y)} to ${at(x + dx, y + dy)}.\nHow many squares did it move to the RIGHT?`,
+          dx,
+          { maxDigits: 2, explanation: `${x + dx} − ${x} = ${dx} squares to the right.` },
+        )
+
+      case 'howUp':
+        return entry(
+          `A counter moves from ${at(x, y)} to ${at(x + dx, y + dy)}.\nHow many squares did it move UP?`,
+          dy,
+          { maxDigits: 2, explanation: `${y + dy} − ${y} = ${dy} squares up. Up is the second number.` },
+        )
+
+      case 'left': {
+        const back = rng.int(1, 3)
+        return mc(
+          rng,
+          `A counter is at ${at(x, y)}. It moves ${back} left and ${dy} up.\nWhere is it now?`,
+          at(x - back, y + dy),
+          [at(x + back, y + dy), at(x - back, y - dy), at(y + dy, x - back)],
+          {
+            explanation: `Left takes ${back} off the first number and up adds ${dy} to the second: ${at(x - back, y + dy)}.`,
+          },
+        )
+      }
+
+      // Given where it landed, work back to where it set off.
+      case 'back':
+        return mc(
+          rng,
+          `A counter moved ${dx} right and ${dy} up, and landed on ${at(x + dx, y + dy)}.\nWhere did it start?`,
+          at(x, y),
+          [at(x + dx * 2, y + dy * 2), at(x + dx, y), at(x + dx, y + dy)],
+          {
+            explanation: `Undo the move: take ${dx} off the first number and ${dy} off the second, which gives ${at(x, y)}.`,
+          },
+        )
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const landing = ok ? at(x + dx, y + dy) : at(x + dy, y + dx)
+        return tf(
+          `A counter at ${at(x, y)} moves ${dx} right and ${dy} up.\nDoes it land on ${landing}?`,
+          ok || dx === dy,
+          {
+            explanation: `Right adds ${dx} to the first number and up adds ${dy} to the second: ${at(x + dx, y + dy)}.`,
+          },
+        )
+      }
+
+      default:
+        return mc(
+          rng,
+          `A counter is at ${at(x, y)}. It moves ${dx} right and ${dy} up.\nWhere is it now?`,
+          at(x + dx, y + dy),
+          [at(x + dy, y + dx), at(x - dx, y + dy), at(x + dx, y - dy)],
+          {
+            explanation: `Right adds ${dx} to the first number and up adds ${dy} to the second: ${at(x + dx, y + dy)}.`,
+          },
+        )
     }
-
-    if (variant === 3) {
-      const back = rng.int(1, 3)
-      return mc(
-        rng,
-        `A counter is at ${at(x, y)}. It moves ${back} left and ${dy} up.\nWhere is it now?`,
-        at(x - back, y + dy),
-        [at(x + back, y + dy), at(x - back, y - dy), at(y + dy, x - back)],
-        { explanation: `Left takes ${back} off the first number and up adds ${dy} to the second: ${at(x - back, y + dy)}.` },
-      )
-    }
-
-    return mc(
-      rng,
-      `A counter is at ${at(x, y)}. It moves ${dx} right and ${dy} up.\nWhere is it now?`,
-      at(x + dx, y + dy),
-      [at(x + dy, y + dx), at(x - dx, y + dy), at(x + dx, y - dy)],
-      { explanation: `Right adds ${dx} to the first number and up adds ${dy} to the second: ${at(x + dx, y + dy)}.` },
-    )
   },
 }
 
@@ -316,40 +473,84 @@ const edgeCount: SkillDef = {
     const cols = rng.int(2, cap)
     const glyph = rng.pick(GRID_GLYPHS)
     const visual = { kind: 'array', rows, cols, glyph } as const
-    const variant = difficulty <= 2 ? 1 : rng.int(1, 3)
+    const perimeter = 2 * (rows + cols)
 
-    if (variant === 2) {
-      const perimeter = 2 * (rows + cols)
-      const known = rng.chance(0.5) ? cols : rows
-      const other = known === cols ? rows : cols
-      return entry(
-        `A rectangle has a perimeter of ${perimeter} units and one side is ${known} units.\nHow long is the side next to it?`,
-        other,
-        {
-          maxDigits: 2,
-          explanation: `Half the perimeter is ${rows + cols}, and ${rows + cols} − ${known} = ${other}.`,
-        },
-      )
-    }
+    switch (rng.pick(['round', 'side', 'strip', 'check', 'compare', 'square'] as const)) {
+      case 'side': {
+        const known = rng.chance(0.5) ? cols : rows
+        const other = known === cols ? rows : cols
+        return entry(
+          `A rectangle has a perimeter of ${perimeter} units and one side is ${known} units.\nHow long is the side next to it?`,
+          other,
+          {
+            maxDigits: 2,
+            explanation: `Half the perimeter is ${rows + cols}, and ${rows + cols} − ${known} = ${other}.`,
+          },
+        )
+      }
 
-    if (variant === 3) {
-      const strip = rng.int(2, [4, 5, 6, 8, 10][difficulty - 1])
-      return entry(
-        `${strip} squares are joined in one straight line.\nHow many unit edges go all the way round the shape?`,
-        2 * strip + 2,
-        {
+      case 'strip': {
+        const strip = rng.int(2, [4, 5, 6, 8, 10][difficulty - 1])
+        return entry(
+          `${strip} squares are joined in one straight line.\nHow many unit edges go all the way round the shape?`,
+          2 * strip + 2,
+          {
+            maxDigits: 3,
+            explanation: `${strip} edges along the top, ${strip} along the bottom and 1 at each end: ${2 * strip + 2}.`,
+          },
+        )
+      }
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const claimed = ok ? perimeter : nearMiss(rng, perimeter, 2)
+        return tf(`Is the distance all the way round this rectangle ${claimed} units?`, ok, {
+          visual,
+          explanation: `${cols} + ${rows} + ${cols} + ${rows} = ${perimeter} edges.`,
+        })
+      }
+
+      // Bigger area, shorter fence — the confusion worth meeting head on.
+      case 'compare': {
+        let r2 = rng.int(2, cap + 1)
+        let c2 = rng.int(2, cap + 1)
+        let guard = 0
+        while (r2 + c2 === rows + cols && guard++ < 20) {
+          r2 = rng.int(2, cap + 1)
+          c2 = rng.int(2, cap + 1)
+        }
+        if (r2 + c2 === rows + cols) c2 += 1
+        const mine = `${rows} by ${cols}`
+        const other = `${r2} by ${c2}`
+        const mineWins = perimeter > 2 * (r2 + c2)
+        return mc(rng, 'Which rectangle has the longer distance all the way round?', mineWins ? mine : other, [
+          mineWins ? other : mine,
+        ], {
+          explanation: `${mine} measures ${perimeter} units round, and ${other} measures ${2 * (r2 + c2)}.`,
+        })
+      }
+
+      // Working back from the distance round to one side.
+      case 'square': {
+        const side = rng.int(2, cap + 2)
+        return entry(
+          `A square measures ${4 * side} units all the way round.\nHow long is one side?`,
+          side,
+          {
+            maxDigits: 2,
+            explanation: `A square has 4 equal sides, so ${4 * side} ÷ 4 = ${side}.`,
+          },
+        )
+      }
+
+      default:
+        return entry('How many unit edges go all the way round this rectangle?', perimeter, {
+          visual,
+          suffix: ' units',
           maxDigits: 3,
-          explanation: `${strip} edges along the top, ${strip} along the bottom and 1 at each end: ${2 * strip + 2}.`,
-        },
-      )
+          explanation: `${cols} + ${rows} + ${cols} + ${rows} = ${perimeter} edges.`,
+        })
     }
-
-    return entry('How many unit edges go all the way round this rectangle?', 2 * (rows + cols), {
-      visual,
-      suffix: ' units',
-      maxDigits: 3,
-      explanation: `${cols} + ${rows} + ${cols} + ${rows} = ${2 * (rows + cols)} edges.`,
-    })
   },
 }
 

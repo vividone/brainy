@@ -13,7 +13,7 @@
 
 import { numericDistractors } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc, person, tapMany, tf, thing } from '../../shared/authoring'
+import { entry, mc, person, plural, tapMany, tf, thing } from '../../shared/authoring'
 import { ordinalShort } from '../../shared/words'
 import { PATTERN_GLYPHS } from './figures'
 
@@ -433,7 +433,7 @@ const doubling: SkillDef = {
         const noun = thing(rng, locale)
         const days = rng.int(2, length - 1)
         return entry(
-          `${who} has ${start} ${noun.many}. Every day the number is multiplied by ${times}.\nHow many after ${days} days?`,
+          `${who} has ${plural(start, noun)}. Every day the number is multiplied by ${times}.\nHow many after ${days} days?`,
           climbing[days],
           {
             maxDigits: 4,
@@ -529,7 +529,7 @@ const twoStepRule: SkillDef = {
         return entry(`What is missing?\n${shown}`, terms[hole], {
           speak: `What is missing? ${terms.map((v, i) => (i === hole ? 'blank' : v)).join(', ')}`,
           maxDigits: 4,
-          explanation: `${whyNext} The whole pattern is ${terms.join(', ')}.`,
+          explanation: `${ruleLabel}. The whole pattern is ${terms.join(', ')}.`,
         })
       }
 
@@ -555,7 +555,7 @@ const twoStepRule: SkillDef = {
           `One number in this pattern is wrong.\nWhich one?\n${shown.join(', ')}`,
           `the ${ordinalShort(at + 1)} number`,
           [1, 2, 3, 4].filter((i) => i !== at).map((i) => `the ${ordinalShort(i + 1)} number`),
-          { explanation: `It should be ${terms[at]}, not ${shown[at]}. ${whyNext}` },
+          { explanation: `${ruleLabel}, so it should be ${terms[at]}, not ${shown[at]}.` },
         )
       }
 

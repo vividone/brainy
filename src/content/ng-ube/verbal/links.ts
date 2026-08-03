@@ -304,8 +304,8 @@ const KINDS: Definition['kind'][] = ['person', 'place', 'thing', 'group']
 const KIND_LABEL: Record<Definition['kind'], string> = {
   person: 'a person',
   place: 'a place',
-  thing: 'a thing you can hold or use',
-  group: 'a group of animals or people',
+  thing: 'a thing',
+  group: 'a group',
 }
 
 const definitions: SkillDef = {
@@ -359,7 +359,7 @@ const definitions: SkillDef = {
           ...wrong.map((d) => ({ value: d.word, correct: false })),
         ]
         return tapMany(rng, `Tap every word that names ${KIND_LABEL[kind]}`, options, {
-          explanation: `${right.map((d) => capitalise(d.word)).join(', ')} all name ${KIND_LABEL[kind]}.`,
+          explanation: `${capitalise(right.map((d) => d.word).join(', '))} all name ${KIND_LABEL[kind]}.`,
         })
       }
     }

@@ -6,9 +6,15 @@ import { mc, tapMany } from '../../shared/authoring'
 import {
   CONJUNCTION_CLOZE,
   CONJUNCTION_JOBS,
+  CONJUNCTION_SENSE,
+  CONJUNCTION_USES,
+  NOT_CONJUNCTIONS,
   PREPOSITION_PLACE_CLOZE,
   PREPOSITION_TIME_CLOZE,
+  SENSE_ASK,
+  SENSE_JOB,
   type Cloze,
+  type ConjunctionSense,
 } from './banks'
 import {
   ACTIONS,
@@ -448,10 +454,11 @@ const conjunctions: SkillDef = {
   yearBand: 'b4',
   prerequisites: ['ng.en.wordtypes.verbs'],
   concepts: ['conjunctions'],
-  hint: 'And, but, or, because and so are the words that glue two ideas together.',
+  hint: 'And, but, or, because, so and although are the words that glue two ideas together.',
   helpAtHome: 'Say half a sentence and let them finish it with "because…" or "but…".',
   generate: ({ rng, difficulty }): Item => {
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    const cap = difficulty <= 2 ? 1 : difficulty <= 3 ? 2 : 3
+    const variant = rng.int(1, difficulty <= 2 ? 4 : 6)
 
     if (variant === 1) return clozeItem(rng, CONJUNCTION_CLOZE, difficulty, 'Which joining word fits?')
 
@@ -462,16 +469,74 @@ const conjunctions: SkillDef = {
       })
     }
 
-    // Generated so the strand does not run out of sentences to inspect.
+    if (variant === 3) {
+      // Naming the job the gap has to do settles the answer even where a rival
+      // joining word would still make a grammatical sentence.
+      const pool = CONJUNCTION_SENSE.filter((x) => x.tier <= cap)
+      const pick = rng.pick(pool.length >= 4 ? pool : CONJUNCTION_SENSE)
+      return mc(
+        rng,
+        `The gap needs a word that ${SENSE_ASK[pick.sense]}.\n${pick.text}`,
+        pick.answer,
+        rng.shuffle(pick.wrong),
+        {
+          speak: `The gap needs a word that ${SENSE_ASK[pick.sense].toLowerCase()}. ${pick.text.replace('____', 'blank')}`,
+          explanation: `${pick.text.replace('____', pick.answer)} ${pick.why}`,
+        },
+      )
+    }
+
+    if (variant === 4) {
+      const pool = CONJUNCTION_USES.filter((x) => x.tier <= cap)
+      const pick = rng.pick(pool.length >= 4 ? pool : CONJUNCTION_USES)
+      const senses: ConjunctionSense[] = ['ADDITION', 'CONTRAST', 'REASON', 'RESULT', 'CHOICE']
+      return mc(
+        rng,
+        `What job does "${pick.word}" do here?\n${pick.text}`,
+        SENSE_JOB[pick.sense],
+        rng.sample(senses.filter((s) => s !== pick.sense), 3).map((s) => SENSE_JOB[s]),
+        { explanation: `${SENSE_JOB[pick.sense]}: ${pick.text}` },
+      )
+    }
+
+    if (variant === 5) {
+      const board = rng.shuffle([
+        ...rng.sample(['and', 'but', 'or', 'because', 'so', 'although'], 3).map((w) => ({ value: w, correct: true })),
+        ...rng.sample(NOT_CONJUNCTIONS, 3).map((w) => ({ value: w, correct: false })),
+      ])
+      return tapMany(rng, 'Tap every joining word', board, {
+        explanation: 'And, but, or, because, so and although are the words that glue two ideas together.',
+      })
+    }
+
+    // Finding the joining word inside a finished sentence. Half come from the
+    // hand-checked bank, half are generated so the strand never runs dry.
+    if (rng.chance(0.5)) {
+      const pool = CONJUNCTION_USES.filter((x) => x.tier <= cap)
+      const pick = rng.pick(pool.length >= 4 ? pool : CONJUNCTION_USES)
+      const tokens = [...new Set(pick.text.replace(/[.,?!]/g, '').split(' '))]
+      const others = rng.sample(tokens.filter((w) => w.toLowerCase() !== pick.word), 3)
+      return mc(rng, `Which word is the joining word?\n${pick.text}`, pick.word, others, {
+        explanation: `"${pick.word}" joins the two halves of the sentence.`,
+      })
+    }
+
     const name = rng.pick([...GIRLS, ...BOYS])
     const [a1, a2] = rng.sample(graded(ACTIONS, difficulty), 2)
-    const sentence = `${name} ${a1.past} the ${a1.objP} and ${a2.past} the ${a2.objP}.`
+    const useBut = rng.chance(0.5)
+    const sentence = useBut
+      ? `${name} ${a1.past} the ${a1.objP} but not the ${a2.objP}.`
+      : `${name} ${a1.past} the ${a1.objP} and ${a2.past} the ${a2.objP}.`
     return mc(
       rng,
       `Which word is the joining word?\n${sentence}`,
-      'and',
+      useBut ? 'but' : 'and',
       [name, a1.past, a2.objP],
-      { explanation: `"and" joins the two things ${name} did.` },
+      {
+        explanation: useBut
+          ? `"but" shows what ${name} did not do.`
+          : `"and" joins the two things ${name} did.`,
+      },
     )
   },
 }

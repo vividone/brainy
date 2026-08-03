@@ -36,13 +36,13 @@ export function graded<T extends { tier: Tier }>(list: readonly T[], difficulty:
  * ------------------------------------------------------------------ */
 
 export const GIRLS = [
-  'Ada', 'Amaka', 'Bisi', 'Ngozi', 'Halima', 'Funke', 'Zainab', 'Ifeoma', 'Chioma', 'Aisha',
+  'Helen', 'Amaka', 'Bisi', 'Ngozi', 'Halima', 'Funke', 'Zainab', 'Ifeoma', 'Chioma', 'Aisha',
   'Folake', 'Kemi', 'Nkechi', 'Hauwa', 'Adaeze', 'Fatima', 'Ebere', 'Sade', 'Maryam', 'Uduak',
 ]
 
 export const BOYS = [
   'Chidi', 'Tunde', 'Emeka', 'Segun', 'Musa', 'Obi', 'Kunle', 'Yusuf', 'Ibrahim', 'Femi',
-  'Bode', 'Sani', 'Chinedu', 'Nnamdi', 'Gbenga', 'Ifeanyi', 'Okon', 'Dele', 'Ekene', 'Bala',
+  'Bode', 'Sanni', 'Chinedu', 'Nnamdi', 'Gbenga', 'Ifeanyi', 'Okon', 'Dele', 'Ekene', 'Bala',
 ]
 
 export const PLACES = [

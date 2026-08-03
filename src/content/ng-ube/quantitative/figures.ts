@@ -11,10 +11,25 @@
  * spaces survive, so every bit of alignment here uses those.
  */
 
+import type { Rng } from '../../../engine/rng'
+
 /** Non-breaking space — the only space the prompt renderer will not collapse. */
 export const NB = '\u00A0'
 
 export const pad = (n: number): string => NB.repeat(Math.max(0, n))
+
+/**
+ * A believable wrong version of `n`, for "is this right?" questions.
+ *
+ * Off by a little, never zero (that would make the wrong answer right) and
+ * never negative, because a figure showing \u22121 announces itself as wrong
+ * before the child has done any thinking.
+ */
+export function nearMiss(rng: Rng, n: number, spread: 1 | 2 = 1): number {
+  const slips = spread === 1 ? [-2, -1, 1, 2] : [-3, -2, 2, 3]
+  const safe = slips.filter((s) => n + s >= 0)
+  return n + rng.pick(safe.length ? safe : [spread])
+}
 
 /** Roughly centre `s` in a field `width` wide. */
 export const centre = (s: string, width: number): string =>

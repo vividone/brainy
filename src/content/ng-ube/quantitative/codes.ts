@@ -8,7 +8,7 @@
  */
 
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc } from '../../shared/authoring'
+import { entry, mc, person, tapMany, tf } from '../../shared/authoring'
 import { pad, SYMBOLS } from './figures'
 
 const CODE_LETTERS = ['K', 'O', 'L', 'A', 'D', 'M', 'P', 'R', 'S', 'T']
@@ -159,7 +159,7 @@ const codeRule: SkillDef = {
   concepts: ['coding-decoding'],
   hint: 'Find what happened to the numbers you were given, then do the same thing.',
   helpAtHome: 'Invent a code — "every number goes up by 7" — and send each other short messages.',
-  generate: ({ rng, difficulty }): Item => {
+  generate: ({ rng, difficulty, locale }): Item => {
     const kind = difficulty <= 2 ? 1 : difficulty === 3 ? rng.int(1, 2) : rng.int(1, 3)
     const k = rng.int(2, [6, 9, 12, 9, 9][difficulty - 1])
     const extra = rng.int(1, [3, 4, 5, 8, 10][difficulty - 1])
@@ -169,7 +169,7 @@ const codeRule: SkillDef = {
 
     const shown = rng.sample(
       Array.from({ length: [10, 14, 16, 18, 20][difficulty - 1] }, (_, i) => i + 2),
-      3,
+      4,
     )
     const examples = shown
       .slice(0, 2)
@@ -177,19 +177,71 @@ const codeRule: SkillDef = {
       .join(', ')
     const target = shown[2]
 
-    // Decoding is the harder direction: you have to undo the rule, not run it.
-    if (difficulty >= 4 && rng.chance(0.45)) {
-      const coded = encode(target)
-      return entry(`In a code, ${examples}.\nWhich number is written as ${coded}?`, target, {
-        maxDigits: 4,
-        explanation: `The code is "${said}", so ${target} is written as ${coded}.`,
-      })
-    }
+    switch (rng.pick(['encode', 'decode', 'rule', 'check', 'tapCoded'] as const)) {
+      // Decoding is the harder direction: you have to undo the rule, not run it.
+      case 'decode': {
+        const coded = encode(target)
+        return entry(`In a code, ${examples}.\nWhich number is written as ${coded}?`, target, {
+          maxDigits: 4,
+          explanation: `The code is "${said}", so ${target} is written as ${coded}.`,
+        })
+      }
 
-    return entry(`In a code, ${examples}.\nHow is ${target} written?`, encode(target), {
-      maxDigits: 4,
-      explanation: `The code is "${said}": ${target} becomes ${encode(target)}.`,
-    })
+      // Say what the code does, rather than using it on one more number.
+      case 'rule': {
+        const cards: { card: string; f: (x: number) => number }[] = [
+          { card: `Add ${k}`, f: (x) => x + k },
+          { card: `Multiply by ${k}`, f: (x) => x * k },
+          { card: `Multiply by ${k}, then add ${extra}`, f: (x) => x * k + extra },
+          { card: `Add ${k + extra}`, f: (x) => x + k + extra },
+        ]
+        const right =
+          kind === 1 ? `Add ${k}` : kind === 2 ? `Multiply by ${k}` : `Multiply by ${k}, then add ${extra}`
+        const wrong = cards
+          .filter((c) => c.card !== right && shown.slice(0, 2).some((v) => c.f(v) !== encode(v)))
+          .map((c) => c.card)
+        return mc(rng, `In a code, ${examples}.\nWhat does the code do?`, right, wrong, {
+          explanation: `Every number is put through "${said}".`,
+        })
+      }
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const claimed = ok ? encode(target) : encode(target) + rng.pick([-2, -1, 1, 2])
+        return tf(`In a code, ${examples}.\nIs ${target} written as ${claimed}?`, ok, {
+          explanation: `The code is "${said}", so ${target} is written as ${encode(target)}.`,
+        })
+      }
+
+      // Sorting coded pairs is the same rule applied four times over.
+      case 'tapCoded': {
+        const flags = rng.shuffle([true, true, false, false])
+        return tapMany(
+          rng,
+          `The code is "${said}".\nTap every pair that is coded correctly.`,
+          shown.map((v, i) => ({
+            value: `${v} → ${flags[i] ? encode(v) : encode(v) + rng.pick([-2, -1, 1, 2])}`,
+            correct: flags[i],
+          })),
+          { explanation: `${shown.map((v) => `${v} → ${encode(v)}`).join(', ')}.` },
+        )
+      }
+
+      default: {
+        // A short wrapper makes the same code feel like a message, not a sum.
+        const who = person(rng, locale)
+        return entry(
+          rng.chance(0.35)
+            ? `${who} writes secret numbers. ${examples}.\nHow does ${who} write ${target}?`
+            : `In a code, ${examples}.\nHow is ${target} written?`,
+          encode(target),
+          {
+            maxDigits: 4,
+            explanation: `The code is "${said}": ${target} becomes ${encode(target)}.`,
+          },
+        )
+      }
+    }
   },
 }
 

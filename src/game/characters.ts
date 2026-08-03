@@ -48,15 +48,20 @@ const SKIN = {
 }
 
 export const CHARACTERS: CharacterDef[] = [
-  // Free starters — one per skin tone, so nobody has to pay to see themselves.
-  { id: 'char.ada', name: 'Ada', price: 0, skin: SKIN.deep, hair: '#1b1b1b', hairStyle: 'braids', outfit: '#8b5cf6', outfitTrim: '#6d28d9' },
-  { id: 'char.tunde', name: 'Tunde', price: 0, skin: SKIN.rich, hair: '#141414', hairStyle: 'fade', outfit: '#0ea5e9', outfitTrim: '#0369a1' },
-  { id: 'char.zainab', name: 'Zainab', price: 0, skin: SKIN.warm, hair: '#241a12', hairStyle: 'headscarf', outfit: '#14b8a6', outfitTrim: '#0f766e' },
-  { id: 'char.emeka', name: 'Emeka', price: 0, skin: SKIN.tan, hair: '#20160f', hairStyle: 'short', outfit: '#f59e0b', outfitTrim: '#b45309' },
-  { id: 'char.mia', name: 'Mia', price: 0, skin: SKIN.light, hair: '#6b3f1f', hairStyle: 'ponytail', outfit: '#f43f5e', outfitTrim: '#be123c' },
+  /*
+   * Starters are the price-0 entries. Keep at least one free character at the
+   * darker end of the range and one at the lighter end: the first screen a
+   * child sees should always contain someone who could be them, and the rest
+   * of the roster is what they play to earn.
+   */
+  { id: 'char.jaymin', name: 'Jaymin', price: 0, skin: SKIN.deep, hair: '#1b1b1b', hairStyle: 'braids', outfit: '#8b5cf6', outfitTrim: '#6d28d9' },
+  { id: 'char.jayden', name: 'Jayden', price: 0, skin: SKIN.tan, hair: '#20160f', hairStyle: 'short', outfit: '#f59e0b', outfitTrim: '#b45309' },
   { id: 'char.sam', name: 'Sam', price: 0, skin: SKIN.fair, hair: '#a16207', hairStyle: 'curls', outfit: '#65a30d', outfitTrim: '#3f6212' },
 
   // Collectible.
+  { id: 'char.tunde', name: 'Tunde', price: 50, skin: SKIN.rich, hair: '#141414', hairStyle: 'fade', outfit: '#0ea5e9', outfitTrim: '#0369a1' },
+  { id: 'char.zainab', name: 'Zainab', price: 50, skin: SKIN.warm, hair: '#241a12', hairStyle: 'headscarf', outfit: '#14b8a6', outfitTrim: '#0f766e' },
+   { id: 'char.mia', name: 'Mia', price: 50, skin: SKIN.light, hair: '#6b3f1f', hairStyle: 'ponytail', outfit: '#f43f5e', outfitTrim: '#be123c' },
   { id: 'char.amaka', name: 'Amaka', price: 120, skin: SKIN.deep, hair: '#2b1a10', hairStyle: 'afro', outfit: '#ec4899', outfitTrim: '#9d174d' },
   { id: 'char.kunle', name: 'Kunle', price: 120, skin: SKIN.rich, hair: '#111111', hairStyle: 'locs', outfit: '#6366f1', outfitTrim: '#3730a3' },
   { id: 'char.halima', name: 'Halima', price: 160, skin: SKIN.warm, hair: '#1b1b1b', hairStyle: 'headscarf', outfit: '#a855f7', outfitTrim: '#7e22ce' },

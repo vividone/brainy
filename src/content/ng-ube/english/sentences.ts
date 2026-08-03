@@ -53,6 +53,8 @@ function clozeItem(rng: Rng, bank: Cloze[], difficulty: number, prompt: string) 
  * Building a sentence
  * ------------------------------------------------------------------ */
 
+const upper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 const wordOrder: SkillDef = {
   id: 'ng.en.sentences.word-order',
   title: 'Build a sentence',
@@ -66,31 +68,90 @@ const wordOrder: SkillDef = {
     const adj = rng.pick(graded(THING_ADJECTIVES, difficulty)).word
     const adv = rng.pick(graded(SAFE_SENTENCE_ADVERBS, difficulty)).word
 
-    // At most one article per sentence: with both "a" and "the" on the board
-    // the child could build two equally correct orders.
-    const shapes: string[][] = [
-      [name, action.past, 'the', `${action.objS}.`],
-      ['The', action.objS, 'is', `${adj}.`],
-      [name, action.past, articleFor(adj), adj, `${action.objS}.`],
-    ]
-    if (difficulty >= 3) {
-      shapes.push([name, adv, action.past, 'the', `${action.objP}.`])
-    }
-    if (difficulty >= 4) {
-      shapes.push([name, adv, action.past, articleFor(adj), adj, `${action.objS}.`])
-    }
+    /** The one plain statement every other form is built from. */
+    const right = `${name} ${action.past} the ${action.objS}.`
+    const parts = [name, action.past, 'the', `${action.objS}.`]
 
-    const words = rng.pick(shapes)
-    // Repeated words would make two different tokens look identical.
-    if (new Set(words.map((w) => w.toLowerCase())).size !== words.length) {
-      return order(rng, 'Put the words in order to make a sentence', [name, action.past, 'the', `${action.objS}.`], {
-        explanation: `${name} ${action.past} the ${action.objS}.`,
+    const variant = rng.int(1, 6)
+
+    if (variant === 1) {
+      // At most one article per sentence: with both "a" and "the" on the board
+      // the child could build two equally correct orders.
+      const shapes: string[][] = [
+        parts,
+        ['The', action.objS, 'is', `${adj}.`],
+        [name, action.past, articleFor(adj), adj, `${action.objS}.`],
+      ]
+      if (difficulty >= 3) {
+        shapes.push([name, adv, action.past, 'the', `${action.objP}.`])
+      }
+      if (difficulty >= 4) {
+        shapes.push([name, adv, action.past, articleFor(adj), adj, `${action.objS}.`])
+      }
+
+      const words = rng.pick(shapes)
+      // Repeated words would make two different tokens look identical.
+      if (new Set(words.map((w) => w.toLowerCase())).size !== words.length) {
+        return order(rng, 'Put the words in order to make a sentence', parts, {
+          explanation: right,
+        })
+      }
+
+      return order(rng, 'Put the words in order to make a sentence', words, {
+        speak: 'Put the words in order to make a sentence. The capital letter goes first and the full stop goes last.',
+        explanation: `${words.join(' ')} — the capital letter starts it and the full stop ends it.`,
       })
     }
 
-    return order(rng, 'Put the words in order to make a sentence', words, {
-      speak: 'Put the words in order to make a sentence. The capital letter goes first and the full stop goes last.',
-      explanation: `${words.join(' ')} — the capital letter starts it and the full stop ends it.`,
+    if (variant === 2) {
+      const pool = QUESTION_ORDERS.filter((q) => q.tier <= capOf(difficulty))
+      const pick = rng.pick(pool.length >= 3 ? pool : QUESTION_ORDERS)
+      return order(rng, 'Put the words in order to make a question', pick.words, {
+        speak: 'Put the words in order to make a question. The capital letter goes first and the question mark goes last.',
+        explanation: `${pick.words.join(' ')} — the capital letter starts it and the question mark ends it.`,
+      })
+    }
+
+    if (variant === 3) {
+      // The wrong options are all impossible orders, never a second sentence
+      // that happens to work.
+      return mc(rng, 'Which sentence is in the right order?', right, [
+        `${upper(action.past)} ${name} the ${action.objS}.`,
+        `${name} the ${action.past} ${action.objS}.`,
+        `${upper(action.past)} the ${action.objS} ${name}.`,
+      ], {
+        explanation: `We say who did it, then what they did: ${right}`,
+      })
+    }
+
+    if (variant === 4) {
+      const correct = rng.chance(0.5)
+      const shown = correct ? right : `${upper(action.past)} ${name} the ${action.objS}.`
+      return tf(`Are these words in the right order?\n${shown}`, correct, {
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        speak: `Are these words in the right order? ${shown}`,
+        explanation: `The right order is "${right}"`,
+      })
+    }
+
+    const jumbled = rng.shuffle(parts.slice()).join(' · ')
+    const spoken = jumbled.replace(/ · /g, ', ')
+
+    if (variant === 5) {
+      return mc(rng, `Which word comes FIRST in this sentence?\n${jumbled}`, name, [
+        action.past, 'the', `${action.objS}.`,
+      ], {
+        speak: `Which word comes first in this sentence? ${spoken}`,
+        explanation: `"${name}" has the capital letter, so it starts the sentence.`,
+      })
+    }
+
+    return mc(rng, `Which word comes LAST in this sentence?\n${jumbled}`, `${action.objS}.`, [
+      name, action.past, 'the',
+    ], {
+      speak: `Which word comes last in this sentence? ${spoken}`,
+      explanation: `"${action.objS}." carries the full stop, so it ends the sentence.`,
     })
   },
 }

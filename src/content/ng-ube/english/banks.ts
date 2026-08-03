@@ -476,17 +476,23 @@ export interface Quote {
   speaker: string
   verb: string
   said: string
+  /**
+   * The mark that closes the spoken words, *inside* the speech marks. A
+   * question keeps its question mark there — "Where is my biro." would be
+   * plain wrong, however tidy it looks.
+   */
+  mark: '.' | '?' | '!'
   tier: Tier
 }
 
-const q = (speaker: string, verb: string, said: string, tier: Tier): Quote =>
-  ({ speaker, verb, said, tier })
+const q = (speaker: string, verb: string, said: string, tier: Tier, mark: '.' | '?' | '!' = '.'): Quote =>
+  ({ speaker, verb, said, mark, tier })
 
 export const QUOTES: Quote[] = [
   q('Ada', 'said', 'I am hungry', 1),
   q('Musa', 'shouted', 'Wait for me', 1),
   q('The teacher', 'said', 'Open your textbooks', 2),
-  q('Chidi', 'asked', 'Where is my biro', 2),
+  q('Chidi', 'asked', 'Where is my biro', 2, '?'),
   q('Ngozi', 'whispered', 'The baby is sleeping', 2),
   q('Mother', 'called', 'Come and eat', 1),
   q('Halima', 'said', 'I finished my homework', 2),
@@ -494,8 +500,10 @@ export const QUOTES: Quote[] = [
   q('Emeka', 'replied', 'I do not know', 2),
   q('Bisi', 'said', 'This mango is sweet', 1),
   q('Father', 'said', 'We are travelling to Enugu', 3),
-  q('Segun', 'asked', 'May I borrow your ruler', 3),
+  q('Segun', 'asked', 'May I borrow your ruler', 3, '?'),
   q('The nurse', 'said', 'Wash your hands', 2),
   q('Funke', 'laughed', 'That was very funny', 3),
   q('Yusuf', 'said', 'The gate is locked', 2),
+  q('Amaka', 'asked', 'When does the match start', 2, '?'),
+  q('The driver', 'asked', 'Where are you going', 3, '?'),
 ]

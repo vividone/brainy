@@ -248,7 +248,7 @@ const sameMeaning: SkillDef = {
     if (variant === 2) {
       const truth = rng.chance(0.5)
       const other = truth ? rng.pick(entry.same) : rng.pick(entry.wrong)
-      return tf(`"${entry.word}" and "${other}" mean the same.`, truth, {
+      return tf(`Do "${entry.word}" and "${other}" mean the same?`, truth, {
         trueLabel: 'Yes',
         falseLabel: 'No',
         explanation: truth
@@ -394,12 +394,12 @@ const oddOneOut: SkillDef = {
     if (variant === 4) {
       const truth = rng.chance(0.5)
       const word = truth ? rng.pick(target.members) : (outsiders(rng, target, tier, 1)[0] ?? 'stone')
-      return tf(`Is "${word}" one of the ${group}?`, truth, {
+      return tf(`Would you put "${word}" with the ${group}?`, truth, {
         trueLabel: 'Yes',
         falseLabel: 'No',
         explanation: truth
-          ? `Yes — "${word}" is one of the ${group}.`
-          : `No — "${word}" is not one of the ${group}.`,
+          ? `Yes — "${word}" belongs with the ${group}.`
+          : `No — "${word}" does not belong with the ${group}.`,
       })
     }
 
@@ -570,7 +570,7 @@ const generalWord: SkillDef = {
         falseLabel: 'No',
         explanation: truth
           ? `Yes — "${target.general}" is the word that covers "${word}" and the rest of the ${target.name.toLowerCase()}.`
-          : `No — "${word}" is not one of the ${target.name.toLowerCase()}.`,
+          : `No — "${word}" does not belong with the ${target.name.toLowerCase()}.`,
       })
     }
 

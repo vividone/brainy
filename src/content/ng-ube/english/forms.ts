@@ -2,7 +2,7 @@
 
 import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { mc, tapMany, thing } from '../../shared/authoring'
+import { mc, tapMany, tf, thing } from '../../shared/authoring'
 import {
   ALL_VERBS,
   BOYS,
@@ -106,6 +106,83 @@ function pluralInSentence(rng: Rng, word: NounWord, count: number, why: string) 
 }
 
 /* ------------------------------------------------------------------ *
+ * Plural question forms
+ *
+ * Six ways to ask the same rule. Asking "what is the plural of X?" two
+ * hundred times teaches a child to recognise the question, not the rule.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Wrong singulars: the plural left as it is, and the naive un-pluralisings a
+ * child produces when the rule is applied backwards ("leave" from "leaves").
+ */
+function singularWrongs(word: NounWord): string[] {
+  const out: string[] = []
+  const seen = new Set([word.s])
+  const add = (w: string) => {
+    if (!w || w.length < 2 || seen.has(w)) return
+    seen.add(w)
+    out.push(w)
+  }
+  add(word.p)
+  if (/ves$/.test(word.p)) add(word.p.replace(/ves$/, 've'))
+  // "glasss" is not a mistake anybody makes, so it is noise rather than a
+  // distractor.
+  if (!/s$/.test(word.s)) add(`${word.s}s`)
+  if (/s$/.test(word.p)) add(word.p.slice(0, -1))
+  add(`${word.p}s`)
+  return out
+}
+
+/** Going backwards is a different skill from going forwards, and it shows. */
+function singularQuestion(rng: Rng, word: NounWord, why: string) {
+  return mc(rng, `What is the singular of "${word.p}"?`, word.s, singularWrongs(word), {
+    speak: `What is the singular of ${word.p}?`,
+    explanation: `Two ${word.p}, one ${word.s}. ${why}`,
+  })
+}
+
+/** Spotting somebody else's mistake is the skill a marker actually needs. */
+function wrongPluralHunt(rng: Rng, pool: NounWord[], why: string) {
+  const [bad, ...rest] = rng.sample(pool, 4)
+  const spelling = pluralWrongs(bad)[0] ?? `${bad.s}s`
+  return mc(rng, 'Which plural is spelt wrongly?', spelling, rest.map((w) => w.p), {
+    explanation: `"${spelling}" is wrong — the plural of "${bad.s}" is "${bad.p}". ${why}`,
+  })
+}
+
+/** Naming the rule, rather than applying it. */
+const PLURAL_RULE = {
+  es: 'It ends in s, x, ch or sh, so we add -es.',
+  o: 'It ends in o, so we add -es.',
+  ies: 'There is a consonant before the y, so the y becomes -ies.',
+  ys: 'There is a vowel before the y, so the y stays and we only add -s.',
+  ves: 'The f or fe changes to v before we add -es.',
+  odd: 'It changes its spelling completely, so it has to be remembered.',
+} as const
+
+type PluralRuleKey = keyof typeof PLURAL_RULE
+
+function ruleQuestion(rng: Rng, word: NounWord, key: PluralRuleKey, others: PluralRuleKey[]) {
+  return mc(
+    rng,
+    `Why does "${word.s}" become "${word.p}"?`,
+    PLURAL_RULE[key],
+    others.filter((k) => k !== key).map((k) => PLURAL_RULE[k]),
+    { explanation: `${word.s} → ${word.p}. ${PLURAL_RULE[key]}` },
+  )
+}
+
+/** True or false, which forces a judgement instead of a comparison. */
+function pluralTrueFalse(rng: Rng, word: NounWord) {
+  const truth = rng.chance(0.5)
+  const shown = truth ? word.p : (pluralWrongs(word)[0] ?? `${word.s}s`)
+  return tf(`The plural of "${word.s}" is "${shown}".`, truth, {
+    explanation: `The plural of "${word.s}" is "${word.p}".`,
+  })
+}
+
+/* ------------------------------------------------------------------ *
  * Plurals
  * ------------------------------------------------------------------ */
 
@@ -157,22 +234,64 @@ const pluralEs: SkillDef = {
   hint: 'After s, x, ch or sh add -es. After a consonant + y, change the y to -ies.',
   helpAtHome: 'Write bus, box, church and baby, then ask for the plural of each out loud.',
   generate: ({ rng, difficulty }): Item => {
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 4)
+    /** Which of the three -es-family rules this word follows. */
+    const ruleOf = (w: NounWord): PluralRuleKey =>
+      /(?:s|x|z|ch|sh)$/.test(w.s) ? 'es' : /o$/.test(w.s) ? 'o' : /[aeiou]y$/.test(w.s) ? 'ys' : 'ies'
+
+    const es = graded(ES_NOUNS, difficulty)
+    const ies = graded(IES_NOUNS, difficulty)
+    const ys = graded(YS_NOUNS, difficulty)
+    // The whole point of this skill is the contrast, so most forms draw from
+    // all three families at once and the y-trap stays live.
+    const mixed = [...es, ...ies, ...ys]
+    const variant = rng.int(1, 7)
 
     if (variant === 1) {
-      return pluralQuestion(rng, rng.pick(graded(ES_NOUNS, difficulty)), 'Words ending in s, x, z, ch or sh add -es.')
-    }
-    if (variant === 2) {
-      return pluralQuestion(rng, rng.pick(graded(IES_NOUNS, difficulty)), 'A consonant before the y turns the y into -ies.')
-    }
-    if (variant === 3) {
-      // The trap: a vowel before the y keeps the y and only adds s.
-      return pluralQuestion(rng, rng.pick(graded(YS_NOUNS, difficulty)), 'A vowel before the y means the y stays and we only add s.')
+      const bank = rng.pick([es, ies, ys])
+      const word = rng.pick(bank)
+      return pluralQuestion(
+        rng,
+        word,
+        bank === es ? 'Words ending in s, x, z, ch or sh add -es.'
+          : bank === ies ? 'A consonant before the y turns the y into -ies.'
+            : 'A vowel before the y means the y stays and we only add s.',
+      )
     }
 
+    if (variant === 2) {
+      return pluralInSentence(rng, rng.pick(mixed), rng.int(2, 9), 'Look at the letter before the ending.')
+    }
+
+    if (variant === 3) {
+      // Going backwards: "babies" → "baby", not "babie".
+      const word = rng.pick([...es, ...ies])
+      return singularQuestion(
+        rng,
+        word,
+        /(?:ies)$/.test(word.p)
+          ? 'The -ies goes back to a single y.'
+          : 'Take the whole -es off, not just the s.',
+      )
+    }
+
+    if (variant === 4) {
+      return wrongPluralHunt(rng, mixed, 'Check the letter just before the ending.')
+    }
+
+    if (variant === 5) {
+      const word = rng.pick(mixed)
+      return ruleQuestion(rng, word, ruleOf(word), ['es', 'o', 'ies', 'ys'])
+    }
+
+    if (variant === 6) {
+      return pluralTrueFalse(rng, rng.pick(mixed))
+    }
+
+    // "mattress" also takes -es, so it cannot sit on the not-es side of the board.
+    const plainS = graded(REGULAR_NOUNS, difficulty).filter((w) => !/(?:s|x|z|ch|sh|o)$/.test(w.s))
     const board = rng.shuffle([
-      ...rng.sample(graded(ES_NOUNS, difficulty), 3).map((w) => ({ value: w.s, correct: true })),
-      ...rng.sample(graded(REGULAR_NOUNS, difficulty), 3).map((w) => ({ value: w.s, correct: false })),
+      ...rng.sample(es, 3).map((w) => ({ value: w.s, correct: true })),
+      ...rng.sample(plainS, 3).map((w) => ({ value: w.s, correct: false })),
     ])
     return tapMany(rng, 'Tap every word that adds -es to make its plural', board, {
       explanation: 'Only words ending in s, x, z, ch or sh need -es.',
@@ -189,16 +308,25 @@ const pluralIrregular: SkillDef = {
   hint: 'Some words change completely: man becomes men. A few do not change at all.',
   helpAtHome: 'Chant the odd ones on the way to school: man/men, foot/feet, child/children.',
   generate: ({ rng, difficulty }): Item => {
-    const variant = rng.int(1, difficulty <= 2 ? 3 : 4)
+    const odd = graded(IRREGULAR_NOUNS, difficulty)
+    const ves = graded(VES_NOUNS, difficulty)
+    const mixed = [...odd, ...ves]
+    // sheep and deer look identical either way, so they cannot answer a
+    // "what is the singular?" or a "why does it change?" question.
+    const changes = mixed.filter((w) => w.s !== w.p)
+    const variant = rng.int(1, 7)
 
     if (variant === 1) {
-      return pluralQuestion(rng, rng.pick(graded(IRREGULAR_NOUNS, difficulty)), 'This one breaks the rule and has to be remembered.')
+      const useVes = rng.chance(0.5)
+      return pluralQuestion(
+        rng,
+        rng.pick(useVes ? ves : odd),
+        useVes ? 'The f changes to v before we add -es.' : 'This one breaks the rule and has to be remembered.',
+      )
     }
+
     if (variant === 2) {
-      return pluralQuestion(rng, rng.pick(graded(VES_NOUNS, difficulty)), 'The f changes to v before we add -es.')
-    }
-    if (variant === 3) {
-      const word = rng.pick(graded([...IRREGULAR_NOUNS, ...VES_NOUNS], difficulty))
+      const word = rng.pick(mixed)
       const count = rng.int(2, 9)
       const name = someone(rng)
       return mc(rng, `Which word fits?\n${name} counted ${count} ____.`, word.p, pluralWrongs(word), {
@@ -207,8 +335,32 @@ const pluralIrregular: SkillDef = {
       })
     }
 
+    if (variant === 3) {
+      const word = rng.pick(changes)
+      return singularQuestion(
+        rng,
+        word,
+        /ves$/.test(word.p)
+          ? 'Going backwards, the v turns into an f or fe again.'
+          : 'These words change shape completely, so the singular has to be remembered too.',
+      )
+    }
+
+    if (variant === 4) {
+      return wrongPluralHunt(rng, mixed, 'These plurals cannot be built by adding s.')
+    }
+
+    if (variant === 5) {
+      const word = rng.pick(changes)
+      return ruleQuestion(rng, word, /ves$/.test(word.p) ? 'ves' : 'odd', ['ves', 'odd', 'es', 'ies'])
+    }
+
+    if (variant === 6) {
+      return pluralTrueFalse(rng, rng.pick(mixed))
+    }
+
     const board = rng.shuffle([
-      ...rng.sample(graded(IRREGULAR_NOUNS, difficulty), 3).map((w) => ({ value: w.s, correct: true })),
+      ...rng.sample(odd, 3).map((w) => ({ value: w.s, correct: true })),
       ...rng.sample(graded(REGULAR_NOUNS, difficulty), 3).map((w) => ({ value: w.s, correct: false })),
     ])
     return tapMany(rng, 'Tap every word with a TRICKY plural (not just + s or -es)', board, {
@@ -220,6 +372,56 @@ const pluralIrregular: SkillDef = {
 /* ------------------------------------------------------------------ *
  * Tenses
  * ------------------------------------------------------------------ */
+
+/** The last word of a complement, which is always a noun worth offering. */
+const tailOf = (obj: string) => obj.split(' ').slice(-1)[0]
+
+/**
+ * "One word here is in the wrong tense — which?"
+ *
+ * A completely different job from producing the right form, and the one a
+ * child has to do when checking their own writing. Asking about *tense*
+ * rather than about correctness keeps the answer single: the verb is the only
+ * word in the sentence that has one.
+ */
+function spotWrongVerb(rng: Rng, name: string, when: string, bad: string, obj: string, right: string) {
+  return mc(rng, `Which word is in the wrong tense?\n${when} ${name} ${bad} ${obj}.`, bad, [
+    name, when, tailOf(obj),
+  ], {
+    speak: `Which word is in the wrong tense? ${when} ${name} ${bad} ${obj}.`,
+    explanation: `"${when}" is finished, so it must be "${right}", not "${bad}".`,
+  })
+}
+
+/** Yes or no on a whole sentence, rather than a choice between four forms. */
+function judgeSentence(rng: Rng, name: string, when: string, verb: VerbWord, obj: string, wrongForm: string) {
+  const correct = rng.chance(0.5)
+  const shown = correct ? verb.past : wrongForm
+  return tf(`Is this sentence correct?\n${when} ${name} ${shown} ${obj}.`, correct, {
+    trueLabel: 'Yes',
+    falseLabel: 'No',
+    speak: `Is this sentence correct? ${when} ${name} ${shown} ${obj}.`,
+    explanation: `The past tense of "${verb.base}" is "${verb.past}".`,
+  })
+}
+
+/** How the spelling changes before -ed. Four rules, and they never overlap. */
+const ED_RULE = {
+  plain: 'We just add -ed to the end.',
+  e: 'It already ends in e, so we add only -d.',
+  y: 'The y changes to i before we add -ed.',
+  double: 'The last letter is doubled before we add -ed.',
+} as const
+
+type EdRuleKey = keyof typeof ED_RULE
+
+function edRuleOf(verb: VerbWord): EdRuleKey | null {
+  if (verb.past === `${verb.base}ed`) return 'plain'
+  if (/e$/.test(verb.base) && verb.past === `${verb.base}d`) return 'e'
+  if (verb.past === `${verb.base.slice(0, -1)}ied`) return 'y'
+  if (verb.past === `${verb.base}${verb.base.slice(-1)}ed`) return 'double'
+  return null
+}
 
 const presentTense: SkillDef = {
   id: 'ng.en.forms.present-tense',
@@ -269,10 +471,11 @@ const pastRegular: SkillDef = {
   helpAtHome: 'At bedtime ask "what did you do today?" and listen for the -ed endings.',
   generate: ({ rng, difficulty }): Item => {
     const { verb, obj } = rng.pick(gradedFrames(REGULAR_FRAMES, difficulty))
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    const name = someone(rng)
+    const when = rng.pick(['Yesterday', 'Last week', 'Last Saturday', 'This morning'])
+    const variant = rng.int(1, difficulty <= 2 ? 4 : 6)
 
     if (variant === 1) {
-      const name = someone(rng)
       return mc(rng, `Which word fits?\nYesterday ${name} ____ ${obj}.`, verb.past, [
         verb.base, verb.s, verb.ing,
       ], {
@@ -290,6 +493,31 @@ const pastRegular: SkillDef = {
             ? `Just add -ed: ${verb.base} → ${verb.past}.`
             : `${verb.base} → ${verb.past}. The spelling changes a little before -ed.`,
       })
+    }
+
+    // The mistake a child writes is the plain verb left in a past sentence.
+    if (variant === 3) return spotWrongVerb(rng, name, when, verb.base, obj, verb.past)
+
+    if (variant === 4) {
+      // "walked" already *is* base + ed, so the wrong form has to be the plain
+      // verb instead, or the false half of the question would be true. Verbs
+      // ending in e get the same treatment: nobody writes "tasteed".
+      const wrongForm =
+        verb.past === `${verb.base}ed` || /e$/.test(verb.base) ? verb.base : `${verb.base}ed`
+      return judgeSentence(rng, name, when, verb, obj, wrongForm)
+    }
+
+    if (variant === 5) {
+      const key = edRuleOf(verb)
+      if (key) {
+        return mc(
+          rng,
+          `Why does "${verb.base}" become "${verb.past}"?`,
+          ED_RULE[key],
+          (Object.keys(ED_RULE) as EdRuleKey[]).filter((k) => k !== key).map((k) => ED_RULE[k]),
+          { explanation: `${verb.base} → ${verb.past}. ${ED_RULE[key]}` },
+        )
+      }
     }
 
     const board = rng.shuffle([
@@ -313,7 +541,10 @@ const pastIrregular: SkillDef = {
   generate: ({ rng, difficulty }): Item => {
     const { verb, obj } = rng.pick(gradedFrames(IRREGULAR_FRAMES, difficulty))
     const wrongs = [...(verb.wrong ?? []), verb.base, verb.ing]
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    const madeUp = (verb.wrong ?? [])[0] ?? `${verb.base}ed`
+    const name = someone(rng)
+    const when = rng.pick(['Last week', 'Yesterday', 'Last Saturday', 'This morning'])
+    const variant = rng.int(1, difficulty <= 2 ? 4 : 6)
 
     if (variant === 1) {
       return mc(rng, `What is the past tense of "${verb.base}"?`, verb.past, rng.shuffle(wrongs), {
@@ -322,11 +553,26 @@ const pastIrregular: SkillDef = {
     }
 
     if (variant === 2) {
-      const name = someone(rng)
-      const when = rng.pick(['Last week', 'Yesterday', 'Last Saturday', 'This morning'])
       return mc(rng, `Which word fits?\n${when} ${name} ____ ${obj}.`, verb.past, rng.shuffle(wrongs), {
         speak: `Which word fits? ${when} ${name} blank ${obj}.`,
-        explanation: `"${when}" is finished, so we say "${verb.past}", not "${(verb.wrong ?? [])[0] ?? `${verb.base}ed`}".`,
+        explanation: `"${when}" is finished, so we say "${verb.past}", not "${madeUp}".`,
+      })
+    }
+
+    // The made-up form is what a child actually writes, so it is what they
+    // have to learn to catch.
+    if (variant === 3) return spotWrongVerb(rng, name, when, madeUp, obj, verb.past)
+
+    if (variant === 4) return judgeSentence(rng, name, when, verb, obj, madeUp)
+
+    if (variant === 5) {
+      // Backwards: given the past form, name the verb it came from.
+      const others = rng.sample(
+        graded(IRREGULAR_VERBS, difficulty).filter((v) => v.base !== verb.base && v.past !== verb.past),
+        3,
+      )
+      return mc(rng, `Which verb does "${verb.past}" come from?`, verb.base, others.map((v) => v.base), {
+        explanation: `${verb.base} → ${verb.past}.`,
       })
     }
 
@@ -597,8 +843,9 @@ const prefixes: SkillDef = {
   hint: 'A prefix goes at the front and changes the meaning. "Un-" and "dis-" usually mean not.',
   helpAtHome: 'Say a word and ask for its "un-" version: happy/unhappy, tidy/untidy, lock/unlock.',
   generate: ({ rng, difficulty }): Item => {
-    const word = rng.pick(graded(PREFIX_WORDS, difficulty))
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    const pool = graded(PREFIX_WORDS, difficulty)
+    const word = rng.pick(pool)
+    const variant = rng.int(1, difficulty <= 2 ? 3 : 5)
 
     if (variant === 1) {
       return mc(rng, `Which word means "${word.gloss}"?`, word.built, rng.shuffle(affixWrongs(word, true)), {
@@ -616,9 +863,26 @@ const prefixes: SkillDef = {
       )
     }
 
-    const meaning = rng.pick(PREFIX_MEANINGS)
-    return mc(rng, `Which prefix means "${meaning.meaning}"?`, meaning.affix, rng.shuffle(meaning.wrong), {
-      explanation: `"${meaning.affix}" means ${meaning.meaning}.`,
+    if (variant === 3) {
+      const meaning = rng.pick(PREFIX_MEANINGS)
+      return mc(rng, `Which prefix means "${meaning.meaning}"?`, meaning.affix, rng.shuffle(meaning.wrong), {
+        explanation: `"${meaning.affix}" means ${meaning.meaning}.`,
+      })
+    }
+
+    // Reading the built word instead of building it.
+    if (variant === 4) {
+      const others = rng.sample(pool.filter((w) => w.gloss !== word.gloss), 3)
+      return mc(rng, `What does "${word.built}" mean?`, word.gloss, others.map((w) => w.gloss), {
+        explanation: `${word.built} is ${word.affix}- + ${word.root}, so it means ${word.gloss}.`,
+      })
+    }
+
+    const stranger = rng.pick(pool.filter((w) => w.root !== word.root))
+    return mc(rng, `What is the root word inside "${word.built}"?`, word.root, [
+      word.built, `${word.affix}-`, stranger.root,
+    ], {
+      explanation: `Take the prefix ${word.affix}- off "${word.built}" and "${word.root}" is left.`,
     })
   },
 }
@@ -632,8 +896,9 @@ const suffixes: SkillDef = {
   hint: 'A suffix goes on the end. "-ful" means full of; "-less" means without.',
   helpAtHome: 'Take a root like "care" and build every word you can: careful, careless, carer.',
   generate: ({ rng, difficulty }): Item => {
-    const word = rng.pick(graded(SUFFIX_WORDS, difficulty))
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    const pool = graded(SUFFIX_WORDS, difficulty)
+    const word = rng.pick(pool)
+    const variant = rng.int(1, difficulty <= 2 ? 3 : 5)
 
     if (variant === 1) {
       return mc(rng, `Which word means "${word.gloss}"?`, word.built, rng.shuffle(affixWrongs(word, false)), {
@@ -651,14 +916,30 @@ const suffixes: SkillDef = {
       )
     }
 
-    const meaning = rng.pick(SUFFIX_MEANINGS)
-    return mc(
-      rng,
-      `What does the ending "${meaning.affix}" mean?`,
-      meaning.meaning,
-      SUFFIX_MEANINGS.filter((m) => m.affix !== meaning.affix).map((m) => m.meaning),
-      { explanation: `"${meaning.affix}" means ${meaning.meaning}.` },
-    )
+    if (variant === 3) {
+      const meaning = rng.pick(SUFFIX_MEANINGS)
+      return mc(
+        rng,
+        `What does the ending "${meaning.affix}" mean?`,
+        meaning.meaning,
+        SUFFIX_MEANINGS.filter((m) => m.affix !== meaning.affix).map((m) => m.meaning),
+        { explanation: `"${meaning.affix}" means ${meaning.meaning}.` },
+      )
+    }
+
+    if (variant === 4) {
+      const others = rng.sample(pool.filter((w) => w.gloss !== word.gloss), 3)
+      return mc(rng, `What does "${word.built}" mean?`, word.gloss, others.map((w) => w.gloss), {
+        explanation: `${word.built} is ${word.root} + -${word.affix}, so it means ${word.gloss}.`,
+      })
+    }
+
+    const stranger = rng.pick(pool.filter((w) => w.root !== word.root))
+    return mc(rng, `What is the root word inside "${word.built}"?`, word.root, [
+      word.built, `-${word.affix}`, stranger.root,
+    ], {
+      explanation: `"${word.built}" is built from the root word "${word.root}" plus the ending -${word.affix}.`,
+    })
   },
 }
 

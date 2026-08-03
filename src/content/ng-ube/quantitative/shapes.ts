@@ -8,8 +8,15 @@
  */
 
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry } from '../../shared/authoring'
-import { GRID_GLYPHS, pad, pyramidFigure, squareFigure, triangleFigure } from './figures'
+import { entry, mc, tapMany, tf } from '../../shared/authoring'
+import {
+  GRID_GLYPHS,
+  nearMiss,
+  pad,
+  pyramidFigure,
+  squareFigure,
+  triangleFigure,
+} from './figures'
 
 const circlePairs: SkillDef = {
   id: 'ng.qr.shapes.circle-pairs',
@@ -23,21 +30,73 @@ const circlePairs: SkillDef = {
     const cap = [5, 9, 12, 20, 30][difficulty - 1]
     const a = rng.int(1, cap)
     const b = rng.int(1, cap)
-
-    if (difficulty <= 3 || rng.chance(0.5)) {
-      return entry(`Add the two outside numbers.\n(${a})${pad(4)}( ? )${pad(4)}(${b})`, a + b, {
-        speak: `Add the two outside numbers, ${a} and ${b}. What goes in the middle?`,
-        maxDigits: 3,
-        explanation: `${a} + ${b} = ${a + b}`,
-      })
-    }
-
     const total = a + b
-    return entry(`The middle is the outside numbers added.\n(${a})${pad(3)}(${total})${pad(3)}( ? )`, b, {
-      speak: `The middle is the outside numbers added. One outside number is ${a} and the middle is ${total}. What is the other outside number?`,
-      maxDigits: 3,
-      explanation: `${total} − ${a} = ${b}`,
-    })
+
+    switch (rng.pick(['add', 'outside', 'check', 'whichPair', 'tapPair'] as const)) {
+      // The same ring read backwards: the middle is known, an end is not.
+      case 'outside':
+        return entry(`The middle is the outside numbers added.\n(${a})${pad(3)}(${total})${pad(3)}( ? )`, b, {
+          speak: `The middle is the outside numbers added. One outside number is ${a} and the middle is ${total}. What is the other outside number?`,
+          maxDigits: 3,
+          explanation: `${total} − ${a} = ${b}`,
+        })
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const middle = ok ? total : nearMiss(rng, total)
+        return tf(
+          `The middle is the two outside numbers added.\nIs this ring right?\n(${a})${pad(3)}(${middle})${pad(3)}(${b})`,
+          ok,
+          {
+            speak: `The middle is the two outside numbers added. The ends are ${a} and ${b}, and the middle says ${middle}. Is that right?`,
+            explanation: `${a} + ${b} = ${total}.`,
+          },
+        )
+      }
+
+      // Given the middle, choose the ends — number bonds, the other way round.
+      case 'whichPair': {
+        const sums = rng
+          .shuffle([total - 3, total - 2, total - 1, total + 1, total + 2, total + 3])
+          .filter((s) => s >= 2)
+          .slice(0, 3)
+        const split = (s: number) => {
+          const x = rng.int(1, s - 1)
+          return `${x} and ${s - x}`
+        }
+        return mc(rng, `The middle number is ${total}.\nWhich two outside numbers make it?`, `${a} and ${b}`, sums.map(split), {
+          explanation: `${a} + ${b} = ${total}.`,
+        })
+      }
+
+      case 'tapPair': {
+        // Two identical cards would both be right, so the ends must differ here.
+        const end = b === a ? (a < cap ? a + 1 : a - 1) : b
+        const sum = a + end
+        const pool = Array.from({ length: cap * 2 }, (_, i) => i + 1).filter((v) => v !== a && v !== end)
+        const [c, d0] = rng.sample(pool, 2)
+        // No second pair may also make the middle, or three answers would be right.
+        const d = c + d0 === sum ? (pool.find((v) => v !== c && v !== d0 && c + v !== sum) ?? d0) : d0
+        return tapMany(
+          rng,
+          `The middle must be ${sum}.\nTap the two outside numbers that make it.`,
+          [
+            { value: a, correct: true },
+            { value: end, correct: true },
+            { value: c, correct: false },
+            { value: d, correct: false },
+          ],
+          { explanation: `${a} + ${end} = ${sum}.` },
+        )
+      }
+
+      default:
+        return entry(`Add the two outside numbers.\n(${a})${pad(4)}( ? )${pad(4)}(${b})`, total, {
+          speak: `Add the two outside numbers, ${a} and ${b}. What goes in the middle?`,
+          maxDigits: 3,
+          explanation: `${a} + ${b} = ${total}`,
+        })
+    }
   },
 }
 
@@ -137,14 +196,15 @@ const squareCorners: SkillDef = {
     const cap = rule === 3 ? 9 : [6, 9, 12, 15, 20][difficulty - 1]
 
     /** Corners are top-left, top-right, bottom-left, bottom-right. */
-    const quad = (): [number, number, number, number] => {
+    type Quad = [number, number, number, number]
+    const quad = (): Quad => {
       let [a, b, c, d] = [rng.int(1, cap), rng.int(1, cap), rng.int(1, cap), rng.int(1, cap)]
       // Keep the answer non-negative by putting the bigger diagonal first.
       if (rule === 2 && a + d < b + c) [a, b, c, d] = [b, a, d, c]
       if (rule === 3 && a * d < b * c) [a, b, c, d] = [b, a, d, c]
       return [a, b, c, d]
     }
-    const apply = ([a, b, c, d]: [number, number, number, number]): number =>
+    const apply = ([a, b, c, d]: Quad): number =>
       rule === 1 ? a + b + c + d : rule === 2 ? a + d - (b + c) : a * d - b * c
 
     const puzzle = quad()
@@ -152,26 +212,99 @@ const squareCorners: SkillDef = {
     const [pa, pb, pc, pd] = puzzle
     const say = `The last square has ${pa} and ${pb} on top and ${pc} and ${pd} underneath. What goes in the middle?`
 
-    if (rule === 1) {
-      return entry(`Add all four corners.\n${squareFigure(pa, pb, pc, pd, '?')}`, answer, {
-        speak: `Add all four corners: ${pa}, ${pb}, ${pc} and ${pd}.`,
-        maxDigits: 4,
-        explanation: `${pa} + ${pb} + ${pc} + ${pd} = ${answer}`,
-      })
-    }
-
-    const e1 = quad()
-    const e2 = quad()
+    const words =
+      rule === 1
+        ? 'the four corners added together'
+        : rule === 2
+          ? 'one diagonal added, then the other diagonal taken away'
+          : 'the diagonals multiplied, then one taken from the other'
+    const card =
+      rule === 1
+        ? 'Add all four corners'
+        : rule === 2
+          ? 'Add one diagonal, take away the other'
+          : 'Multiply each diagonal, then subtract'
     const workings =
-      rule === 2
-        ? `Add one diagonal, then take away the other: ${pa} + ${pd} − (${pb} + ${pc}) = ${answer}.`
-        : `Multiply each diagonal, then subtract: ${pa} × ${pd} − ${pb} × ${pc} = ${answer}.`
+      rule === 1
+        ? `${pa} + ${pb} + ${pc} + ${pd} = ${answer}`
+        : rule === 2
+          ? `Add one diagonal, then take away the other: ${pa} + ${pd} − (${pb} + ${pc}) = ${answer}.`
+          : `Multiply each diagonal, then subtract: ${pa} × ${pd} − ${pb} × ${pc} = ${answer}.`
 
-    return entry(
-      `Find the rule, then fill the ?.\n${squareFigure(...e1, apply(e1))}\n${squareFigure(...e2, apply(e2))}\n${squareFigure(pa, pb, pc, pd, '?')}`,
-      answer,
-      { speak: say, maxDigits: 4, explanation: workings },
-    )
+    // Undoing the diagonal-product rule needs division, which is a different
+    // (and much harder) skill, so the missing-corner form skips that rule.
+    const forms = rule === 3 ? (['apply', 'check', 'name'] as const) : (['apply', 'missing', 'check', 'name'] as const)
+
+    switch (rng.pick(forms)) {
+      // The rule is given and the middle is filled in — one corner is not.
+      case 'missing': {
+        const at = rng.int(0, 3)
+        const shown = puzzle.map((v, i) => (i === at ? '?' : String(v)))
+        return entry(
+          `The middle is ${words}.\nWhich corner is missing?\n${squareFigure(shown[0], shown[1], shown[2], shown[3], answer)}`,
+          puzzle[at],
+          {
+            speak: `The middle of this square is ${words}. The middle is ${answer}. One corner is missing. What is it?`,
+            maxDigits: 3,
+            explanation:
+              rule === 1
+                ? `${answer} − ${puzzle.filter((_, i) => i !== at).join(' − ')} = ${puzzle[at]}`
+                : `${workings} The missing corner is ${puzzle[at]}.`,
+          },
+        )
+      }
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const middle = ok ? answer : nearMiss(rng, answer, 2)
+        return tf(
+          `The middle is ${words}.\nIs this square right?\n${squareFigure(pa, pb, pc, pd, middle)}`,
+          ok,
+          { speak: `${say.replace('What goes in the middle?', `The middle says ${middle}. Is that right?`)}`, explanation: workings },
+        )
+      }
+
+      // Naming the rule from two finished squares, rather than using it.
+      case 'name': {
+        const e1 = quad()
+        const e2 = quad()
+        const candidates: { card: string; f: (q: Quad) => number }[] = [
+          { card: 'Add all four corners', f: ([a, b, c, d]) => a + b + c + d },
+          { card: 'Add one diagonal, take away the other', f: ([a, b, c, d]) => a + d - (b + c) },
+          { card: 'Multiply each diagonal, then subtract', f: ([a, b, c, d]) => a * d - b * c },
+          { card: 'Add the top two, take away the bottom two', f: ([a, b, c, d]) => a + b - (c + d) },
+        ]
+        const wrong = candidates
+          .filter((x) => x.card !== card && [e1, e2].some((q) => x.f(q) !== apply(q)))
+          .map((x) => x.card)
+
+        return mc(
+          rng,
+          `What is the rule for these squares?\n${squareFigure(...e1, apply(e1))}\n${squareFigure(...e2, apply(e2))}`,
+          card,
+          wrong,
+          { explanation: `In both squares the middle is ${words}.` },
+        )
+      }
+
+      default: {
+        if (rule === 1) {
+          return entry(`Add all four corners.\n${squareFigure(pa, pb, pc, pd, '?')}`, answer, {
+            speak: `Add all four corners: ${pa}, ${pb}, ${pc} and ${pd}.`,
+            maxDigits: 4,
+            explanation: workings,
+          })
+        }
+
+        const e1 = quad()
+        const e2 = quad()
+        return entry(
+          `Find the rule, then fill the ?.\n${squareFigure(...e1, apply(e1))}\n${squareFigure(...e2, apply(e2))}\n${squareFigure(pa, pb, pc, pd, '?')}`,
+          answer,
+          { speak: say, maxDigits: 4, explanation: workings },
+        )
+      }
+    }
   },
 }
 
@@ -184,15 +317,29 @@ const figureRule: SkillDef = {
   hint: 'Try adding first. If that does not fit, try taking away, then multiplying.',
   helpAtHome: 'Give two examples of a secret rule and let him guess the third — then swap over.',
   generate: ({ rng, difficulty }): Item => {
-    type Rule = { apply: (a: number, b: number) => number; say: (a: number, b: number) => string }
+    type Rule = {
+      apply: (a: number, b: number) => number
+      say: (a: number, b: number) => string
+      /** The rule written the way an answer card would say it. */
+      card: string
+    }
     const RULES: Record<string, Rule> = {
-      sum: { apply: (a, b) => a + b, say: (a, b) => `${a} + ${b} = ${a + b}` },
-      diff: { apply: (a, b) => a - b, say: (a, b) => `${a} − ${b} = ${a - b}` },
-      prod: { apply: (a, b) => a * b, say: (a, b) => `${a} × ${b} = ${a * b}` },
-      doubleSum: { apply: (a, b) => 2 * (a + b), say: (a, b) => `(${a} + ${b}) × 2 = ${2 * (a + b)}` },
+      sum: { apply: (a, b) => a + b, say: (a, b) => `${a} + ${b} = ${a + b}`, card: 'Add them' },
+      diff: {
+        apply: (a, b) => a - b,
+        say: (a, b) => `${a} − ${b} = ${a - b}`,
+        card: 'Take the second from the first',
+      },
+      prod: { apply: (a, b) => a * b, say: (a, b) => `${a} × ${b} = ${a * b}`, card: 'Multiply them' },
+      doubleSum: {
+        apply: (a, b) => 2 * (a + b),
+        say: (a, b) => `(${a} + ${b}) × 2 = ${2 * (a + b)}`,
+        card: 'Add them, then double',
+      },
       prodMinusSum: {
         apply: (a, b) => a * b - (a + b),
         say: (a, b) => `${a} × ${b} − (${a} + ${b}) = ${a * b - (a + b)}`,
+        card: 'Multiply them, then take away their total',
       },
     }
     const names = [
@@ -214,20 +361,67 @@ const figureRule: SkillDef = {
       return [a, b]
     }
 
-    const rows: [number, number][] = [pair(), pair(), pair()]
+    /**
+     * The two worked rows have to pin the rule down between them. Two copies
+     * of `4 , 4 → 8` is equally well explained by "add them" and by "double
+     * the first", and a question with two right answers is not a question.
+     */
+    const workedPair = (avoid?: [number, number]): [number, number] => {
+      for (let i = 0; i < 30; i++) {
+        const p = pair()
+        if (p[0] !== p[1] && (!avoid || p[0] !== avoid[0] || p[1] !== avoid[1])) return p
+      }
+      return pair()
+    }
+    const first = workedPair()
+    const rows: [number, number][] = [first, workedPair(first), pair()]
     const [qa, qb] = rows[2]
     const answer = rule.apply(qa, qb)
-    const lines = [
-      `${rows[0][0]} , ${rows[0][1]} → ${rule.apply(...rows[0])}`,
-      `${rows[1][0]} , ${rows[1][1]} → ${rule.apply(...rows[1])}`,
-      `${qa} , ${qb} → ?`,
-    ].join('\n')
+    const worked = rows
+      .slice(0, 2)
+      .map(([a, b]) => `${a} , ${b} → ${rule.apply(a, b)}`)
+      .join('\n')
+    const spokenWorked = rows
+      .slice(0, 2)
+      .map(([a, b]) => `${a} and ${b} give ${rule.apply(a, b)}`)
+      .join('. ')
 
-    return entry(`Find the rule, then fill the ?.\n${lines}`, answer, {
-      speak: `${rows[0][0]} and ${rows[0][1]} give ${rule.apply(...rows[0])}. ${rows[1][0]} and ${rows[1][1]} give ${rule.apply(...rows[1])}. What do ${qa} and ${qb} give?`,
-      maxDigits: 4,
-      explanation: rule.say(qa, qb),
-    })
+    switch (rng.pick(['fill', 'name', 'missing', 'check'] as const)) {
+      // Naming the rule instead of using it — the step children skip.
+      case 'name': {
+        const wrong = Object.values(RULES)
+          .filter((r) => r.card !== rule.card && rows.slice(0, 2).some(([a, b]) => r.apply(a, b) !== rule.apply(a, b)))
+          .map((r) => r.card)
+        return mc(rng, `What is the rule here?\n${worked}\n${qa} , ${qb} → ${answer}`, rule.card, wrong, {
+          speak: `${spokenWorked}. ${qa} and ${qb} give ${answer}. What is the rule?`,
+          explanation: rule.say(qa, qb),
+        })
+      }
+
+      // The answer is printed and one of the two starting numbers is not.
+      case 'missing':
+        return entry(`Find the rule, then fill the ?.\n${worked}\n? , ${qb} → ${answer}`, qa, {
+          speak: `${spokenWorked}. Something and ${qb} give ${answer}. What is the missing number?`,
+          maxDigits: 3,
+          explanation: rule.say(qa, qb),
+        })
+
+      case 'check': {
+        const ok = rng.chance(0.5)
+        const claimed = ok ? answer : nearMiss(rng, answer, 2)
+        return tf(`Find the rule.\n${worked}\n${qa} , ${qb} → ${claimed}\nIs the last line right?`, ok, {
+          speak: `${spokenWorked}. Is it right that ${qa} and ${qb} give ${claimed}?`,
+          explanation: rule.say(qa, qb),
+        })
+      }
+
+      default:
+        return entry(`Find the rule, then fill the ?.\n${worked}\n${qa} , ${qb} → ?`, answer, {
+          speak: `${spokenWorked}. What do ${qa} and ${qb} give?`,
+          maxDigits: 4,
+          explanation: rule.say(qa, qb),
+        })
+    }
   },
 }
 

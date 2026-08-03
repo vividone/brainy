@@ -2,7 +2,7 @@
 
 import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc, tapMany } from '../../shared/authoring'
+import { entry, mc, tapMany, tf } from '../../shared/authoring'
 import { CONFUSABLE_CLOZE, KIND_MARK, QUOTES, TYPED_SENTENCES } from './banks'
 import {
   BELONGINGS,
@@ -47,6 +47,13 @@ const ODD_OWNERS: NounWord[] = [
  * Capital letters
  * ------------------------------------------------------------------ */
 
+/**
+ * Months that are only ever months. "May", "April", "June" and "August" are
+ * also given names, so "why does this word need a capital?" would have two
+ * defensible answers.
+ */
+const PLAIN_MONTHS = MONTH_NAMES.filter((m) => !['April', 'May', 'June', 'August'].includes(m))
+
 const capitals: SkillDef = {
   id: 'ng.en.punctuation.capitals',
   title: 'Capital letters',
@@ -59,7 +66,7 @@ const capitals: SkillDef = {
     const place = rng.pick(PLACES)
     const day = rng.pick(DAY_NAMES)
     const month = rng.pick(MONTH_NAMES)
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 4)
+    const variant = rng.int(1, difficulty <= 2 ? 6 : 7)
 
     if (variant === 1) {
       return mc(rng, 'Which word must always start with a capital letter?',
@@ -93,6 +100,59 @@ const capitals: SkillDef = {
         })),
         { explanation: 'The word "I" is always a capital, and so are names, places and months.' },
       )
+    }
+
+    if (variant === 4) {
+      // Exactly one proper noun is written small, so exactly one word is wrong.
+      const cases = [
+        { text: `We saw ${name.toLowerCase()} at the market.`, bad: name.toLowerCase(), others: ['saw', 'market', 'the'], why: `"${name}" is somebody's name, so it needs a capital letter.` },
+        { text: `My uncle lives in ${place.toLowerCase()}.`, bad: place.toLowerCase(), others: ['uncle', 'lives', 'in'], why: `"${place}" is the name of a place, so it needs a capital letter.` },
+        { text: `The lesson starts on ${day.toLowerCase()}.`, bad: day.toLowerCase(), others: ['lesson', 'starts', 'on'], why: `"${day}" is the name of a day, so it needs a capital letter.` },
+        { text: `Our holiday begins in ${month.toLowerCase()}.`, bad: month.toLowerCase(), others: ['holiday', 'begins', 'in'], why: `"${month}" is the name of a month, so it needs a capital letter.` },
+      ]
+      const pick = rng.pick(cases)
+      return mc(rng, `Which word is missing its capital letter?\n${pick.text}`, pick.bad, pick.others, {
+        speak: `Which word is missing its capital letter? ${pick.text}`,
+        explanation: pick.why,
+      })
+    }
+
+    if (variant === 5) {
+      const other = rng.pick([...GIRLS, ...BOYS].filter((n) => n !== name))
+      const frames: { words: string[]; proper: number[] }[] = [
+        { words: ['my', 'father', 'works', 'in', place.toLowerCase()], proper: [4] },
+        { words: ['on', day.toLowerCase(), name.toLowerCase(), 'went', 'home'], proper: [1, 2] },
+        { words: ['my', 'friend', name.toLowerCase(), 'lives', 'in', place.toLowerCase()], proper: [2, 5] },
+        { words: ['the', 'bus', 'to', place.toLowerCase(), 'leaves', 'on', day.toLowerCase()], proper: [3, 6] },
+        { words: ['we', 'saw', name.toLowerCase(), 'at', place.toLowerCase(), 'on', day.toLowerCase()], proper: [2, 4, 6] },
+        { words: [name.toLowerCase(), 'and', 'i', 'travelled', 'to', place.toLowerCase(), 'in', month.toLowerCase()], proper: [0, 5, 7] },
+        { words: [name.toLowerCase(), 'met', other.toLowerCase(), 'in', place.toLowerCase(), 'on', day.toLowerCase()], proper: [0, 2, 4, 6] },
+      ]
+      const f = rng.pick(frames)
+      // The first word always needs one, and so does every "i" — counted once.
+      const need = new Set<number>([0, ...f.proper])
+      f.words.forEach((w, i) => { if (w === 'i') need.add(i) })
+      const sentence = `${f.words.join(' ')}.`
+      return entry(`How many capital letters does this sentence need?\n${sentence}`, need.size, {
+        maxDigits: 1,
+        speak: `How many capital letters does this sentence need? ${sentence}`,
+        explanation: `${need.size} — the first word, and every name of a person, place, day or month.`,
+      })
+    }
+
+    if (variant === 6) {
+      const kinds = [
+        { word: name, reason: 'It is the name of a person.' },
+        { word: place, reason: 'It is the name of a place.' },
+        { word: day, reason: 'It is the name of a day.' },
+        { word: rng.pick(PLAIN_MONTHS), reason: 'It is the name of a month.' },
+      ]
+      const pick = rng.pick(kinds)
+      const wrong = kinds.filter((k) => k.reason !== pick.reason).map((k) => k.reason)
+      wrong.push('It is the first word of the sentence.')
+      return mc(rng, `Why does "${pick.word}" always need a capital letter?`, pick.reason, rng.sample(wrong, 3), {
+        explanation: `${pick.reason} Special names always start with a capital.`,
+      })
     }
 
     const noun = rng.pick(graded(SHOPPING, difficulty))
@@ -329,15 +389,18 @@ const speech: SkillDef = {
   yearBand: 'b6',
   prerequisites: ['ng.en.punctuation.commas', 'ng.en.punctuation.possession'],
   concepts: ['speech-marks'],
-  hint: 'Speech marks wrap only the exact words spoken, and the full stop goes inside them.',
+  hint: 'Speech marks wrap only the exact words spoken, and the mark that ends them goes inside.',
   helpAtHome: 'Write down something they said, word for word, and put the speech marks in together.',
   generate: ({ rng, difficulty }): Item => {
     const pool = QUOTES.filter((x) => x.tier <= capOf(difficulty))
     const pick = rng.pick(pool.length >= 4 ? pool : QUOTES)
     // Swapping in a name keeps the same fifteen lines from ever feeling stale.
     const speaker = rng.chance(0.6) ? someone(rng) : pick.speaker
-    const correct = `${speaker} ${pick.verb}, "${pick.said}."`
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
+    // The closing mark belongs to the spoken words, so it travels inside the
+    // speech marks with them — a question keeps its question mark.
+    const said = `${pick.said}${pick.mark}`
+    const correct = `${speaker} ${pick.verb}, "${said}"`
+    const variant = rng.int(1, difficulty <= 2 ? 4 : 6)
 
     if (variant === 1) {
       return mc(
@@ -345,9 +408,9 @@ const speech: SkillDef = {
         'Which sentence uses speech marks correctly?',
         correct,
         [
-          `${speaker} ${pick.verb}, ${pick.said}.`,
-          `"${speaker} ${pick.verb}, ${pick.said}."`,
-          `${speaker} "${pick.verb}, ${pick.said}."`,
+          `${speaker} ${pick.verb}, ${said}`,
+          `"${speaker} ${pick.verb}, ${said}"`,
+          `${speaker} "${pick.verb}, ${said}"`,
         ],
         { explanation: 'Speech marks go around the exact words spoken, and nothing else.' },
       )
@@ -356,19 +419,53 @@ const speech: SkillDef = {
     if (variant === 2) {
       return mc(
         rng,
-        `Which words go inside the speech marks?\n${speaker} ${pick.verb} ${pick.said}.`,
+        `Which words go inside the speech marks?\n${speaker} ${pick.verb} ${said}`,
         pick.said,
         [`${speaker} ${pick.verb}`, speaker, `${pick.verb} ${pick.said}`],
-        { explanation: `Only the exact words ${speaker} said go inside: "${pick.said}."` },
+        { explanation: `Only the exact words ${speaker} said go inside: "${said}"` },
       )
     }
 
+    if (variant === 3) {
+      return mc(
+        rng,
+        'Which punctuation mark comes just before the opening speech marks?',
+        ', (comma)',
+        ['. (full stop)', '? (question mark)', '! (exclamation mark)'],
+        { explanation: `A comma introduces the speech: ${correct}` },
+      )
+    }
+
+    if (variant === 4) {
+      const right = rng.chance(0.5)
+      const shown = right ? correct : `${speaker} ${pick.verb}, "${pick.said}"${pick.mark}`
+      return tf(`Is this written correctly?\n${shown}`, right, {
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        speak: `Is this written correctly? ${speaker} ${pick.verb}, ${pick.said}.`,
+        explanation: `The mark that ends the speech goes inside the speech marks: ${correct}`,
+      })
+    }
+
+    if (variant === 5) {
+      return mc(
+        rng,
+        'Where does the mark that ends the speech go?',
+        'Inside the speech marks',
+        ['Outside the speech marks', 'After the speaker’s name', 'No mark is needed'],
+        { explanation: 'The full stop, question mark or exclamation mark goes inside, with the spoken words.' },
+      )
+    }
+
+    // The reporting verb: the word that tells you somebody spoke.
+    const spoken = [...new Set(pick.said.replace(/[.,?!]/g, '').split(' '))]
+      .filter((w) => w.toLowerCase() !== pick.verb)
     return mc(
       rng,
-      'Which punctuation mark comes just before the opening speech marks?',
-      ', (comma)',
-      ['. (full stop)', '? (question mark)', '! (exclamation mark)'],
-      { explanation: `A comma introduces the speech: ${correct}` },
+      `Which word tells you that somebody spoke?\n${correct}`,
+      pick.verb,
+      [speaker, ...rng.sample(spoken, 2)],
+      { explanation: `"${pick.verb}" is the word that reports the speech.` },
     )
   },
 }

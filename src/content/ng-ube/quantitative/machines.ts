@@ -12,17 +12,10 @@
  * question, not the idea inside it.
  */
 
-import type { Rng } from '../../../engine/rng'
 import { numericDistractors } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc, person, tapMany, tf, thing } from '../../shared/authoring'
-import { machineFigure, pairLines } from './figures'
-
-/** A wrong-but-believable version of `n`: off by one or two, never negative. */
-const nearMiss = (rng: Rng, n: number): number => rng.pick(n >= 2 ? [-2, -1, 1, 2] : [1, 2]) + n
-
-/** Same, for a number shown inside a table row rather than as an answer. */
-const rowSlip = (rng: Rng, n: number): number => rng.pick(n >= 4 ? [-3, -2, 2, 3] : [2, 3]) + n
+import { entry, mc, person, plural, tapMany, tf, thing } from '../../shared/authoring'
+import { machineFigure, nearMiss, pairLines } from './figures'
 
 const addMachine: SkillDef = {
   id: 'ng.qr.machines.add-machine',
@@ -72,7 +65,7 @@ const addMachine: SkillDef = {
       case 'story': {
         const who = person(rng, locale)
         const noun = thing(rng, locale)
-        return entry(`${who} has ${input} ${noun.many}.\nThe machine adds ${step} more.\nHow many come out?`, answer, {
+        return entry(`${who} has ${plural(input, noun)}.\nThe machine adds ${step} more.\nHow many come out?`, answer, {
           maxDigits: 3,
           explanation: `${input} + ${step} = ${answer}`,
         })
@@ -159,7 +152,7 @@ const takeAwayMachine: SkillDef = {
         const who = person(rng, locale)
         const noun = thing(rng, locale)
         return entry(
-          `${who} puts ${input} ${noun.many} in.\nThe machine takes ${step} away.\nHow many come out?`,
+          `${who} puts ${plural(input, noun)} in.\nThe machine takes ${step} away.\nHow many come out?`,
           answer,
           { maxDigits: 3, explanation: `${input} − ${step} = ${answer}` },
         )
@@ -299,7 +292,7 @@ const whatIsTheRule: SkillDef = {
       case 'oddLine': {
         const ins = rng.sample(pool, 4)
         const bad = rng.int(0, 3)
-        const outs = ins.map((x, i) => (i === bad ? rowSlip(rng, f(x)) : f(x)))
+        const outs = ins.map((x, i) => (i === bad ? nearMiss(rng, f(x), 2) : f(x)))
         const lines = ins.map((x, i) => `${x} → ${outs[i]}`)
         return mc(
           rng,
@@ -392,6 +385,8 @@ const timesMachine: SkillDef = {
           const v = rng.int(k + 1, (inCap + 1) * k)
           if (v % k !== 0 && !misses.includes(v)) misses.push(v)
         }
+        // A multiple plus one is never a multiple, so this always tops up.
+        while (misses.length < 2) misses.push(hits[misses.length] + 1)
         return tapMany(
           rng,
           `This machine multiplies by ${k}.\nTap every number that could come out.`,
@@ -497,7 +492,7 @@ const machineTable: SkillDef = {
 
       case 'wrongRow': {
         const bad = rng.int(0, 3)
-        const shownOuts = outs.map((v, i) => (i === bad ? v + rng.pick([-3, -2, 2, 3]) : v))
+        const shownOuts = outs.map((v, i) => (i === bad ? nearMiss(rng, v, 2) : v))
         const lines = ins.map((x, i) => `${x} → ${shownOuts[i]}`)
         return mc(
           rng,
@@ -552,10 +547,10 @@ const twoStepMachine: SkillDef = {
       // Stopping half way is where two-step answers actually go wrong.
       case 'middle':
         return entry(
-          `${machineFigure(input, [`× ${times}`, second], '?')}\nWhat comes out of the FIRST machine?`,
+          `${machineFigure(input, [`× ${times}`, second], '?')}\nWhat number goes INTO the second machine?`,
           middle,
           {
-            speak: `${input} goes in and is multiplied by ${times}, then we ${takes ? 'take away' : 'add'} ${shift}. What comes out of the first machine?`,
+            speak: `${input} goes in and is multiplied by ${times}, then we ${takes ? 'take away' : 'add'} ${shift}. What number goes into the second machine?`,
             maxDigits: 4,
             explanation: `The first machine only multiplies: ${input} × ${times} = ${middle}.`,
           },
@@ -596,17 +591,31 @@ const twoStepMachine: SkillDef = {
       }
 
       // The second box is blank: the rule has to be worked out from the ends.
-      case 'second':
+      case 'second': {
+        // Offer only rules that genuinely miss the printed output.
+        const wrong = (
+          [
+            [`+ ${shift}`, middle + shift],
+            [`− ${shift}`, middle - shift],
+            [`+ ${shift + 2}`, middle + shift + 2],
+            [`× 2`, middle * 2],
+            [`+ ${shift + 1}`, middle + shift + 1],
+          ] as [string, number][]
+        )
+          .filter(([l, v]) => l !== second && v !== answer)
+          .map(([l]) => l)
+
         return mc(
           rng,
           `${machineFigure(input, [`× ${times}`, '?'], answer)}\nWhat does the second machine do?`,
           second,
-          [`${takes ? '+' : '−'} ${shift}`, `× ${shift}`, `${takes ? '−' : '+'} ${shift + 1}`],
+          wrong,
           {
             speak: `${input} times ${times} goes into a second machine and ${answer} comes out. What does the second machine do?`,
             explanation: `${input} × ${times} = ${middle}, and ${middle} ${second} = ${answer}.`,
           },
         )
+      }
 
       default:
         return entry(`What comes out?\n${machineFigure(input, [`× ${times}`, second], '?')}`, answer, {

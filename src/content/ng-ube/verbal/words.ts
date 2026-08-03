@@ -1854,7 +1854,7 @@ export const SWAPS: Swap[] = [
     ['The farmers were ___ after the harvest.', 'tired', ['weary'], ['awake', 'fresh', 'lively']],
     ['The trader became ___ after many good years.', 'rich', ['wealthy'], ['poor', 'greedy', 'lucky']],
     ['The library was ___.', 'quiet', ['silent'], ['noisy', 'loud', 'busy']],
-    ['That was a ___ noise to hear at night.', 'strange', ['odd', 'unusual'], ['normal', 'common', 'plain']],
+    ['The noise we heard at night was ___.', 'strange', ['odd', 'unusual'], ['normal', 'common', 'plain']],
     ['The last question was ___.', 'hard', ['difficult', 'tough'], ['easy', 'simple', 'light']],
     ['My uniform got ___ in the rain.', 'wet', ['damp', 'soaked'], ['dry', 'clean', 'warm']],
     ['The carpenter came to ___ our chair.', 'repair', ['mend', 'fix'], ['break', 'spoil', 'damage']],
@@ -1863,7 +1863,7 @@ export const SWAPS: Swap[] = [
   ]),
   ...swaps(3, [
     ['The ___ pot came from her great-grandmother.', 'ancient', ['old'], ['modern', 'new', 'recent']],
-    ['An ___ iroko tree stood by the road.', 'enormous', ['huge', 'gigantic'], ['tiny', 'small', 'narrow']],
+    ['The ___ iroko tree shaded the whole compound.', 'enormous', ['huge', 'gigantic'], ['tiny', 'small', 'narrow']],
     ['She was ___ with the injured bird.', 'gentle', ['tender'], ['rough', 'harsh', 'fierce']],
     ['The lagoon was ___ that evening.', 'calm', ['peaceful', 'still'], ['noisy', 'wild', 'angry']],
     ['The jollof rice was ___.', 'tasty', ['delicious'], ['bitter', 'plain', 'burnt']],
@@ -1881,7 +1881,7 @@ export const SWAPS: Swap[] = [
     ['Mother looked ___ as the storm grew.', 'anxious', ['worried', 'nervous'], ['calm', 'relaxed', 'bored']],
     ['He tried to ___ the torn page.', 'conceal', ['hide', 'cover'], ['reveal', 'show', 'display']],
     ['The chief was ___ about the new road.', 'reluctant', ['unwilling', 'hesitant'], ['eager', 'willing', 'keen']],
-    ['Food grew ___ during the drought.', 'scarce', ['sparse'], ['plentiful', 'abundant', 'cheap']],
+    ['The market was ___ on Saturday morning.', 'crowded', ['packed'], ['empty', 'quiet', 'deserted']],
   ]),
   ...swaps(5, [
     ['The council will ___ the new market next month.', 'inaugurate', ['open'], ['demolish', 'abandon', 'close']],
