@@ -154,6 +154,9 @@ export const VES_NOUNS: NounWord[] = [
   n('thief', 'thieves', 2, ['thiefs']), n('shelf', 'shelves', 2, ['shelfs']),
   n('wolf', 'wolves', 2, ['wolfs']), n('half', 'halves', 2, ['halfs']),
   n('loaf', 'loaves', 2, ['loafs']), n('calf', 'calves', 3, ['calfs']),
+  n('self', 'selves', 3, ['selfs']), n('elf', 'elves', 3, ['elfs']),
+  n('housewife', 'housewives', 3, ['housewifes']), n('sheaf', 'sheaves', 3, ['sheafs']),
+  n('penknife', 'penknives', 3, ['penknifes']),
 ]
 
 /** -f words that stay regular. Good contrast, and good distractor fodder. */
@@ -175,6 +178,11 @@ export const IRREGULAR_NOUNS: NounWord[] = [
   n('ox', 'oxen', 3, ['oxes', 'oxens']),
   n('sheep', 'sheep', 1, ['sheeps', 'sheepes']),
   n('deer', 'deer', 2, ['deers', 'deeres']),
+  n('policeman', 'policemen', 2, ['policemans', 'policemens']),
+  n('postman', 'postmen', 2, ['postmans', 'postmens']),
+  n('fisherman', 'fishermen', 3, ['fishermans', 'fishermens']),
+  n('gentleman', 'gentlemen', 3, ['gentlemans', 'gentlemens']),
+  n('chairman', 'chairmen', 3, ['chairmans', 'chairmens']),
 ]
 
 /** Deduped: a few words (boy, key, roof) legitimately sit in two classes. */

@@ -186,7 +186,7 @@ const pluralIrregular: SkillDef = {
   hint: 'Some words change completely: man becomes men. A few do not change at all.',
   helpAtHome: 'Chant the odd ones on the way to school: man/men, foot/feet, child/children.',
   generate: ({ rng, difficulty }): Item => {
-    const variant = rng.int(1, difficulty <= 2 ? 2 : 4)
+    const variant = rng.int(1, difficulty <= 2 ? 3 : 4)
 
     if (variant === 1) {
       return pluralQuestion(rng, rng.pick(graded(IRREGULAR_NOUNS, difficulty)), 'This one breaks the rule and has to be remembered.')
@@ -195,10 +195,11 @@ const pluralIrregular: SkillDef = {
       return pluralQuestion(rng, rng.pick(graded(VES_NOUNS, difficulty)), 'The f changes to v before we add -es.')
     }
     if (variant === 3) {
-      const word = rng.pick(graded(IRREGULAR_NOUNS, difficulty))
-      const count = rng.int(2, 8)
-      return mc(rng, `Which word fits?\nI counted ${count} ____.`, word.p, pluralWrongs(word), {
-        speak: `Which word fits? I counted ${count} blank.`,
+      const word = rng.pick(graded([...IRREGULAR_NOUNS, ...VES_NOUNS], difficulty))
+      const count = rng.int(2, 9)
+      const name = someone(rng)
+      return mc(rng, `Which word fits?\n${name} counted ${count} ____.`, word.p, pluralWrongs(word), {
+        speak: `Which word fits? ${name} counted ${count} blank.`,
         explanation: `The plural of "${word.s}" is "${word.p}".`,
       })
     }
