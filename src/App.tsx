@@ -38,9 +38,15 @@ export default function App() {
   const yearBand = useProfile().yearBand
   const seenItems = useLearnerData().seenItems
 
-  const learnerCount = useStore((s) => s.learners.length)
-  /* Ask who is playing once per app open when siblings share the device. */
-  const [pickedLearner, setPickedLearner] = useState(false)
+  /*
+   * Ask who is playing once per app open, and decide that at mount only.
+   *
+   * Deriving it from the live child count meant that adding a second child in
+   * the parent zone instantly threw the grown-up out onto the picker,
+   * mid-task. Whether to ask is a question about how the app was opened, not
+   * about how many children currently exist.
+   */
+  const [needsPicker, setNeedsPicker] = useState(() => useStore.getState().learners.length > 1)
 
   const [route, setRoute] = useState<Route>({ name: 'home' })
   /** Remembered so "Play again" can rebuild the same kind of session. */
@@ -140,11 +146,11 @@ export default function App() {
   }, [lastLaunch, startDaily, startLevel])
 
   if (!onboarded) return <Onboarding />
-  if (learnerCount > 1 && !pickedLearner) {
+  if (needsPicker) {
     return (
       <WhoIsPlaying
         onPicked={() => {
-          setPickedLearner(true)
+          setNeedsPicker(false)
           setRoute({ name: 'home' })
         }}
       />

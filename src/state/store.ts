@@ -215,8 +215,13 @@ export const emptyLearnerData = (): LearnerData => ({
   seenItems: {},
 })
 
+/*
+ * A random id even for the placeholder. A fixed 'L0' meant every device's
+ * first child shared an id, so restoring one family's backup onto another
+ * device silently overwrote their first child.
+ */
 const placeholderLearner = (): Profile => ({
-  id: 'L0',
+  id: newId(),
   name: '',
   curriculumId: DEFAULT_CURRICULUM_ID,
   yearBand: DEFAULT_YEAR_BAND,

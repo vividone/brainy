@@ -123,11 +123,8 @@ export function Parent({ onBack }: { onBack: () => void }) {
   const [unlocked, setUnlocked] = useState(false)
   const [tab, setTab] = useState<Tab>('progress')
 
-  const store = useStore()
   const profile = useProfile()
-  const settings = useSettings()
   const { byDay, history, totals, streak } = useLearnerData()
-  const updateSettings = store.updateSettings
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
@@ -582,499 +579,509 @@ export function Parent({ onBack }: { onBack: () => void }) {
 
       {/* ---- Settings ---- */}
       {tab === 'children' && <ChildrenTab />}
-      {tab === 'settings' && <SettingsTab />}
+      {tab === 'settings' && <SettingsTab autoHint={autoHint} />}
     </Screen>
   )
 
   /** Add, switch, rename and remove the children who share this device. */
-  function ChildrenTab() {
-    const learners = useStore((s) => s.learners)
-    const data = useStore((s) => s.data)
-    const activeId = useStore((s) => s.activeLearnerId)
-    const [adding, setAdding] = useState(false)
-    const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
-    const [name, setName] = useState('')
-    const [age, setAge] = useState<number | null>(null)
-    const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
 
-    const suggested = age === null ? null : bandForAge(curriculum.id, age)
+}
 
-    return (
-      <div className="mt-4 space-y-4">
-        {learners.map((l) => {
-          const d = data[l.id]
-          const isActive = l.id === activeId
-          const bandLabel = listCurricula()
-            .find((c) => c.id === l.curriculumId)
-            ?.yearBands.find((b) => b.id === l.yearBand)?.label
-          return (
-            <Card key={l.id} className={`p-4 border-slate-200 ${isActive ? 'ring-2 ring-slate-900' : ''}`}>
-              <div className="flex items-center gap-3">
-                <div className="size-16 shrink-0">
-                  <Mascot
-                    characterId={data[l.id]?.economy.equipped.character}
-                    petId={data[l.id]?.economy.equipped.pet}
-                    mood="happy"
-                    className="w-full h-full"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <input
-                    value={l.name}
-                    onChange={(e) => store.renameLearner(l.id, e.target.value)}
-                    className="w-full bg-transparent text-lg font-black text-slate-900 outline-none focus:bg-slate-50 rounded px-1"
-                    aria-label={`Name for ${l.name}`}
-                  />
-                  <p className="px-1 text-sm font-bold text-slate-500">
-                    {bandLabel} · {d?.totals.questions ?? 0} questions · level{' '}
-                    {Math.max(1, Math.floor((d?.economy.xp ?? 0) / 100) + 1)}
-                  </p>
-                </div>
-                {isActive ? (
-                  <Pill className="bg-slate-900 text-white shrink-0">Playing</Pill>
-                ) : (
-                  <Btn variant="secondary" size="sm" onClick={() => store.switchLearner(l.id)}>
-                    Switch to
-                  </Btn>
-                )}
+/** Add, switch, rename and remove the children who share this device. */
+function ChildrenTab() {
+  const store = useStore()
+  const curriculum = useCurriculum()
+  const learners = useStore((s) => s.learners)
+  const data = useStore((s) => s.data)
+  const activeId = useStore((s) => s.activeLearnerId)
+  const [adding, setAdding] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [age, setAge] = useState<number | null>(null)
+  const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
+
+  const suggested = age === null ? null : bandForAge(curriculum.id, age)
+
+  return (
+    <div className="mt-4 space-y-4">
+      {learners.map((l) => {
+        const d = data[l.id]
+        const isActive = l.id === activeId
+        const bandLabel = listCurricula()
+          .find((c) => c.id === l.curriculumId)
+          ?.yearBands.find((b) => b.id === l.yearBand)?.label
+        return (
+          <Card key={l.id} className={`p-4 border-slate-200 ${isActive ? 'ring-2 ring-slate-900' : ''}`}>
+            <div className="flex items-center gap-3">
+              <div className="size-16 shrink-0">
+                <Mascot
+                  characterId={data[l.id]?.economy.equipped.character}
+                  petId={data[l.id]?.economy.equipped.pet}
+                  mood="happy"
+                  className="w-full h-full"
+                />
               </div>
-              {learners.length > 1 && (
-                <button
-                  onClick={() => setConfirmRemove(l.id)}
-                  className="mt-2 text-sm font-bold text-rose-600 hover:underline"
-                >
-                  Remove {l.name}
-                </button>
+              <div className="min-w-0 flex-1">
+                <input
+                  value={l.name}
+                  onChange={(e) => store.renameLearner(l.id, e.target.value)}
+                  className="w-full bg-transparent text-lg font-black text-slate-900 outline-none focus:bg-slate-50 rounded px-1"
+                  aria-label={`Name for ${l.name}`}
+                />
+                <p className="px-1 text-sm font-bold text-slate-500">
+                  {bandLabel} · {d?.totals.questions ?? 0} questions · level{' '}
+                  {Math.max(1, Math.floor((d?.economy.xp ?? 0) / 100) + 1)}
+                </p>
+              </div>
+              {isActive ? (
+                <Pill className="bg-slate-900 text-white shrink-0">Playing</Pill>
+              ) : (
+                <Btn variant="secondary" size="sm" onClick={() => store.switchLearner(l.id)}>
+                  Switch to
+                </Btn>
               )}
-            </Card>
-          )
-        })}
-
-        {adding ? (
-          <Card className="p-5 border-slate-300">
-            <h2 className="font-black text-slate-900 mb-3">Add a child</h2>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value.slice(0, 16))}
-              placeholder="First name"
-              className="w-full h-14 rounded-2xl border-2 border-slate-300 px-4 text-xl font-black"
-            />
-            <p className="mt-3 font-black text-slate-800">Age</p>
-            <div className="mt-2 grid grid-cols-4 sm:grid-cols-7 gap-2">
-              {ageOptions(curriculum.id).map((a) => (
-                <button
-                  key={a}
-                  onClick={() => setAge(a)}
-                  className={`min-h-12 rounded-2xl border-2 font-black ${a === age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                >
-                  {a}
-                </button>
-              ))}
             </div>
-            {suggested && (
-              <p className="mt-2 text-sm font-bold text-slate-500">
-                That is usually {suggested.label}. You can change it afterwards.
-              </p>
-            )}
-            <p className="mt-3 font-black text-slate-800">Character</p>
-            <div className="mt-2 grid grid-cols-6 gap-2">
-              {CHARACTERS.filter((c) => c.price === 0).map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setCharacterId(c.id)}
-                  aria-label={c.name}
-                  className={`rounded-xl border-2 p-1 ${c.id === characterId ? 'border-slate-900' : 'border-slate-200'}`}
-                >
-                  <Mascot characterId={c.id} mood="happy" className="w-full h-10" />
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Btn variant="secondary" size="md" full onClick={() => setAdding(false)}>
-                Cancel
-              </Btn>
-              <Btn
-                size="md"
-                full
-                disabled={!name.trim() || age === null}
-                onClick={() => {
-                  store.addLearner({
-                    name,
-                    curriculumId: curriculum.id,
-                    yearBand: bandForAge(curriculum.id, age ?? 7).id,
-                    age: age ?? undefined,
-                    characterId,
-                  })
-                  setAdding(false)
-                  setName('')
-                  setAge(null)
-                }}
-              >
-                Add child
-              </Btn>
-            </div>
-          </Card>
-        ) : (
-          <Btn variant="secondary" size="lg" full onClick={() => setAdding(true)}>
-            ＋ Add another child
-          </Btn>
-        )}
-
-        <Card className="p-5 border-slate-200">
-          <p className="text-sm font-semibold text-slate-500">
-            Each child keeps their own progress, coins, streak and report. Nothing is shared between
-            them except the sound setting and this grown-up code.
-          </p>
-        </Card>
-
-        <Modal
-          open={confirmRemove !== null}
-          onClose={() => setConfirmRemove(null)}
-          title="Remove this child?"
-        >
-          <p className="font-bold text-slate-600">
-            This permanently deletes {learners.find((l) => l.id === confirmRemove)?.name}'s progress,
-            coins and report on this device. Export a backup first if you might want it back.
-          </p>
-          <div className="mt-5 flex gap-3">
-            <Btn variant="secondary" size="lg" full onClick={() => setConfirmRemove(null)}>
-              Cancel
-            </Btn>
-            <Btn
-              variant="danger"
-              size="lg"
-              full
-              onClick={() => {
-                if (confirmRemove) store.removeLearner(confirmRemove)
-                setConfirmRemove(null)
-              }}
-            >
-              Remove
-            </Btn>
-          </div>
-        </Modal>
-      </div>
-    )
-  }
-
-  function SettingsTab() {
-    const [confirmReset, setConfirmReset] = useState(false)
-    const [importMessage, setImportMessage] = useState<string | null>(null)
-    const fileRef = useRef<HTMLInputElement>(null)
-    const [pinDraft, setPinDraft] = useState(settings.parentPin)
-
-    const download = () => {
-      const blob = new Blob([store.exportSave()], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `kolo-progress-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
-    }
-
-    const Row = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
-      <div className="flex items-center justify-between gap-4 py-3">
-        <div className="min-w-0">
-          <p className="font-black text-slate-800">{label}</p>
-          {hint && <p className="text-xs font-semibold text-slate-400">{hint}</p>}
-        </div>
-        <div className="shrink-0">{children}</div>
-      </div>
-    )
-
-    const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
-      <button
-        onClick={onToggle}
-        role="switch"
-        aria-checked={on}
-        className={`h-9 w-16 rounded-full border-2 transition ${on ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
-      >
-        <span
-          className={`block size-7 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-7' : 'translate-x-0.5'}`}
-        />
-      </button>
-    )
-
-    return (
-      <div className="mt-4 space-y-4">
-        <Card className="p-5 border-slate-200">
-          <h2 className="font-black text-slate-900 mb-1">Curriculum</h2>
-          <p className="text-xs font-semibold text-slate-400 mb-3">
-            Progress is kept separately for each curriculum, so switching never loses anything.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {listCurricula().map((c) => (
+            {learners.length > 1 && (
               <button
-                key={c.id}
-                onClick={() => {
-                  // Re-derive the class from the child's age rather than
-                  // keeping an id that means a different level elsewhere.
-                  const band = profile.age
-                    ? bandForAge(c.id, profile.age).id
-                    : c.yearBands.some((b) => b.id === profile.yearBand)
-                      ? profile.yearBand
-                      : c.yearBands[Math.min(2, c.yearBands.length - 1)].id
-                  store.setCurriculum(c.id, band)
-                }}
-                className={`min-h-14 rounded-2xl border-2 px-3 text-left font-black transition
-                  ${c.id === curriculum.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
+                onClick={() => setConfirmRemove(l.id)}
+                className="mt-2 text-sm font-bold text-rose-600 hover:underline"
               >
-                <span className="text-xl mr-1.5">{c.flag}</span>
-                <span className="text-sm">{c.name}</span>
+                Remove {l.name}
               </button>
-            ))}
-          </div>
+            )}
+          </Card>
+        )
+      })}
 
-          <p className="mt-4 font-black text-slate-800">Age</p>
+      {adding ? (
+        <Card className="p-5 border-slate-300">
+          <h2 className="font-black text-slate-900 mb-3">Add a child</h2>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, 16))}
+            placeholder="First name"
+            className="w-full h-14 rounded-2xl border-2 border-slate-300 px-4 text-xl font-black"
+          />
+          <p className="mt-3 font-black text-slate-800">Age</p>
           <div className="mt-2 grid grid-cols-4 sm:grid-cols-7 gap-2">
             {ageOptions(curriculum.id).map((a) => (
               <button
                 key={a}
-                onClick={() => {
-                  store.setAge(a)
-                  store.setCurriculum(curriculum.id, bandForAge(curriculum.id, a).id)
-                }}
-                className={`min-h-12 rounded-2xl border-2 font-black transition
-                  ${a === profile.age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                onClick={() => setAge(a)}
+                className={`min-h-12 rounded-2xl border-2 font-black ${a === age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
               >
                 {a}
               </button>
             ))}
           </div>
-
-          <p className="mt-4 font-black text-slate-800">Class</p>
-          <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {curriculum.yearBands.map((b) => (
+          {suggested && (
+            <p className="mt-2 text-sm font-bold text-slate-500">
+              That is usually {suggested.label}. You can change it afterwards.
+            </p>
+          )}
+          <p className="mt-3 font-black text-slate-800">Character</p>
+          <div className="mt-2 grid grid-cols-6 gap-2">
+            {CHARACTERS.filter((c) => c.price === 0).map((c) => (
               <button
-                key={b.id}
-                onClick={() => store.setCurriculum(curriculum.id, b.id)}
-                className={`min-h-12 rounded-2xl border-2 font-black text-sm transition
-                  ${b.id === profile.yearBand ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                key={c.id}
+                onClick={() => setCharacterId(c.id)}
+                aria-label={c.name}
+                className={`rounded-xl border-2 p-1 ${c.id === characterId ? 'border-slate-900' : 'border-slate-200'}`}
               >
-                {b.short}
+                <Mascot characterId={c.id} mood="happy" className="w-full h-10" />
               </button>
             ))}
           </div>
-          {profile.age !== undefined && (
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              Age {profile.age} is usually {bandForAge(curriculum.id, profile.age).label} here. Change the
-              class directly if your child is ahead or repeating a year.
-            </p>
-          )}
-          <p className="mt-2 text-xs font-semibold text-slate-400">
-            Includes {includedBands(curriculum.id, profile.yearBand).length} year band
-            {includedBands(curriculum.id, profile.yearBand).length === 1 ? '' : 's'} of content — earlier years
-            stay in the mix as revision.
-          </p>
-        </Card>
-
-        <Card className="p-5 border-slate-200">
-          <h2 className="font-black text-slate-900 mb-1">Difficulty</h2>
-          <p className="text-xs font-semibold text-slate-400 mb-3">
-            Auto aims for about 8 right out of 10 — hard enough to be learning, easy enough to stay
-            willing. Pin a level if you would rather choose it yourself.
-          </p>
-
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {DIFFICULTY_CHOICES.map((choice) => {
-              const selected = settings.difficultyOverride === choice.value
-              return (
-                <button
-                  key={choice.label}
-                  onClick={() => updateSettings({ difficultyOverride: choice.value })}
-                  className={`min-h-16 rounded-2xl border-2 px-1 font-black leading-tight transition
-                    ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                >
-                  <span className="block text-lg">{choice.value ?? 'Auto'}</span>
-                  <span className="block text-[10px] uppercase tracking-wide opacity-80">{choice.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <p className="mt-3 text-sm font-bold text-slate-500">
-            {settings.difficultyOverride === null
-              ? autoHint
-              : `Every question will be pitched at level ${settings.difficultyOverride}. Mastery is still tracked, but the level will not move on its own — including when he gets several wrong in a row.`}
-          </p>
-        </Card>
-
-        <Card className="p-5 border-slate-200 divide-y divide-slate-100">
-          <h2 className="font-black text-slate-900 pb-2">Play</h2>
-
-          <Row label="Questions per quest" hint="10 suits most 6–8 year olds">
-            <div className="flex gap-1.5">
-              {[5, 10, 15, 20].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => updateSettings({ sessionLength: n })}
-                  className={`size-12 rounded-xl border-2 font-black ${settings.sessionLength === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </Row>
-
-          <Row
-            label="Beat the Clock"
-            hint="Adds a countdown to each question. Off by default — timing tends to measure anxiety at this age."
-          >
-            <Toggle on={settings.timedMode} onToggle={() => updateSettings({ timedMode: !settings.timedMode })} />
-          </Row>
-
-          {settings.timedMode && (
-            <Row label="Seconds per question" hint="Word problems need longer than a times table">
-              <div className="flex flex-wrap justify-end gap-1.5">
-                {[15, 30, 45, 60, 90, 120].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => updateSettings({ timerSeconds: n })}
-                    className={`min-h-11 px-3 rounded-xl border-2 font-black tabular-nums ${settings.timerSeconds === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                  >
-                    {n}s
-                  </button>
-                ))}
-              </div>
-            </Row>
-          )}
-
-          <Row label="Sound effects">
-            <Toggle on={settings.sound} onToggle={() => updateSettings({ sound: !settings.sound })} />
-          </Row>
-
-          <Row label="Read questions aloud" hint="Long questions are read automatically; the speaker button always works">
-            <Toggle on={settings.speech} onToggle={() => updateSettings({ speech: !settings.speech })} />
-          </Row>
-
-          <Row label="Reading speed">
-            <div className="flex items-center gap-2">
-              {[
-                [0.7, 'Slow'],
-                [0.9, 'Normal'],
-                [1.15, 'Fast'],
-              ].map(([rate, label]) => (
-                <button
-                  key={label as string}
-                  onClick={() => {
-                    updateSettings({ speechRate: rate as number })
-                    setSpeechRate(rate as number)
-                    speak('This is how fast I will read.', { force: true })
-                  }}
-                  className={`min-h-11 px-3 rounded-xl border-2 font-black text-sm ${settings.speechRate === rate ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                >
-                  {label as string}
-                </button>
-              ))}
-            </div>
-          </Row>
-
-          <Row label="Easier-to-read font" hint="Rounder letters with wider spacing">
-            <Toggle
-              on={settings.dyslexiaFont}
-              onToggle={() => updateSettings({ dyslexiaFont: !settings.dyslexiaFont })}
-            />
-          </Row>
-
-          <Row label="Reduce animation">
-            <Toggle
-              on={settings.reduceMotion}
-              onToggle={() => updateSettings({ reduceMotion: !settings.reduceMotion })}
-            />
-          </Row>
-        </Card>
-
-        <Card className="p-5 border-slate-200">
-          <h2 className="font-black text-slate-900 mb-2">Grown-up code</h2>
-          <div className="flex gap-2">
-            <input
-              value={pinDraft}
-              onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              inputMode="numeric"
-              className="h-14 w-40 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black tracking-[0.4em]"
-            />
-            <Btn
-              variant="secondary"
-              size="md"
-              disabled={!/^\d{4}$/.test(pinDraft) || pinDraft === settings.parentPin}
-              onClick={() => updateSettings({ parentPin: pinDraft })}
-            >
-              Save
-            </Btn>
-          </div>
-        </Card>
-
-        <Card className="p-5 border-slate-200">
-          <h2 className="font-black text-slate-900 mb-1">Your data</h2>
-          <p className="text-sm font-semibold text-slate-500 mb-3">
-            Everything is stored on this device only. Nothing is uploaded, and there is no account, no
-            tracking and no advertising.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Btn variant="secondary" size="md" onClick={download}>
-              ⬇ Export backup
-            </Btn>
-            <Btn variant="secondary" size="md" onClick={() => fileRef.current?.click()}>
-              ⬆ Restore backup
-            </Btn>
-            <Btn variant="danger" size="md" onClick={() => setConfirmReset(true)}>
-              Reset progress
-            </Btn>
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (!file) return
-              const result = store.importSave(await file.text())
-              setImportMessage(result.message)
-            }}
-          />
-          {importMessage && (
-            <p className="mt-3 rounded-xl bg-slate-100 p-3 font-bold text-slate-700">{importMessage}</p>
-          )}
-
-          {/*
-            This is also the cross-device story until cloud sync exists: export
-            on the old tablet, send the file to yourself, restore on the new
-            one. Restoring merges by child rather than replacing, so a sibling
-            already on the target device is not wiped.
-          */}
-          <p className="mt-3 text-xs font-semibold text-slate-400">
-            Moving to a new device? Export here, send the file to yourself, and restore it there.
-            Restoring merges children rather than replacing them, so a sibling already on the other
-            device is kept.
-          </p>
-        </Card>
-
-        <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Reset all progress?">
-          <p className="font-bold text-slate-600">
-            This clears mastery, stars, streaks and history for every curriculum. Coins and the wardrobe are
-            kept. It cannot be undone.
-          </p>
-          <div className="mt-5 flex gap-3">
-            <Btn variant="secondary" size="lg" full onClick={() => setConfirmReset(false)}>
+          <div className="mt-4 flex gap-2">
+            <Btn variant="secondary" size="md" full onClick={() => setAdding(false)}>
               Cancel
             </Btn>
             <Btn
-              variant="danger"
-              size="lg"
+              size="md"
               full
+              disabled={!name.trim() || age === null}
               onClick={() => {
-                store.resetProgress()
-                setConfirmReset(false)
+                store.addLearner({
+                  name,
+                  curriculumId: curriculum.id,
+                  yearBand: bandForAge(curriculum.id, age ?? 7).id,
+                  age: age ?? undefined,
+                  characterId,
+                })
+                setAdding(false)
+                setName('')
+                setAge(null)
               }}
             >
-              Reset
+              Add child
             </Btn>
           </div>
-        </Modal>
-      </div>
-    )
+        </Card>
+      ) : (
+        <Btn variant="secondary" size="lg" full onClick={() => setAdding(true)}>
+          ＋ Add another child
+        </Btn>
+      )}
+
+      <Card className="p-5 border-slate-200">
+        <p className="text-sm font-semibold text-slate-500">
+          Each child keeps their own progress, coins, streak and report. Nothing is shared between
+          them except the sound setting and this grown-up code.
+        </p>
+      </Card>
+
+      <Modal
+        open={confirmRemove !== null}
+        onClose={() => setConfirmRemove(null)}
+        title="Remove this child?"
+      >
+        <p className="font-bold text-slate-600">
+          This permanently deletes {learners.find((l) => l.id === confirmRemove)?.name}'s progress,
+          coins and report on this device. Export a backup first if you might want it back.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Btn variant="secondary" size="lg" full onClick={() => setConfirmRemove(null)}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="danger"
+            size="lg"
+            full
+            onClick={() => {
+              if (confirmRemove) store.removeLearner(confirmRemove)
+              setConfirmRemove(null)
+            }}
+          >
+            Remove
+          </Btn>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function SettingsTab({ autoHint }: { autoHint: string }) {
+  const store = useStore()
+  const profile = useProfile()
+  const settings = useSettings()
+  const curriculum = useCurriculum()
+  const updateSettings = store.updateSettings
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [importMessage, setImportMessage] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [pinDraft, setPinDraft] = useState(settings.parentPin)
+
+  const download = () => {
+    const blob = new Blob([store.exportSave()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kolo-progress-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
+
+  const Row = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="min-w-0">
+        <p className="font-black text-slate-800">{label}</p>
+        {hint && <p className="text-xs font-semibold text-slate-400">{hint}</p>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  )
+
+  const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      className={`h-9 w-16 rounded-full border-2 transition ${on ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+    >
+      <span
+        className={`block size-7 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-7' : 'translate-x-0.5'}`}
+      />
+    </button>
+  )
+
+  return (
+    <div className="mt-4 space-y-4">
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Curriculum</h2>
+        <p className="text-xs font-semibold text-slate-400 mb-3">
+          Progress is kept separately for each curriculum, so switching never loses anything.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {listCurricula().map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                // Re-derive the class from the child's age rather than
+                // keeping an id that means a different level elsewhere.
+                const band = profile.age
+                  ? bandForAge(c.id, profile.age).id
+                  : c.yearBands.some((b) => b.id === profile.yearBand)
+                    ? profile.yearBand
+                    : c.yearBands[Math.min(2, c.yearBands.length - 1)].id
+                store.setCurriculum(c.id, band)
+              }}
+              className={`min-h-14 rounded-2xl border-2 px-3 text-left font-black transition
+                ${c.id === curriculum.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
+            >
+              <span className="text-xl mr-1.5">{c.flag}</span>
+              <span className="text-sm">{c.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-4 font-black text-slate-800">Age</p>
+        <div className="mt-2 grid grid-cols-4 sm:grid-cols-7 gap-2">
+          {ageOptions(curriculum.id).map((a) => (
+            <button
+              key={a}
+              onClick={() => {
+                store.setAge(a)
+                store.setCurriculum(curriculum.id, bandForAge(curriculum.id, a).id)
+              }}
+              className={`min-h-12 rounded-2xl border-2 font-black transition
+                ${a === profile.age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-4 font-black text-slate-800">Class</p>
+        <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {curriculum.yearBands.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => store.setCurriculum(curriculum.id, b.id)}
+              className={`min-h-12 rounded-2xl border-2 font-black text-sm transition
+                ${b.id === profile.yearBand ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+            >
+              {b.short}
+            </button>
+          ))}
+        </div>
+        {profile.age !== undefined && (
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            Age {profile.age} is usually {bandForAge(curriculum.id, profile.age).label} here. Change the
+            class directly if your child is ahead or repeating a year.
+          </p>
+        )}
+        <p className="mt-2 text-xs font-semibold text-slate-400">
+          Includes {includedBands(curriculum.id, profile.yearBand).length} year band
+          {includedBands(curriculum.id, profile.yearBand).length === 1 ? '' : 's'} of content — earlier years
+          stay in the mix as revision.
+        </p>
+      </Card>
+
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Difficulty</h2>
+        <p className="text-xs font-semibold text-slate-400 mb-3">
+          Auto aims for about 8 right out of 10 — hard enough to be learning, easy enough to stay
+          willing. Pin a level if you would rather choose it yourself.
+        </p>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {DIFFICULTY_CHOICES.map((choice) => {
+            const selected = settings.difficultyOverride === choice.value
+            return (
+              <button
+                key={choice.label}
+                onClick={() => updateSettings({ difficultyOverride: choice.value })}
+                className={`min-h-16 rounded-2xl border-2 px-1 font-black leading-tight transition
+                  ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+              >
+                <span className="block text-lg">{choice.value ?? 'Auto'}</span>
+                <span className="block text-[10px] uppercase tracking-wide opacity-80">{choice.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <p className="mt-3 text-sm font-bold text-slate-500">
+          {settings.difficultyOverride === null
+            ? autoHint
+            : `Every question will be pitched at level ${settings.difficultyOverride}. Mastery is still tracked, but the level will not move on its own — including when he gets several wrong in a row.`}
+        </p>
+      </Card>
+
+      <Card className="p-5 border-slate-200 divide-y divide-slate-100">
+        <h2 className="font-black text-slate-900 pb-2">Play</h2>
+
+        <Row label="Questions per quest" hint="10 suits most 6–8 year olds">
+          <div className="flex gap-1.5">
+            {[5, 10, 15, 20].map((n) => (
+              <button
+                key={n}
+                onClick={() => updateSettings({ sessionLength: n })}
+                className={`size-12 rounded-xl border-2 font-black ${settings.sessionLength === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </Row>
+
+        <Row
+          label="Beat the Clock"
+          hint="Adds a countdown to each question. Off by default — timing tends to measure anxiety at this age."
+        >
+          <Toggle on={settings.timedMode} onToggle={() => updateSettings({ timedMode: !settings.timedMode })} />
+        </Row>
+
+        {settings.timedMode && (
+          <Row label="Seconds per question" hint="Word problems need longer than a times table">
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {[15, 30, 45, 60, 90, 120].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => updateSettings({ timerSeconds: n })}
+                  className={`min-h-11 px-3 rounded-xl border-2 font-black tabular-nums ${settings.timerSeconds === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                >
+                  {n}s
+                </button>
+              ))}
+            </div>
+          </Row>
+        )}
+
+        <Row label="Sound effects">
+          <Toggle on={settings.sound} onToggle={() => updateSettings({ sound: !settings.sound })} />
+        </Row>
+
+        <Row label="Read questions aloud" hint="Long questions are read automatically; the speaker button always works">
+          <Toggle on={settings.speech} onToggle={() => updateSettings({ speech: !settings.speech })} />
+        </Row>
+
+        <Row label="Reading speed">
+          <div className="flex items-center gap-2">
+            {[
+              [0.7, 'Slow'],
+              [0.9, 'Normal'],
+              [1.15, 'Fast'],
+            ].map(([rate, label]) => (
+              <button
+                key={label as string}
+                onClick={() => {
+                  updateSettings({ speechRate: rate as number })
+                  setSpeechRate(rate as number)
+                  speak('This is how fast I will read.', { force: true })
+                }}
+                className={`min-h-11 px-3 rounded-xl border-2 font-black text-sm ${settings.speechRate === rate ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+              >
+                {label as string}
+              </button>
+            ))}
+          </div>
+        </Row>
+
+        <Row label="Easier-to-read font" hint="Rounder letters with wider spacing">
+          <Toggle
+            on={settings.dyslexiaFont}
+            onToggle={() => updateSettings({ dyslexiaFont: !settings.dyslexiaFont })}
+          />
+        </Row>
+
+        <Row label="Reduce animation">
+          <Toggle
+            on={settings.reduceMotion}
+            onToggle={() => updateSettings({ reduceMotion: !settings.reduceMotion })}
+          />
+        </Row>
+      </Card>
+
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-2">Grown-up code</h2>
+        <div className="flex gap-2">
+          <input
+            value={pinDraft}
+            onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            inputMode="numeric"
+            className="h-14 w-40 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black tracking-[0.4em]"
+          />
+          <Btn
+            variant="secondary"
+            size="md"
+            disabled={!/^\d{4}$/.test(pinDraft) || pinDraft === settings.parentPin}
+            onClick={() => updateSettings({ parentPin: pinDraft })}
+          >
+            Save
+          </Btn>
+        </div>
+      </Card>
+
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Your data</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          Everything is stored on this device only. Nothing is uploaded, and there is no account, no
+          tracking and no advertising.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Btn variant="secondary" size="md" onClick={download}>
+            ⬇ Export backup
+          </Btn>
+          <Btn variant="secondary" size="md" onClick={() => fileRef.current?.click()}>
+            ⬆ Restore backup
+          </Btn>
+          <Btn variant="danger" size="md" onClick={() => setConfirmReset(true)}>
+            Reset progress
+          </Btn>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (!file) return
+            const result = store.importSave(await file.text())
+            setImportMessage(result.message)
+          }}
+        />
+        {importMessage && (
+          <p className="mt-3 rounded-xl bg-slate-100 p-3 font-bold text-slate-700">{importMessage}</p>
+        )}
+
+        {/*
+          This is also the cross-device story until cloud sync exists: export
+          on the old tablet, send the file to yourself, restore on the new
+          one. Restoring merges by child rather than replacing, so a sibling
+          already on the target device is not wiped.
+        */}
+        <p className="mt-3 text-xs font-semibold text-slate-400">
+          Moving to a new device? Export here, send the file to yourself, and restore it there.
+          Restoring merges children rather than replacing them, so a sibling already on the other
+          device is kept.
+        </p>
+      </Card>
+
+      <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Reset all progress?">
+        <p className="font-bold text-slate-600">
+          This clears mastery, stars, streaks and history for every curriculum. Coins and the wardrobe are
+          kept. It cannot be undone.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Btn variant="secondary" size="lg" full onClick={() => setConfirmReset(false)}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="danger"
+            size="lg"
+            full
+            onClick={() => {
+              store.resetProgress()
+              setConfirmReset(false)
+            }}
+          >
+            Reset
+          </Btn>
+        </div>
+      </Modal>
+    </div>
+  )
 }
