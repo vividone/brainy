@@ -2,6 +2,7 @@
 
 import type { Item, SkillDef, StrandDef, Visual } from '../../../engine/types'
 import { entry, mc, order, person, thing } from '../../shared/authoring'
+import { upperFractionSkills } from './upper'
 
 const FRACTION_NAME: Record<string, string> = {
   '1/2': 'one half',
@@ -223,5 +224,5 @@ export const fractionsStrand: StrandDef = {
   name: 'Fraction Grove',
   blurb: 'Halves, quarters, thirds and sharing a whole',
   theme: 'grove',
-  skills: [halvesQuarters, thirds, fractionOfSet, compareFractions, equivalent],
+  skills: [halvesQuarters, thirds, fractionOfSet, compareFractions, equivalent, ...upperFractionSkills],
 }

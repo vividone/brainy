@@ -91,10 +91,28 @@ export function summariseStrands(
 /**
  * A level is open once the one before it has at least one star. Islands are
  * gated on total stars from anywhere, so a child is never stuck on one topic.
+ *
+ * Levels from an earlier class are always open. They are revision, not a
+ * gate — a Basic 6 child should not have to three-star their way through
+ * Basic 1 counting to reach their own year's work.
  */
-export function levelUnlocked(levels: Level[], index: number, levelStars: Record<string, number>): boolean {
+export function levelUnlocked(
+  levels: Level[],
+  index: number,
+  levelStars: Record<string, number>,
+  isRevision?: (level: Level) => boolean,
+): boolean {
   if (index === 0) return true
+  if (isRevision?.(levels[index])) return true
   const previous = levels[index - 1]
+  if (isRevision?.(previous)) {
+    // Walk back to the last level that actually gates.
+    for (let i = index - 1; i >= 0; i--) {
+      if (isRevision(levels[i])) continue
+      return (levelStars[levels[i].key] ?? 0) > 0
+    }
+    return true
+  }
   return (levelStars[previous.key] ?? 0) > 0
 }
 

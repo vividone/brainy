@@ -24,6 +24,14 @@ export function Island({ strandId, onBack, onPlay }: Props) {
   const levels = buildLevels(curriculum.id, strandId, bands)
   if (!strand) return null
 
+  const currentBand = bands[bands.length - 1]
+  /** Levels from an earlier class: open from the start, marked as revision. */
+  const isRevision = (level: Level) => {
+    if (!level.skillId) return false
+    const skill = getSkill(curriculum.id, level.skillId)
+    return Boolean(skill && skill.yearBand !== currentBand)
+  }
+
   const style = islandStyle(strand.theme)
   const earned = levels.reduce((sum, l) => sum + (levelStars[l.key] ?? 0), 0)
 
@@ -49,12 +57,13 @@ export function Island({ strandId, onBack, onPlay }: Props) {
 
       <ol className="mt-5 space-y-3">
         {levels.map((level, i) => {
-          const unlocked = levelUnlocked(levels, i, levelStars)
+          const unlocked = levelUnlocked(levels, i, levelStars, isRevision)
           const stars = levelStars[level.key] ?? 0
           const skill = level.skillId ? getSkill(curriculum.id, level.skillId) : undefined
           const mastery = level.skillId ? currentMastery(progress, level.skillId) : 0
           const b = level.skillId ? band(progress[level.skillId]) : 'new'
           const isChallenge = level.kind === 'challenge'
+          const revision = isRevision(level)
 
           return (
             <li key={level.key}>
@@ -85,7 +94,14 @@ export function Island({ strandId, onBack, onPlay }: Props) {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-black text-brand-900 truncate">{level.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-black text-brand-900 truncate">{level.title}</p>
+                    {revision && (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        Revision
+                      </span>
+                    )}
+                  </div>
                   {isChallenge ? (
                     <p className="text-sm font-bold text-amber-700">Everything on this island, all mixed up</p>
                   ) : (

@@ -2,7 +2,9 @@
 
 A gamified curriculum-practice app for lower-primary children. Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
 
-**v1 ships:** Nigerian (UBE) Mathematics for Basic 2 → Basic 3, plus a small British pack that proves curriculum switching works. Quantitative Reasoning, Verbal Reasoning and Basic Science are separate subjects in the data model with their topic lists visible in the app, but are not yet authored.
+**What is built:** the full structure for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age.
+
+**What is authored:** Nigerian Mathematics across Basic 1–6 (76 skills), plus compact British and American maths packs. The other six subjects — Quantitative Reasoning, Verbal Reasoning, English Grammar, Science, Basic Technology and Social Studies — are declared with their topic lists visible in the app, but the questions are not written yet. Adding them is content work against an unchanged engine.
 
 Full product spec and architecture: [prd.md](prd.md).
 
@@ -101,6 +103,8 @@ These are the ones most likely to look like bugs if you don't know they were del
 - **Finishing always pays.** Coins and XP land regardless of score; only stars reflect accuracy.
 - **Timers are off by default.** Timing a child still building fluency mostly measures anxiety. "Beat the Clock" is opt-in in the parent zone, and the countdown length (15–120s) is a parent setting — one number can't suit both a times-table drill and a word problem.
 - **Difficulty is adaptive by default, overridable by a parent.** Auto targets ~80% success. A parent can pin levels 1–5 instead, which also suspends the automatic drop after three wrong answers — a pinned level stays pinned. Mastery keeps tracking underneath either way.
+- **Parents pick an age, not a class.** Age 7 resolves to Basic 3 / Year 3 / Grade 2 automatically, and switching curriculum re-derives the class rather than carrying an id that means a different level abroad. The class can still be set directly.
+- **Earlier classes are revision, not a gate.** A Basic 6 child starts on Basic 6 work: untouched prerequisites from earlier classes are assumed met, and earlier levels are unlocked from the start and labelled *Revision*. Without this, every older child would begin at "Counting to 20".
 - **Long questions are read aloud automatically.** Reading is the bottleneck at this age, not the maths — a child who can't read "altogether" would otherwise be recorded as having a maths gap.
 - **Difficulty adapts silently.** Three wrong in a row quietly drops the level. The child is never told.
 - **Earlier year bands stay in the mix.** Choosing Basic 3 includes Basic 2 content as revision.

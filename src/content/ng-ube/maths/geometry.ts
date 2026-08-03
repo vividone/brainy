@@ -2,6 +2,7 @@
 
 import type { Item, Shape2D, Shape3D, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, tapMany, tf } from '../../shared/authoring'
+import { upperShapeSkills } from './upper'
 
 const SHAPE_FACTS: Record<Shape2D, { name: string; sides: number; corners: number }> = {
   circle: { name: 'Circle', sides: 0, corners: 0 },
@@ -334,5 +335,5 @@ export const geometryStrand: StrandDef = {
   name: 'Shape City',
   blurb: 'Flat shapes, solid shapes, lines and angles',
   theme: 'city',
-  skills: [shapes2d, lines, shapeProperties, shapes3d, rightAngles, symmetry],
+  skills: [shapes2d, lines, shapeProperties, shapes3d, rightAngles, symmetry, ...upperShapeSkills],
 }

@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react'
-import { listCurricula } from '../engine/registry'
+import { ageOptions, bandForAge, listCurricula } from '../engine/registry'
 import { MASCOT_COLOURS } from '../game/cosmetics'
 import { Mascot } from '../components/Mascot'
 import { Btn, Card, Screen } from '../components/ui'
@@ -20,20 +20,31 @@ export function Onboarding() {
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [curriculumId, setCurriculumId] = useState(curricula[0]?.id ?? 'ng-ube')
-  const [yearBand, setYearBand] = useState('')
+  const [age, setAge] = useState<number | null>(null)
+  /** Set only when a parent overrides the class suggested by the age. */
+  const [bandOverride, setBandOverride] = useState<string | null>(null)
   const [colour, setColour] = useState('violet')
   const [pin, setPin] = useState('')
 
   const curriculum = curricula.find((c) => c.id === curriculumId) ?? curricula[0]
   const bands = curriculum?.yearBands ?? []
-  const effectiveBand = yearBand || bands[Math.min(2, bands.length - 1)]?.id || ''
+  const ages = ageOptions(curriculumId)
+  const suggested = age === null ? null : bandForAge(curriculumId, age)
+  const effectiveBand = bandOverride ?? suggested?.id ?? ''
 
-  const steps = ['Who is playing?', 'Which school year?', 'Choose your buddy', 'Grown-up code']
+  const steps = ['Who is playing?', 'How old are they?', 'Choose your buddy', 'Grown-up code']
   const canContinue = [name.trim().length > 0, Boolean(effectiveBand), true, /^\d{4}$/.test(pin)][step]
 
   const finish = () => {
     sfx.complete()
-    completeOnboarding({ name, curriculumId, yearBand: effectiveBand, colour, parentPin: pin })
+    completeOnboarding({
+      name,
+      curriculumId,
+      yearBand: effectiveBand,
+      age: age ?? undefined,
+      colour,
+      parentPin: pin,
+    })
   }
 
   return (
@@ -82,48 +93,77 @@ export function Onboarding() {
         {step === 1 && (
           <div className="space-y-5">
             <div>
+              <p className="font-bold text-brand-700 mb-2">Age</p>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                {ages.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => {
+                      sfx.tap()
+                      setAge(a)
+                      setBandOverride(null)
+                    }}
+                    className={`min-h-16 rounded-2xl border-3 text-xl font-black transition
+                      ${a === age ? 'border-brand-600 bg-brand-100 text-brand-900' : 'border-brand-200 bg-white text-brand-700'}`}
+                    style={{ borderWidth: 3 }}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <p className="font-bold text-brand-700 mb-2">Curriculum</p>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 {curricula.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => {
                       sfx.tap()
                       setCurriculumId(c.id)
-                      setYearBand('')
+                      setBandOverride(null)
                     }}
-                    className={`min-h-16 rounded-2xl border-3 px-4 text-left font-black transition
+                    className={`min-h-16 rounded-2xl border-3 px-3 text-left font-black transition
                       ${c.id === curriculumId ? 'border-brand-600 bg-brand-100 text-brand-900' : 'border-brand-200 bg-white text-brand-700'}`}
                     style={{ borderWidth: 3 }}
                   >
-                    <span className="text-2xl mr-2">{c.flag}</span>
-                    {c.name}
+                    <span className="text-2xl mr-1.5">{c.flag}</span>
+                    <span className="text-sm">{c.name}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <div>
-              <p className="font-bold text-brand-700 mb-2">Year</p>
-              <div className="grid grid-cols-4 gap-2">
-                {bands.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => {
-                      sfx.tap()
-                      setYearBand(b.id)
-                    }}
-                    className={`min-h-16 rounded-2xl border-3 font-black transition
-                      ${b.id === effectiveBand ? 'border-brand-600 bg-brand-100 text-brand-900' : 'border-brand-200 bg-white text-brand-700'}`}
-                    style={{ borderWidth: 3 }}
-                  >
-                    {b.short}
-                  </button>
-                ))}
+
+            {/* The class is worked out from the age, but a parent who has held
+                a child back or moved them up gets the final say. */}
+            {suggested && (
+              <div className="rounded-2xl bg-brand-50 border-2 border-brand-200 p-4">
+                <p className="font-bold text-brand-700">
+                  At {age}, that is usually{' '}
+                  <span className="text-brand-900 font-black">{suggested.label}</span>.
+                </p>
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {bands.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => {
+                        sfx.tap()
+                        setBandOverride(b.id)
+                      }}
+                      className={`min-h-14 rounded-xl border-2 font-black text-sm transition
+                        ${b.id === effectiveBand ? 'border-brand-600 bg-brand-600 text-white' : 'border-brand-200 bg-white text-brand-600'}`}
+                    >
+                      {b.short}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm font-semibold text-brand-500">
+                  Tap a different class if that is not right. Earlier years stay in the mix as revision,
+                  so nothing goes rusty.
+                </p>
               </div>
-              <p className="mt-3 text-sm font-semibold text-brand-500">
-                Pick the year they are going into. Earlier years stay in the mix so nothing gets rusty.
-              </p>
-            </div>
+            )}
           </div>
         )}
 

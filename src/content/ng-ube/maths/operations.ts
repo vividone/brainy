@@ -3,6 +3,8 @@
 import { numericDistractors, type Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, person, sayMaths, thing, twoPeople } from '../../shared/authoring'
+import { earlyOpsSkills } from './early'
+import { upperOpsSkills } from './upper'
 
 /** Two 2-digit addends, with or without a carry in the units column. */
 function addPair2(rng: Rng, regroup: boolean, secondIsSingle = false): [number, number] {
@@ -367,6 +369,7 @@ export const operationsStrand: StrandDef = {
   blurb: 'Adding, taking away, times tables and sharing',
   theme: 'falls',
   skills: [
+    ...earlyOpsSkills,
     add2Digit,
     sub2Digit,
     repeatedAddition,
@@ -376,5 +379,6 @@ export const operationsStrand: StrandDef = {
     divisionSharing,
     missingNumber,
     wordProblems,
+    ...upperOpsSkills,
   ],
 }

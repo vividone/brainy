@@ -4,6 +4,7 @@ import { numericDistractors } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, order, person } from '../../shared/authoring'
 import { DAYS, DAYS_IN_MONTH, MONTHS, ordinalShort } from '../../shared/words'
+import { upperMeasureSkills } from './upper'
 
 const length: SkillDef = {
   id: 'ng.maths.measure.length',
@@ -344,5 +345,16 @@ export const measurementStrand: StrandDef = {
   name: 'Measure Bay',
   blurb: 'Length, weight, capacity, clocks and calendars',
   theme: 'bay',
-  skills: [length, timeClock, mass, capacity, timeQuarters, calendar, duration, orderEvents, dateReading],
+  skills: [
+    length,
+    timeClock,
+    mass,
+    capacity,
+    timeQuarters,
+    calendar,
+    duration,
+    orderEvents,
+    dateReading,
+    ...upperMeasureSkills,
+  ],
 }

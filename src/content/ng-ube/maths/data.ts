@@ -2,6 +2,7 @@
 
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, thing } from '../../shared/authoring'
+import { upperDataSkills } from './upper'
 
 const CATEGORY_SETS: string[][] = [
   ['Rice', 'Beans', 'Yam', 'Bread'],
@@ -149,5 +150,5 @@ export const dataStrand: StrandDef = {
   name: 'Data Beach',
   blurb: 'Tallies, pictograms and bar charts',
   theme: 'beach',
-  skills: [tally, pictogram, barChart],
+  skills: [tally, pictogram, barChart, ...upperDataSkills],
 }

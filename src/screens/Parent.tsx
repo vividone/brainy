@@ -6,6 +6,8 @@
 import { useMemo, useState } from 'react'
 import { BAND_LABEL, BAND_STYLE, band, currentMastery, difficultyFor } from '../engine/mastery'
 import {
+  ageOptions,
+  bandForAge,
   getSkill,
   includedBands,
   listCurricula,
@@ -417,38 +419,65 @@ export function Parent({ onBack }: { onBack: () => void }) {
           <p className="text-xs font-semibold text-slate-400 mb-3">
             Progress is kept separately for each curriculum, so switching never loses anything.
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {listCurricula().map((c) => (
               <button
                 key={c.id}
                 onClick={() => {
-                  const band = c.yearBands.some((b) => b.id === profile.yearBand)
-                    ? profile.yearBand
-                    : c.yearBands[Math.min(2, c.yearBands.length - 1)].id
+                  // Re-derive the class from the child's age rather than
+                  // keeping an id that means a different level elsewhere.
+                  const band = profile.age
+                    ? bandForAge(c.id, profile.age).id
+                    : c.yearBands.some((b) => b.id === profile.yearBand)
+                      ? profile.yearBand
+                      : c.yearBands[Math.min(2, c.yearBands.length - 1)].id
                   store.setCurriculum(c.id, band)
                 }}
-                className={`min-h-14 rounded-2xl border-2 px-4 text-left font-black transition
+                className={`min-h-14 rounded-2xl border-2 px-3 text-left font-black transition
                   ${c.id === curriculum.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
               >
-                <span className="text-xl mr-2">{c.flag}</span>
-                {c.name}
+                <span className="text-xl mr-1.5">{c.flag}</span>
+                <span className="text-sm">{c.name}</span>
               </button>
             ))}
           </div>
 
-          <p className="mt-4 font-black text-slate-800">Year</p>
-          <div className="mt-2 grid grid-cols-4 gap-2">
+          <p className="mt-4 font-black text-slate-800">Age</p>
+          <div className="mt-2 grid grid-cols-4 sm:grid-cols-7 gap-2">
+            {ageOptions(curriculum.id).map((a) => (
+              <button
+                key={a}
+                onClick={() => {
+                  store.setAge(a)
+                  store.setCurriculum(curriculum.id, bandForAge(curriculum.id, a).id)
+                }}
+                className={`min-h-12 rounded-2xl border-2 font-black transition
+                  ${a === profile.age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-4 font-black text-slate-800">Class</p>
+          <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2">
             {curriculum.yearBands.map((b) => (
               <button
                 key={b.id}
                 onClick={() => store.setCurriculum(curriculum.id, b.id)}
-                className={`min-h-12 rounded-2xl border-2 font-black transition
+                className={`min-h-12 rounded-2xl border-2 font-black text-sm transition
                   ${b.id === profile.yearBand ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
               >
                 {b.short}
               </button>
             ))}
           </div>
+          {profile.age !== undefined && (
+            <p className="mt-2 text-xs font-semibold text-slate-400">
+              Age {profile.age} is usually {bandForAge(curriculum.id, profile.age).label} here. Change the
+              class directly if your child is ahead or repeating a year.
+            </p>
+          )}
           <p className="mt-2 text-xs font-semibold text-slate-400">
             Includes {includedBands(curriculum.id, profile.yearBand).length} year band
             {includedBands(curriculum.id, profile.yearBand).length === 1 ? '' : 's'} of content — earlier years

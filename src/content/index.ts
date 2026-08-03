@@ -8,6 +8,7 @@
 import { registerCurriculum } from '../engine/registry'
 import { ngUbe } from './ng-ube'
 import { ukNc } from './uk-nc'
+import { usCcss } from './us-ccss'
 
 let registered = false
 
@@ -15,6 +16,7 @@ export function registerAllCurricula(): void {
   if (registered) return
   registerCurriculum(ngUbe)
   registerCurriculum(ukNc)
+  registerCurriculum(usCcss)
   registered = true
 }
 

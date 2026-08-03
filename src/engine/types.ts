@@ -250,6 +250,14 @@ export interface YearBandDef {
   id: string
   label: string
   short: string
+  /**
+   * Typical age range during that school year, [inclusive, exclusive-ish].
+   *
+   * Drives the age picker: a parent knows their child is 7 far more reliably
+   * than they know which band a given curriculum calls that. It is also what
+   * lets one age map across Nigerian, British and American systems.
+   */
+  ageRange: [number, number]
 }
 
 export interface Curriculum {

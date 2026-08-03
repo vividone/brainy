@@ -4,6 +4,8 @@ import { numericDistractors } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, order, tapMany, thing } from '../../shared/authoring'
 import { capitalise, numberToWords, ordinalShort, ordinalWord, toRoman } from '../../shared/words'
+import { earlyNumberSkills } from './early'
+import { upperNumberSkills } from './upper'
 
 const countTo200: SkillDef = {
   id: 'ng.maths.number.count-200',
@@ -401,5 +403,18 @@ export const numberStrand: StrandDef = {
   name: 'Number Island',
   blurb: 'Counting, place value and putting numbers in order',
   theme: 'market',
-  skills: [countTo200, oddEven, skipCount, ordinal, countTo1000, placeValue, compareOrder, roman],
+  // Ordered by year band: Basic 1 first, then 2/3, then 4-6. Level
+  // progression down an island follows this order.
+  skills: [
+    ...earlyNumberSkills,
+    countTo200,
+    oddEven,
+    skipCount,
+    ordinal,
+    countTo1000,
+    placeValue,
+    compareOrder,
+    roman,
+    ...upperNumberSkills,
+  ],
 }

@@ -5,7 +5,14 @@
  * directly, so adding the UK curriculum is a folder plus one register call.
  */
 
-import type { Curriculum, IndexedSkill, ProgressMap, StrandDef, SubjectDef } from './types'
+import type {
+  Curriculum,
+  IndexedSkill,
+  ProgressMap,
+  StrandDef,
+  SubjectDef,
+  YearBandDef,
+} from './types'
 import { currentMastery } from './mastery'
 
 const curricula = new Map<string, Curriculum>()
@@ -70,6 +77,30 @@ export function getStrand(curriculumId: string, strandId: string): StrandDef | u
  * A child moving from Basic 2 to Basic 3 should still meet Basic 2 material —
  * that's the consolidation half of the job — so bands are cumulative.
  */
+/**
+ * The school year a child of this age is typically in.
+ *
+ * Nigerian, British and American systems label the same age differently — a
+ * 7-year-old is Basic 2, Year 3 and Grade 2 respectively — so this is also the
+ * mapping that makes switching curriculum land on the right level rather than
+ * dumping the child two years out.
+ */
+export function bandForAge(curriculumId: string, age: number): YearBandDef {
+  const bands = getCurriculum(curriculumId).yearBands
+  const hit = bands.find((b) => age >= b.ageRange[0] && age < b.ageRange[1])
+  if (hit) return hit
+  // Younger than the youngest band, or older than the oldest: clamp.
+  return age < bands[0].ageRange[0] ? bands[0] : bands[bands.length - 1]
+}
+
+/** Every age any band covers, for the age picker. */
+export function ageOptions(curriculumId: string): number[] {
+  const bands = getCurriculum(curriculumId).yearBands
+  const lo = Math.min(...bands.map((b) => b.ageRange[0]))
+  const hi = Math.max(...bands.map((b) => b.ageRange[1]))
+  return Array.from({ length: hi - lo }, (_, i) => lo + i)
+}
+
 export function includedBands(curriculumId: string, yearBandId: string): string[] {
   const bands = getCurriculum(curriculumId).yearBands
   const idx = bands.findIndex((b) => b.id === yearBandId)
@@ -166,10 +197,31 @@ export function nextFocusSkill(
   now = Date.now(),
 ): IndexedSkill | undefined {
   const skills = skillsInSubject(curriculumId, subjectId, bands)
-  const ready = (skill: IndexedSkill) =>
-    (skill.prerequisites ?? []).every((p) => currentMastery(progress, p, now) >= 0.6)
+  /** The child's actual class is the last entry; earlier bands are revision. */
+  const currentBand = bands[bands.length - 1]
 
-  const candidate = skills.find((s) => ready(s) && currentMastery(progress, s.id, now) < 0.75)
+  /**
+   * A prerequisite from an earlier class counts as met while it is untouched.
+   *
+   * Without this, a Basic 6 child opening the app for the first time is sent
+   * to "Counting to 20", because every Basic 6 skill has a chain of unproven
+   * prerequisites running back to Basic 1. Start them at their own level and
+   * let earlier material surface only when they actually get something wrong.
+   */
+  const ready = (skill: IndexedSkill) =>
+    (skill.prerequisites ?? []).every((id) => {
+      const prereq = getSkill(curriculumId, id)
+      const untouched = (progress[id]?.attempts ?? 0) === 0
+      if (untouched && prereq && prereq.yearBand !== currentBand) return true
+      return currentMastery(progress, id, now) >= 0.6
+    })
+
+  const unmastered = (s: IndexedSkill) => currentMastery(progress, s.id, now) < 0.75
+
+  // Their own class first, then anything else that is ready.
+  const inBand = skills.filter((s) => s.yearBand === currentBand)
+  const candidate =
+    inBand.find((s) => ready(s) && unmastered(s)) ?? skills.find((s) => ready(s) && unmastered(s))
   if (candidate) return candidate
 
   // Everything available is mastered — fall back to the weakest skill so the

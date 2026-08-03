@@ -3,6 +3,7 @@
 import { numericDistractors } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, money, person, thing } from '../../shared/authoring'
+import { upperMoneySkills } from './upper'
 
 const recognise: SkillDef = {
   id: 'ng.maths.money.recognise',
@@ -152,5 +153,5 @@ export const moneyStrand: StrandDef = {
   name: 'Market Square',
   blurb: 'Naira, kobo, change and buying things',
   theme: 'city',
-  skills: [recognise, addMoney, change, shopping],
+  skills: [recognise, addMoney, change, shopping, ...upperMoneySkills],
 }

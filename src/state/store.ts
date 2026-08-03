@@ -22,6 +22,12 @@ export interface Profile {
   name: string
   curriculumId: string
   yearBand: string
+  /**
+   * Used to suggest the class, and to re-suggest it when the curriculum
+   * changes — a 7-year-old is Basic 2, Year 3 and Grade 2 depending on where
+   * they are, and a parent should not have to know that.
+   */
+  age?: number
   colour: string
   createdAt: number
 }
@@ -95,9 +101,17 @@ interface SaveState {
 }
 
 interface Actions {
-  completeOnboarding: (p: { name: string; curriculumId: string; yearBand: string; colour: string; parentPin: string }) => void
+  completeOnboarding: (p: {
+    name: string
+    curriculumId: string
+    yearBand: string
+    age?: number
+    colour: string
+    parentPin: string
+  }) => void
   updateSettings: (patch: Partial<Settings>) => void
   setCurriculum: (curriculumId: string, yearBand: string) => void
+  setAge: (age: number) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Returns the scored result plus anything newly unlocked, for the results screen. */
   finishSession: (result: SessionResult) => { awards: Awards; result: SessionResult }
@@ -163,10 +177,18 @@ export const useStore = create<Store>()(
     (set, get) => ({
       ...initialState(),
 
-      completeOnboarding: ({ name, curriculumId, yearBand, colour, parentPin }) =>
+      completeOnboarding: ({ name, curriculumId, yearBand, age, colour, parentPin }) =>
         set((s) => ({
           onboarded: true,
-          profile: { ...s.profile, name: name.trim() || 'Champion', curriculumId, yearBand, colour, createdAt: Date.now() },
+          profile: {
+            ...s.profile,
+            name: name.trim() || 'Champion',
+            curriculumId,
+            yearBand,
+            age,
+            colour,
+            createdAt: Date.now(),
+          },
           settings: { ...s.settings, parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.settings.parentPin },
         })),
 
@@ -174,6 +196,8 @@ export const useStore = create<Store>()(
 
       setCurriculum: (curriculumId, yearBand) =>
         set((s) => ({ profile: { ...s.profile, curriculumId, yearBand } })),
+
+      setAge: (age) => set((s) => ({ profile: { ...s.profile, age } })),
 
       recordAnswer: (skillId, outcome) =>
         set((s) => {

@@ -8,7 +8,7 @@
 | **Date** | 2 August 2026 |
 | **Status** | Draft v1 — approved to build Maths v1 |
 | **Primary learner** | 7-year-old, finishing Basic 2, entering Basic 3 |
-| **v1 scope** | Nigerian curriculum, Mathematics only, tablet-first web app, no accounts |
+| **v1 scope** | Structure for Basic 1–6 × 7 subjects × 3 curricula. Mathematics authored end to end; other subjects structured, not yet written. Tablet-first web app, no accounts. |
 
 ---
 
@@ -16,12 +16,15 @@
 
 Kolo is a gamified practice app for lower-primary children. It turns curriculum-aligned drilling into a short daily game: 5–10 minute sessions, immediate feedback, coins, streaks, a mascot to dress up, and a world map that opens up as skills are mastered.
 
-It covers four subjects that matter for Nigerian primary school and common-entrance preparation:
+It spans the whole of primary — **Basic 1 to Basic 6** — across seven subjects, with British and American equivalents of each class:
 
 1. **Mathematics**
 2. **Quantitative Reasoning**
 3. **Verbal Reasoning**
-4. **Basic Science and Technology**
+4. **English Grammar**
+5. **Basic Science**
+6. **Basic Technology**
+7. **Social Studies**
 
 Quantitative and Verbal Reasoning are deliberately kept **separate subjects** rather than the single combined "QR & VR" line some schemes use. Nigerian schools timetable and examine them separately, common entrance assesses them separately, and — the reason that actually matters here — a child is very often strong at one and weak at the other. A blended score would hide exactly the gap a parent needs to see.
 
@@ -324,6 +327,34 @@ Year 2 → Year 3 National Curriculum for maths, reasoning framed as 11+ prepara
 ## 9. Curriculum switching
 
 The requirement — Nigerian now, British later, switchable — determines the architecture, so it's designed in from the first commit rather than bolted on.
+
+### 9.0 Age, not class, is what a parent knows
+
+A parent reliably knows their child's age. They do not reliably know that Basic 3, Year 3 and Grade 2 are the same level, and they should not have to.
+
+So every year band declares the age range it covers, and the class is derived:
+
+| Age | Nigeria | England | United States |
+|---|---|---|---|
+| 5 | Basic 1 | Year 1 | Kindergarten |
+| 6 | Basic 2 | Year 2 | Grade 1 |
+| 7 | Basic 3 | Year 3 | Grade 2 |
+| 8 | Basic 4 | Year 4 | Grade 3 |
+| 9 | Basic 5 | Year 5 | Grade 4 |
+| 10–11 | Basic 6 | Year 6 | Grade 5 |
+
+Onboarding asks the age, suggests the class, and lets the parent change it — a child held back or moved up is common enough to matter. Switching curriculum later re-derives the class from the age rather than carrying across an id that means a different level abroad.
+
+### 9.0.1 Placement: an older child must not start at Basic 1
+
+Bands are cumulative (§9.1), which is right for revision but produces a bad first session for an older child: every Basic 6 skill has a prerequisite chain running back to Basic 1, so a naive "first unmastered skill with met prerequisites" search sends an 11-year-old to *Counting to 20*.
+
+Two rules fix it:
+
+1. **An untouched prerequisite from an earlier class is assumed met.** Only prerequisites within the child's own class are enforced. Earlier material surfaces when the child actually gets something wrong, not pre-emptively.
+2. **Levels from earlier classes are unlocked from the start** and labelled *Revision*. They are available, not a gate. Only the child's own class gates sequentially.
+
+The net effect: a Basic 6 child starts on Basic 6 work, with all the earlier material sitting there if they or their parent want it.
 
 ### 9.1 Rules
 
