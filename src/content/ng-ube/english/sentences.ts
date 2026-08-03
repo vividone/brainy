@@ -2,10 +2,11 @@
 
 import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { mc, order, tapMany } from '../../shared/authoring'
+import { mc, order, tapMany, tf } from '../../shared/authoring'
 import {
   JOIN_ITEMS,
   KIND_LABEL,
+  QUESTION_ORDERS,
   QUESTION_WORD_CLOZE,
   TYPED_SENTENCES,
   type Cloze,

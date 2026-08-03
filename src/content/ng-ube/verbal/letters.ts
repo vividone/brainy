@@ -2,7 +2,7 @@
 
 import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { entry, mc, order, tapMany } from '../../shared/authoring'
+import { entry, mc, order, tapMany, tf } from '../../shared/authoring'
 import {
   ALPHABET,
   VOWELS,
@@ -244,10 +244,31 @@ const alphaOrderHard: SkillDef = {
     const groups = [...byLetter.values()].filter((g) => g.length >= count)
     const chosen = groups.length ? rng.sample(rng.pick(groups), count) : rng.sample(pool, count)
     const sorted = alphabetically(chosen)
+    const variant = rng.int(1, 4)
 
-    if (rng.chance(0.5)) {
+    if (variant === 1) {
       return order(rng, 'Put these words in alphabetical order', sorted, {
         explanation: `In alphabetical order: ${sorted.join(', ')}.`,
+      })
+    }
+
+    // One pair, one decision — the second and third letters, in isolation.
+    if (variant === 2) {
+      const [a, b] = rng.sample(sorted, 2)
+      const [early, later] = alphabetically([a, b])
+      const asked = rng.chance(0.5) ? [a, b] : [b, a]
+      const truth = asked[0] === early
+      return tf(`In a dictionary, "${asked[0]}" comes before "${asked[1]}".`, truth, {
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        explanation: `"${early}" comes before "${later}".`,
+      })
+    }
+
+    if (variant === 3 && sorted.length >= 3) {
+      const second = sorted[1]
+      return mc(rng, 'Which word comes SECOND in the dictionary?', second, sorted.filter((w) => w !== second), {
+        explanation: `In order: ${sorted.join(', ')}.`,
       })
     }
 

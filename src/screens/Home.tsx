@@ -10,7 +10,7 @@ import { useMemo } from 'react'
 import { Mascot } from '../components/Mascot'
 import { Btn, Card, IconBtn, Pill, ProgressBar, Screen } from '../components/ui'
 import { levelProgress } from '../engine/scoring'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile } from '../state/store'
 import {
   subjectStyle,
   summariseSubject,
@@ -36,7 +36,8 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
-  const { profile, economy, streak } = useStore()
+  const profile = useProfile()
+  const { economy, streak } = useLearnerData()
 
   const level = levelProgress(economy.xp)
   const stars = totalStarsEarned(levelStars)

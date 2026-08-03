@@ -2,7 +2,7 @@
 
 import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
-import { mc, tf } from '../../shared/authoring'
+import { mc, tapMany, tf } from '../../shared/authoring'
 import {
   ANALOGIES,
   DEFINITIONS,
@@ -178,8 +178,36 @@ const homonyms: SkillDef = {
     const entry = pickTier(rng, HOMONYMS, tier)
     const flip = rng.chance(0.5)
     const [first, second] = flip ? [entry.meanings[1], entry.meanings[0]] : entry.meanings
+    const others = bandOf(HOMONYMS, tier).filter((h) => h.word !== entry.word)
+    const variant = rng.int(1, 4)
 
-    if (rng.chance(0.5)) {
+    // Both meanings at once, with three meanings that belong to other words.
+    if (variant === 3 && others.length >= 3) {
+      const strangers = rng.sample(others, 3).map((h) => rng.pick(h.meanings))
+      const options = [
+        ...entry.meanings.map((v) => ({ value: v, correct: true })),
+        ...strangers.map((v) => ({ value: v, correct: false })),
+      ]
+      return tapMany(rng, `Tap the TWO meanings of "${entry.word}"`, options, {
+        speak: `Tap the two meanings of the word ${entry.word}`,
+        explanation: `"${entry.word}" can mean ${entry.meanings[0]}, and it can also mean ${entry.meanings[1]}.`,
+      })
+    }
+
+    if (variant === 4 && others.length) {
+      const truth = rng.chance(0.5)
+      const shown = truth ? first : rng.pick(rng.pick(others).meanings)
+      const real = entry.meanings.includes(shown)
+      return tf(`"${entry.word}" can mean "${shown}".`, real, {
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        explanation: real
+          ? `Yes — and it can also mean ${entry.meanings.find((m) => m !== shown)}.`
+          : `No — "${entry.word}" means ${entry.meanings[0]}, or ${entry.meanings[1]}.`,
+      })
+    }
+
+    if (variant === 1) {
       const wrong = rng
         .sample(bandOf(HOMONYMS, tier), 4)
         .filter((h) => h.word !== entry.word)
@@ -271,6 +299,15 @@ const sentenceCompleteHard: SkillDef = {
 const sameKind = (list: readonly Definition[], kind: Definition['kind']): Definition[] =>
   list.filter((d) => d.kind === kind)
 
+const KINDS: Definition['kind'][] = ['person', 'place', 'thing', 'group']
+
+const KIND_LABEL: Record<Definition['kind'], string> = {
+  person: 'a person',
+  place: 'a place',
+  thing: 'a thing you can hold or use',
+  group: 'a group of animals or people',
+}
+
 const definitions: SkillDef = {
   id: 'ng.vr.links.definitions',
   title: 'What the word means',
@@ -282,7 +319,8 @@ const definitions: SkillDef = {
   generate: ({ rng, difficulty }): Item => {
     const tier = tierFor(1, difficulty)
     const entry = pickTier(rng, DEFINITIONS, tier)
-    const family = sameKind(bandOf(DEFINITIONS, tier), entry.kind)
+    const band = bandOf(DEFINITIONS, tier)
+    const family = sameKind(band, entry.kind)
     const others = rng.sample(family.filter((d) => d.word !== entry.word), 3)
 
     if (others.length < 2) {
@@ -292,7 +330,41 @@ const definitions: SkillDef = {
       })
     }
 
-    if (rng.chance(0.5)) {
+    const variant = rng.int(1, 4)
+
+    // Yes or no. The wrong meanings belong to another word of the same kind,
+    // so they read plausibly and have to be ruled out on meaning alone.
+    if (variant === 3) {
+      const truth = rng.chance(0.5)
+      const shown = truth ? entry.meaning : others[0].meaning
+      return tf(`Does "${entry.word}" mean "${shown}"?`, truth, {
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        explanation: truth
+          ? `Yes — "${entry.word}" means ${entry.meaning}.`
+          : `No — that is what "${others[0].word}" means. "${entry.word}" means ${entry.meaning}.`,
+      })
+    }
+
+    // Sort by what the word names, not by what it means exactly.
+    if (variant === 4) {
+      const kinds = KINDS.filter((k) => sameKind(band, k).length >= 3)
+      const kind = kinds.length ? rng.pick(kinds) : null
+      const outside = kind ? band.filter((d) => d.kind !== kind) : []
+      if (kind && outside.length >= 2) {
+        const right = rng.sample(sameKind(band, kind), 3)
+        const wrong = rng.sample(outside, 2)
+        const options = [
+          ...right.map((d) => ({ value: d.word, correct: true })),
+          ...wrong.map((d) => ({ value: d.word, correct: false })),
+        ]
+        return tapMany(rng, `Tap every word that names ${KIND_LABEL[kind]}`, options, {
+          explanation: `${right.map((d) => capitalise(d.word)).join(', ')} all name ${KIND_LABEL[kind]}.`,
+        })
+      }
+    }
+
+    if (variant === 1) {
       return mc(rng, `Which word means "${entry.meaning}"?`, entry.word, others.map((d) => d.word), {
         speak: `Which word means ${entry.meaning}?`,
         explanation: `"${entry.word}" means ${entry.meaning}.`,

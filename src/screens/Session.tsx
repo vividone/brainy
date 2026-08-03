@@ -25,7 +25,7 @@ import { Btn, IconBtn, Modal, ProgressBar } from '../components/ui'
 import { CORRECT_WORDS, WRONG_WORDS } from '../game/theme'
 import { buzz, sfx } from '../lib/sound'
 import { cancelSpeech, speak } from '../lib/speech'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 
 const REVEAL_MS = 1100
 const MAX_REQUEUES = 3
@@ -37,7 +37,11 @@ interface Props {
 }
 
 export function Session({ plan, onFinish, onQuit }: Props) {
-  const { profile, settings, economy, recordAnswer, recordSeen } = useStore()
+  const profile = useProfile()
+  const settings = useSettings()
+  const { economy } = useLearnerData()
+  const recordAnswer = useStore((s) => s.recordAnswer)
+  const recordSeen = useStore((s) => s.recordSeen)
 
   const [queue, setQueue] = useState<PlannedItem[]>(plan.items)
   const [index, setIndex] = useState(0)

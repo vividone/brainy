@@ -5,7 +5,7 @@ import { Card, IconBtn, Pill, Screen } from '../components/ui'
 import { BADGES } from '../game/cosmetics'
 import { levelProgress } from '../engine/scoring'
 import { islandStyle } from '../game/theme'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile } from '../state/store'
 import { summariseStrands, totalStarsEarned, useBands, useCurriculum, useLevelStars, useProgress } from '../state/selectors'
 
 const ROOM_BACKDROPS: Record<string, string> = {
@@ -16,7 +16,8 @@ const ROOM_BACKDROPS: Record<string, string> = {
 }
 
 export function Room({ onBack }: { onBack: () => void }) {
-  const { profile, economy, streak, badges, totals } = useStore()
+  const profile = useProfile()
+  const { economy, streak, badges, totals } = useLearnerData()
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()

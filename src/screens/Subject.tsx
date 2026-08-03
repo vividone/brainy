@@ -19,7 +19,7 @@ import {
   useLevelStars,
   useProgress,
 } from '../state/selectors'
-import { useStore } from '../state/store'
+import { useProfile } from '../state/store'
 
 interface Props {
   subjectId: string
@@ -32,7 +32,7 @@ export function Subject({ subjectId, onBack, onOpenIsland }: Props) {
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
-  const yearBand = useStore((s) => s.profile.yearBand)
+  const yearBand = useProfile().yearBand
 
   const subject = curriculum.subjects.find((s) => s.id === subjectId)
 

@@ -352,7 +352,25 @@ const hiddenWords: SkillDef = {
   generate: ({ rng, difficulty }): Item => {
     const tier = tierFor(1, difficulty)
     const entry = pickTier(rng, HIDDEN_WORDS, tier)
-    const variant = rng.int(1, 2)
+    const variant = rng.int(1, 3)
+
+    // Yes or no on one word. The "no" cases use a long word that genuinely
+    // does not contain the letters, checked rather than assumed.
+    if (variant === 3) {
+      const elsewhere = bandOf(HIDDEN_WORDS, tier).filter((h) => !h.word.includes(entry.hidden))
+      if (elsewhere.length) {
+        const truth = rng.chance(0.5)
+        const host = truth ? entry.word : rng.pick(elsewhere).word
+        const really = host.includes(entry.hidden)
+        return tf(`The letters "${entry.hidden}" are hidden inside ${upper(host)}.`, really, {
+          trueLabel: 'Yes',
+          falseLabel: 'No',
+          explanation: really
+            ? `${upper(host)} — the letters ${upper(entry.hidden)} sit together inside it.`
+            : `No. ${upper(entry.hidden)} hides inside ${upper(entry.word)}, not ${upper(host)}.`,
+        })
+      }
+    }
 
     if (variant === 1) {
       const near = rng

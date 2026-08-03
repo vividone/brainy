@@ -83,6 +83,29 @@ export const TYPED_SENTENCES: TypedSentence[] = [
   ts('How beautifully she sings', 'exclamation', 3),
 ]
 
+/* ------------------------------------------------------------------ *
+ * Questions to rebuild word by word
+ *
+ * Only one capital letter and only one question mark in each set, so exactly
+ * one arrangement can be defended. No word is repeated inside a question,
+ * because two identical tiles would look like two right answers.
+ * ------------------------------------------------------------------ */
+
+export const QUESTION_ORDERS: { words: string[]; tier: Tier }[] = [
+  { words: ['Where', 'is', 'my', 'pencil?'], tier: 1 },
+  { words: ['What', 'is', 'your', 'name?'], tier: 1 },
+  { words: ['Who', 'took', 'my', 'ruler?'], tier: 1 },
+  { words: ['Is', 'this', 'your', 'bag?'], tier: 1 },
+  { words: ['Where', 'are', 'the', 'baskets?'], tier: 1 },
+  { words: ['Why', 'is', 'the', 'gate', 'locked?'], tier: 2 },
+  { words: ['When', 'does', 'the', 'lesson', 'start?'], tier: 2 },
+  { words: ['Can', 'you', 'lend', 'me', 'a', 'biro?'], tier: 2 },
+  { words: ['Are', 'you', 'coming', 'to', 'school?'], tier: 2 },
+  { words: ['Did', 'you', 'finish', 'your', 'work?'], tier: 2 },
+  { words: ['How', 'many', 'oranges', 'did', 'she', 'buy?'], tier: 3 },
+  { words: ['Whose', 'uniform', 'is', 'on', 'the', 'bench?'], tier: 3 },
+]
+
 export const KIND_LABEL: Record<SentenceKind, string> = {
   statement: 'Statement',
   question: 'Question',
@@ -163,15 +186,24 @@ export const PREPOSITION_PLACE_CLOZE: Cloze[] = [
 
 export const CONJUNCTION_CLOZE: Cloze[] = [
   cz('Ada bought bread ____ milk.', 'and', ['because', 'so', 'but'], 1, '"And" adds one thing to another.'),
-  cz('Would you like rice ____ beans?', 'or', ['because', 'so', 'and'], 1, '"Or" offers a choice between two things.'),
   cz('Chidi stayed at home ____ of the heavy rain.', 'because', ['but', 'so', 'and'], 2, '"Because of" gives the reason for something.'),
   cz('We could not play outside ____ of the mud.', 'because', ['but', 'or', 'and'], 2, '"Because of" gives the reason for something.'),
   cz('Musa washed the plates ____ swept the floor.', 'and', ['because', 'or', 'so'], 1, '"And" joins two things the same person did.'),
-  cz('Shall we walk ____ take the bus?', 'or', ['because', 'so', 'and'], 2, '"Or" offers a choice between two things.'),
   cz('The market was closed ____ of the public holiday.', 'because', ['but', 'so', 'or'], 3, '"Because of" gives the reason for something.'),
   cz('Ngozi packed her books ____ her uniform.', 'and', ['because', 'so', 'but'], 1, '"And" adds one thing to another.'),
-  cz('Is your bag red ____ blue?', 'or', ['because', 'so', 'and'], 1, '"Or" offers a choice between two things.'),
   cz('The road was flooded ____ of the storm.', 'because', ['but', 'so', 'and'], 3, '"Because of" gives the reason for something.'),
+  cz('Tunde swept the compound ____ fetched the water.', 'and', ['because', 'or', 'so'], 1, '"And" joins two things the same person did.'),
+  cz('Halima packed her ruler ____ her sharpener.', 'and', ['because', 'so', 'but'], 1, '"And" adds one thing to another.'),
+  cz('The lesson was cancelled ____ of the rain.', 'because', ['but', 'so', 'and'], 2, '"Because of" gives the reason for something.'),
+  cz('Bisi could not sleep ____ of the noise.', 'because', ['but', 'or', 'and'], 2, '"Because of" gives the reason for something.'),
+  cz('Emeka bought yams, plantains ____ tomatoes.', 'and', ['because', 'so', 'but'], 1, '"And" comes before the last thing in a list.'),
+  cz('We waited at the bus stop ____ of the traffic.', 'because', ['but', 'so', 'or'], 3, '"Because of" gives the reason for something.'),
+  cz('Sade opened her books ____ her pencil case.', 'and', ['because', 'so', 'but'], 1, '"And" adds one thing to another.'),
+  cz('The match was stopped ____ of the storm.', 'because', ['but', 'so', 'or'], 2, '"Because of" gives the reason for something.'),
+  cz('Kunle carried the bucket ____ the broom.', 'and', ['because', 'so', 'but'], 1, '"And" adds one thing to another.'),
+  cz('The shop was shut ____ of the public holiday.', 'because', ['but', 'so', 'or'], 3, '"Because of" gives the reason for something.'),
+  cz('Funke greeted her teacher ____ sat down.', 'and', ['because', 'or', 'so'], 1, '"And" joins two things the same person did.'),
+  cz('We travelled at night ____ of the traffic.', 'because', ['but', 'so', 'and'], 3, '"Because of" gives the reason for something.'),
 ]
 
 export const CONJUNCTION_JOBS: { job: string; answer: string; wrong: string[] }[] = [
@@ -180,6 +212,115 @@ export const CONJUNCTION_JOBS: { job: string; answer: string; wrong: string[] }[
   { job: 'ADDS one idea to another', answer: 'and', wrong: ['but', 'or', 'because'] },
   { job: 'shows two ideas that are OPPOSITE', answer: 'but', wrong: ['and', 'or', 'because'] },
   { job: 'shows the RESULT of something', answer: 'so', wrong: ['and', 'or', 'because'] },
+]
+
+/* ------------------------------------------------------------------ *
+ * Conjunctions by the job they do
+ *
+ * The question names the job it wants — contrast, reason, result, choice or
+ * addition — so only one joining word can be defended even where a rival word
+ * would also make a grammatical sentence.
+ * ------------------------------------------------------------------ */
+
+export type ConjunctionSense = 'ADDITION' | 'CONTRAST' | 'REASON' | 'RESULT' | 'CHOICE'
+
+export const SENSE_ASK: Record<ConjunctionSense, string> = {
+  ADDITION: 'ADDS a second idea',
+  CONTRAST: 'shows a CONTRAST',
+  REASON: 'gives the REASON',
+  RESULT: 'shows the RESULT',
+  CHOICE: 'offers a CHOICE',
+}
+
+export const SENSE_JOB: Record<ConjunctionSense, string> = {
+  ADDITION: 'It adds one idea to another',
+  CONTRAST: 'It shows a contrast between two ideas',
+  REASON: 'It gives the reason for something',
+  RESULT: 'It shows the result of something',
+  CHOICE: 'It offers a choice between two things',
+}
+
+export interface SenseCloze {
+  text: string
+  sense: ConjunctionSense
+  answer: string
+  wrong: string[]
+  tier: Tier
+  why: string
+}
+
+const sc = (
+  text: string, sense: ConjunctionSense, answer: string, wrong: string[], tier: Tier, why: string,
+): SenseCloze => ({ text, sense, answer, wrong, tier, why })
+
+export const CONJUNCTION_SENSE: SenseCloze[] = [
+  sc('Tunde was tired ____ he kept running.', 'CONTRAST', 'but', ['and', 'or', 'because'], 2, '"But" joins two ideas that pull against each other.'),
+  sc('Ada was ill ____ she still came to school.', 'CONTRAST', 'but', ['and', 'or', 'so'], 2, '"But" shows the second idea goes against the first.'),
+  sc('The bag was small ____ it was very heavy.', 'CONTRAST', 'but', ['and', 'or', 'because'], 2, '"But" shows the two ideas pull against each other.'),
+  sc('Musa shouted ____ nobody heard him.', 'CONTRAST', 'but', ['and', 'or', 'so'], 3, '"But" shows the surprising second idea.'),
+  sc('The soup smelled lovely ____ it tasted awful.', 'CONTRAST', 'but', ['and', 'or', 'because'], 3, '"But" shows a contrast between the two ideas.'),
+  sc('Ngozi stayed at home ____ she was unwell.', 'REASON', 'because', ['and', 'or', 'but'], 2, '"Because" gives the reason for staying at home.'),
+  sc('We fetched water from the well ____ the tap was broken.', 'REASON', 'because', ['and', 'or', 'but'], 3, '"Because" comes in front of the reason.'),
+  sc('Chidi ran to school ____ he was late.', 'REASON', 'because', ['and', 'or', 'but'], 2, '"Because" gives the reason for running.'),
+  sc('The pupils cheered ____ their team had won.', 'REASON', 'because', ['and', 'or', 'but'], 3, '"Because" tells you why they cheered.'),
+  sc('It started to rain, ____ we ran inside.', 'RESULT', 'so', ['and', 'or', 'because'], 2, '"So" shows what happened as a result.'),
+  sc('The gate was locked, ____ we waited outside.', 'RESULT', 'so', ['and', 'or', 'because'], 2, '"So" shows the result of the locked gate.'),
+  sc('Halima had no money, ____ she walked home.', 'RESULT', 'so', ['and', 'or', 'because'], 3, '"So" shows what happened as a result.'),
+  sc('The lorry broke down, ____ the goods arrived late.', 'RESULT', 'so', ['and', 'or', 'because'], 3, '"So" shows the result of the breakdown.'),
+  sc('You may have rice ____ beans.', 'CHOICE', 'or', ['and', 'but', 'because'], 1, '"Or" offers a choice between two things.'),
+  sc('Shall we walk ____ take a bus?', 'CHOICE', 'or', ['and', 'but', 'because'], 2, '"Or" offers a choice between two plans.'),
+  sc('Is your uniform blue ____ green?', 'CHOICE', 'or', ['and', 'but', 'because'], 1, '"Or" offers a choice between two things.'),
+  sc('Would you like a mango ____ an orange?', 'CHOICE', 'or', ['and', 'but', 'because'], 1, '"Or" offers a choice between two things.'),
+  sc('Bisi swept the floor ____ washed the plates.', 'ADDITION', 'and', ['but', 'or', 'because'], 1, '"And" adds a second thing she did.'),
+  sc('Emeka bought yams ____ plantains.', 'ADDITION', 'and', ['but', 'or', 'because'], 1, '"And" adds one thing to another.'),
+  sc('The rain fell ____ the wind blew.', 'ADDITION', 'and', ['but', 'or', 'because'], 2, '"And" adds a second idea to the first.'),
+  sc('Segun packed his books ____ locked the cupboard.', 'ADDITION', 'and', ['but', 'or', 'because'], 2, '"And" adds a second thing he did.'),
+  sc('Funke read the story ____ drew a picture.', 'ADDITION', 'and', ['but', 'or', 'because'], 1, '"And" adds a second thing she did.'),
+  sc('You may take one mango ____ one orange, not both.', 'CHOICE', 'or', ['and', 'but', 'because'], 2, '"Not both" tells you it is a choice, so we use "or".'),
+  sc('The tap was dry, ____ we could not wash.', 'RESULT', 'so', ['and', 'or', 'because'], 3, '"So" shows what happened as a result.'),
+  sc('Kunle forgot his key, ____ he waited outside.', 'RESULT', 'so', ['and', 'or', 'because'], 2, '"So" shows what happened as a result.'),
+  sc('Aisha studied hard ____ she passed the test.', 'RESULT', 'so', ['and', 'or', 'but'], 3, '"So" shows the result of studying hard.'),
+  sc('The teacher waited ____ the class was noisy.', 'REASON', 'because', ['and', 'or', 'but'], 3, '"Because" comes in front of the reason for waiting.'),
+]
+
+/** Finished sentences whose joining word does exactly one identifiable job. */
+export interface ConjunctionUse {
+  text: string
+  word: string
+  sense: ConjunctionSense
+  tier: Tier
+}
+
+const cu = (text: string, word: string, sense: ConjunctionSense, tier: Tier): ConjunctionUse =>
+  ({ text, word, sense, tier })
+
+export const CONJUNCTION_USES: ConjunctionUse[] = [
+  cu('Tunde was tired but he kept running.', 'but', 'CONTRAST', 2),
+  cu('The bag was small but very heavy.', 'but', 'CONTRAST', 2),
+  cu('Ada shouted but nobody heard her.', 'but', 'CONTRAST', 2),
+  cu('Musa was late but the bus was still waiting.', 'but', 'CONTRAST', 3),
+  cu('Ngozi stayed at home because she was unwell.', 'because', 'REASON', 2),
+  cu('Chidi ran to school because he was late.', 'because', 'REASON', 2),
+  cu('We used the well because the tap was broken.', 'because', 'REASON', 3),
+  cu('The pupils cheered because their team had won.', 'because', 'REASON', 3),
+  cu('It started to rain, so we ran inside.', 'so', 'RESULT', 2),
+  cu('The gate was locked, so we waited outside.', 'so', 'RESULT', 2),
+  cu('Halima had no money, so she walked home.', 'so', 'RESULT', 3),
+  cu('The lorry broke down, so the goods arrived late.', 'so', 'RESULT', 3),
+  cu('You may have rice or beans.', 'or', 'CHOICE', 1),
+  cu('Is your uniform blue or green?', 'or', 'CHOICE', 1),
+  cu('Shall we walk or take a bus?', 'or', 'CHOICE', 2),
+  cu('Bisi swept the floor and washed the plates.', 'and', 'ADDITION', 1),
+  cu('Emeka bought yams and plantains.', 'and', 'ADDITION', 1),
+  cu('The rain fell and the wind blew.', 'and', 'ADDITION', 2),
+  cu('Segun packed his books and locked the cupboard.', 'and', 'ADDITION', 2),
+  cu('Funke read the story and drew a picture.', 'and', 'ADDITION', 1),
+]
+
+/** Words that are never joining words, for a "tap the conjunctions" board. */
+export const NOT_CONJUNCTIONS = [
+  'basket', 'quickly', 'under', 'teacher', 'washed', 'happy', 'beside', 'pencil',
+  'loudly', 'goat', 'bright', 'carried', 'above', 'bucket', 'gently', 'lorry',
 ]
 
 /* ------------------------------------------------------------------ *

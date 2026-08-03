@@ -5,12 +5,15 @@ import { Mascot } from '../components/Mascot'
 import { Btn, Card, IconBtn, Pill, Screen } from '../components/ui'
 import { COSMETICS, SLOT_LABEL, type CosmeticSlot } from '../game/cosmetics'
 import { sfx } from '../lib/sound'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile, useStore } from '../state/store'
 
 const SLOTS: CosmeticSlot[] = ['hat', 'eyes', 'neck', 'room']
 
 export function Shop({ onBack }: { onBack: () => void }) {
-  const { profile, economy, purchase, equip } = useStore()
+  const profile = useProfile()
+  const { economy } = useLearnerData()
+  const purchase = useStore((s) => s.purchase)
+  const equip = useStore((s) => s.equip)
   const [slot, setSlot] = useState<CosmeticSlot>('hat')
   const [preview, setPreview] = useState<string | null>(null)
 

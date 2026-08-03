@@ -14,7 +14,7 @@ import { BADGES } from '../game/cosmetics'
 import { PRAISE } from '../game/theme'
 import { sfx } from '../lib/sound'
 import { speak } from '../lib/speech'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile, useSettings } from '../state/store'
 import type { Awards } from '../state/store'
 
 interface Props {
@@ -25,7 +25,9 @@ interface Props {
 }
 
 export function Results({ result, awards, onPlayAgain, onHome }: Props) {
-  const { profile, economy, streak, settings } = useStore()
+  const profile = useProfile()
+  const { economy, streak } = useLearnerData()
+  const settings = useSettings()
   const [shownStars, setShownStars] = useState(0)
   const level = levelProgress(economy.xp)
 

@@ -1668,6 +1668,234 @@ export const DEFINITIONS: Definition[] = [
 ]
 
 /* ------------------------------------------------------------------ *
+ * Degrees of meaning
+ *
+ * Words on the same scale, written weakest first. Knowing that "warm", "hot"
+ * and "boiling" are not interchangeable is a different piece of vocabulary
+ * knowledge from knowing they are related, and it is the one that lets a
+ * child choose the right word rather than any near-enough word.
+ *
+ * The ordering must be beyond argument, because the `order` interaction marks
+ * one sequence and one sequence only. Any scale where two words could swap
+ * places was cut. `wrong` holds real words that sit off the scale entirely.
+ * ------------------------------------------------------------------ */
+
+export interface DegreeScale extends Tiered {
+  /** Label for the weak end: "coldest". */
+  low: string
+  /** Label for the strong end: "hottest". */
+  high: string
+  /** Weakest first. Strictly ordered — no two may be swapped. */
+  words: string[]
+  /** Real words that are not on this scale at all. */
+  wrong: string[]
+}
+
+const scale = (tier: number, specs: [string, string, string[], string[]][]): DegreeScale[] =>
+  specs.map(([low, high, words, wrong]) => ({ tier, low, high, words, wrong }))
+
+export const DEGREES: DegreeScale[] = [
+  ...scale(1, [
+    ['coldest', 'hottest', ['cold', 'warm', 'hot'], ['wet', 'dry', 'windy']],
+    ['smallest', 'biggest', ['small', 'big', 'huge'], ['long', 'round', 'flat']],
+    ['quietest', 'loudest', ['whisper', 'talk', 'shout'], ['listen', 'write', 'sleep']],
+    ['driest', 'wettest', ['dry', 'damp', 'soaked'], ['clean', 'rough', 'new']],
+    ['slowest', 'fastest', ['crawl', 'walk', 'run'], ['sit', 'stand', 'stop']],
+    ['coolest', 'coldest', ['cool', 'cold', 'freezing'], ['sunny', 'bright', 'dusty']],
+    ['smallest', 'biggest', ['tiny', 'small', 'large'], ['thin', 'short', 'wide']],
+  ]),
+  ...scale(2, [
+    ['warmest', 'hottest', ['warm', 'hot', 'boiling'], ['cool', 'cold', 'icy']],
+    ['calmest', 'angriest', ['calm', 'cross', 'furious'], ['happy', 'tired', 'kind']],
+    ['most awake', 'most tired', ['awake', 'sleepy', 'exhausted'], ['hungry', 'busy', 'early']],
+    ['quietest', 'loudest', ['silent', 'quiet', 'noisy'], ['busy', 'empty', 'bright']],
+    ['coldest', 'hottest', ['ice', 'water', 'steam'], ['sand', 'stone', 'wood']],
+    ['shortest', 'longest', ['second', 'minute', 'hour'], ['metre', 'litre', 'gram']],
+    ['smallest', 'largest', ['village', 'town', 'city'], ['river', 'market', 'bridge']],
+    ['smallest', 'biggest', ['drop', 'cup', 'bucket'], ['plate', 'tray', 'lid']],
+  ]),
+  ...scale(3, [
+    ['shortest', 'longest', ['day', 'week', 'month'], ['metre', 'litre', 'kilogram']],
+    ['smallest', 'largest', ['stream', 'river', 'ocean'], ['desert', 'mountain', 'forest']],
+    ['gentlest', 'fiercest', ['gentle', 'rough', 'violent'], ['quiet', 'clean', 'narrow']],
+    ['smallest', 'largest', ['small', 'large', 'enormous'], ['narrow', 'shallow', 'light']],
+    ['coolest', 'hottest', ['cool', 'warm', 'scorching'], ['damp', 'windy', 'cloudy']],
+    ['lightest', 'heaviest', ['gram', 'kilogram', 'tonne'], ['metre', 'litre', 'hour']],
+    ['shortest', 'tallest', ['grass', 'bush', 'tree'], ['stone', 'pond', 'path']],
+  ]),
+  ...scale(4, [
+    ['smallest', 'largest', ['town', 'city', 'country'], ['street', 'market', 'school']],
+    ['least certain', 'most certain', ['possible', 'probable', 'certain'], ['strange', 'sudden', 'useful']],
+    ['smallest', 'largest', ['millimetre', 'centimetre', 'metre'], ['gram', 'litre', 'second']],
+    ['quietest', 'loudest', ['murmur', 'shout', 'roar'], ['nod', 'pause', 'listen']],
+    ['gentlest', 'strongest', ['breeze', 'wind', 'gale'], ['cloud', 'shower', 'rainbow']],
+  ]),
+  ...scale(5, [
+    ['smallest', 'largest', ['hamlet', 'village', 'metropolis'], ['harbour', 'junction', 'estate']],
+    ['least angry', 'angriest', ['annoyed', 'angry', 'furious'], ['puzzled', 'curious', 'amused']],
+    ['shortest', 'longest', ['decade', 'century', 'millennium'], ['kilometre', 'litre', 'degree']],
+    ['dimmest', 'brightest', ['dim', 'bright', 'dazzling'], ['narrow', 'hollow', 'distant']],
+    ['gentlest', 'strongest', ['suggest', 'urge', 'demand'], ['refuse', 'forget', 'wonder']],
+    ['newest', 'oldest', ['recent', 'old', 'ancient'], ['sturdy', 'hollow', 'narrow']],
+  ]),
+]
+
+/* ------------------------------------------------------------------ *
+ * Words in use
+ *
+ * A synonym or an opposite met only in a list is half-learned. These two
+ * lists put the same words in a sentence, which is where a child actually
+ * has to choose between them.
+ *
+ * CONTRASTS: the gap wants the opposite of a word already in the sentence.
+ * SWAPS: the capitalised word is to be replaced by one that means the same.
+ *
+ * Both were written so exactly one option can be defended. Where a second
+ * choice also read naturally, the sentence was rewritten or dropped.
+ * ------------------------------------------------------------------ */
+
+export interface Contrast extends Tiered {
+  /** Contains `___` where the opposite belongs. */
+  text: string
+  /** The word in the sentence that the gap is the opposite of. */
+  cue: string
+  answer: string
+  wrong: string[]
+}
+
+const contrasts = (tier: number, specs: [string, string, string, string[]][]): Contrast[] =>
+  specs.map(([text, cue, answer, wrong]) => ({ tier, text, cue, answer, wrong }))
+
+export const CONTRASTS: Contrast[] = [
+  ...contrasts(1, [
+    ['The elephant is big but the mouse is ___.', 'big', 'small', ['huge', 'large', 'tall']],
+    ['Fire is hot but ice is ___.', 'hot', 'cold', ['warm', 'wet', 'dry']],
+    ['Father is tall but the baby is ___.', 'tall', 'short', ['thin', 'wide', 'old']],
+    ['We work in the day and sleep at ___.', 'day', 'night', ['noon', 'morning', 'week']],
+    ['The stone is heavy but the feather is ___.', 'heavy', 'light', ['heavy', 'wide', 'thick']],
+    ['The tortoise is slow but the hare is ___.', 'slow', 'fast', ['slow', 'lazy', 'tired']],
+    ['Sugar is sweet but bitter leaf is ___.', 'sweet', 'bitter', ['sweet', 'salty', 'fresh']],
+    ['The well is deep but the puddle is ___.', 'deep', 'shallow', ['deep', 'wide', 'clean']],
+    ['Ada came first and Bola came ___.', 'first', 'last', ['first', 'early', 'soon']],
+    ['The room was dirty, so we made it ___.', 'dirty', 'clean', ['dirty', 'dark', 'empty']],
+    ['The bag is empty but the basket is ___.', 'empty', 'full', ['empty', 'wide', 'new']],
+    ['We push the gate in and ___ it out.', 'push', 'pull', ['push', 'open', 'lock']],
+    ['My shirt is old but my shoes are ___.', 'old', 'new', ['old', 'black', 'clean']],
+    ['Grandmother is old and the baby is ___.', 'old', 'young', ['old', 'tall', 'tired']],
+    ['The window was closed, so Chidi ___ it.', 'closed', 'opened', ['closed', 'washed', 'painted']],
+  ]),
+  ...contrasts(2, [
+    ['The market is noisy in the day but ___ at night.', 'noisy', 'quiet', ['noisy', 'busy', 'long']],
+    ['He was brave at first, but later he became ___.', 'brave', 'afraid', ['brave', 'bold', 'angry']],
+    ['The first sum was easy but the last one was ___.', 'easy', 'difficult', ['easy', 'simple', 'short']],
+    ['We buy yams in Lagos and ___ them in Ibadan.', 'buy', 'sell', ['buy', 'pay', 'borrow']],
+    ['He remembered my name but ___ my address.', 'remembered', 'forgot', ['remembered', 'knew', 'wrote']],
+    ['The parcel arrived early, but the letter arrived ___.', 'early', 'late', ['early', 'soon', 'quickly']],
+    ['The knife is sharp but the spoon is ___.', 'sharp', 'blunt', ['sharp', 'clean', 'heavy']],
+    ['The film began at four and ___ at six.', 'began', 'ended', ['began', 'started', 'opened']],
+    ['Some families are rich and some are ___.', 'rich', 'poor', ['rich', 'happy', 'busy']],
+    ['She was asleep all morning and ___ all night.', 'asleep', 'awake', ['asleep', 'busy', 'hungry']],
+  ]),
+  ...contrasts(3, [
+    ['A giant is enormous but an insect is ___.', 'enormous', 'tiny', ['enormous', 'huge', 'gigantic']],
+    ['He is generous with his money but his cousin is ___.', 'generous', 'selfish', ['generous', 'kind', 'helpful']],
+    ['The floor was filthy, so the cleaner made it ___.', 'filthy', 'spotless', ['filthy', 'dusty', 'muddy']],
+    ['She spoke gently to the child but ___ to the thief.', 'gently', 'harshly', ['gently', 'kindly', 'softly']],
+    ['The lion is strong but the ant is ___.', 'strong', 'weak', ['strong', 'brave', 'busy']],
+    ['The teacher praised Ada and ___ Bola for coming late.', 'praised', 'scolded', ['praised', 'thanked', 'helped']],
+  ]),
+  ...contrasts(4, [
+    ['The witness told the truth, but the thief told a ___.', 'truth', 'lie', ['truth', 'promise', 'greeting']],
+    ['Food was plentiful last year but ___ this year.', 'plentiful', 'scarce', ['plentiful', 'abundant', 'cheap']],
+    ['Her handwriting is legible but her brother’s is ___.', 'legible', 'illegible', ['legible', 'neat', 'tidy']],
+    ['He was reluctant at first but soon became ___.', 'reluctant', 'eager', ['reluctant', 'unwilling', 'hesitant']],
+    ['The chairman accepted my idea but ___ hers.', 'accepted', 'rejected', ['accepted', 'approved', 'praised']],
+  ]),
+  ...contrasts(5, [
+    ['A permanent job lasts, but a ___ one does not.', 'permanent', 'temporary', ['permanent', 'lasting', 'steady']],
+    ['The ancient church stood beside a ___ office block.', 'ancient', 'modern', ['ancient', 'aged', 'antique']],
+    ['She arrived punctually while her brother was ___.', 'punctually', 'late', ['punctual', 'early', 'prompt']],
+    ['The medicine will relieve the pain, not ___ it.', 'relieve', 'worsen', ['relieve', 'ease', 'cure']],
+    ['His account was truthful; hers was entirely ___.', 'truthful', 'false', ['truthful', 'honest', 'accurate']],
+  ]),
+]
+
+export interface Swap extends Tiered {
+  /** Contains `___` where the word goes; shown with the word in capitals. */
+  text: string
+  word: string
+  /** Words that could stand in the same gap. */
+  same: string[]
+  wrong: string[]
+}
+
+const swaps = (tier: number, specs: [string, string, string[], string[]][]): Swap[] =>
+  specs.map(([text, word, same, wrong]) => ({ tier, text, word, same, wrong }))
+
+export const SWAPS: Swap[] = [
+  ...swaps(1, [
+    ['The lorry was ___.', 'big', ['large', 'huge'], ['small', 'thin', 'empty']],
+    ['The puppy was ___.', 'small', ['little', 'tiny'], ['big', 'heavy', 'noisy']],
+    ['Ada was ___ when she saw her present.', 'happy', ['glad', 'cheerful'], ['sad', 'sleepy', 'hungry']],
+    ['Musa felt ___ when his kite tore.', 'sad', ['unhappy'], ['happy', 'funny', 'kind']],
+    ['The okada rider was ___.', 'fast', ['quick', 'speedy'], ['slow', 'late', 'heavy']],
+    ['Please ___ the door.', 'shut', ['close'], ['open', 'push', 'break']],
+    ['Do not ___ in the classroom.', 'shout', ['yell'], ['whisper', 'listen', 'sleep']],
+    ['The goat can ___ over the fence.', 'jump', ['leap', 'hop'], ['crawl', 'sit', 'swim']],
+    ['Bola stayed at home because she was ___.', 'ill', ['sick', 'unwell'], ['well', 'strong', 'hungry']],
+    ['Keep your desk ___.', 'neat', ['tidy'], ['dirty', 'messy', 'empty']],
+    ['Grandmother told us a ___.', 'story', ['tale'], ['song', 'poem', 'letter']],
+    ['We must ___ or we will miss the bus.', 'hurry', ['rush'], ['wait', 'rest', 'walk']],
+  ]),
+  ...swaps(2, [
+    ['The hunter was ___.', 'brave', ['bold', 'fearless'], ['afraid', 'weak', 'shy']],
+    ['The driver was ___ about the traffic.', 'angry', ['cross', 'furious'], ['calm', 'happy', 'gentle']],
+    ['Ngozi is a ___ pupil.', 'clever', ['smart', 'bright'], ['silly', 'foolish', 'lazy']],
+    ['The farmers were ___ after the harvest.', 'tired', ['weary'], ['awake', 'fresh', 'lively']],
+    ['The trader became ___ after many good years.', 'rich', ['wealthy'], ['poor', 'greedy', 'lucky']],
+    ['The library was ___.', 'quiet', ['silent'], ['noisy', 'loud', 'busy']],
+    ['That was a ___ noise to hear at night.', 'strange', ['odd', 'unusual'], ['normal', 'common', 'plain']],
+    ['The last question was ___.', 'hard', ['difficult', 'tough'], ['easy', 'simple', 'light']],
+    ['My uniform got ___ in the rain.', 'wet', ['damp', 'soaked'], ['dry', 'clean', 'warm']],
+    ['The carpenter came to ___ our chair.', 'repair', ['mend', 'fix'], ['break', 'spoil', 'damage']],
+    ['We went to ___ rice at the market.', 'buy', ['purchase'], ['sell', 'keep', 'borrow']],
+    ['The children began to ___ at the clown.', 'laugh', ['giggle', 'chuckle'], ['cry', 'frown', 'sob']],
+  ]),
+  ...swaps(3, [
+    ['The ___ pot came from her great-grandmother.', 'ancient', ['old'], ['modern', 'new', 'recent']],
+    ['An ___ iroko tree stood by the road.', 'enormous', ['huge', 'gigantic'], ['tiny', 'small', 'narrow']],
+    ['She was ___ with the injured bird.', 'gentle', ['tender'], ['rough', 'harsh', 'fierce']],
+    ['The lagoon was ___ that evening.', 'calm', ['peaceful', 'still'], ['noisy', 'wild', 'angry']],
+    ['The jollof rice was ___.', 'tasty', ['delicious'], ['bitter', 'plain', 'burnt']],
+    ['You may ___ any book you like.', 'select', ['choose', 'pick'], ['refuse', 'lose', 'forget']],
+    ['Please ___ to my letter soon.', 'reply', ['respond'], ['ask', 'listen', 'ignore']],
+    ['The rain will ___ the new paint.', 'damage', ['harm', 'spoil'], ['repair', 'mend', 'protect']],
+    ['The soldier was ___.', 'courageous', ['brave', 'daring'], ['cowardly', 'timid', 'fearful']],
+    ['Chidi is always ___ to visitors.', 'polite', ['courteous'], ['rude', 'cheeky', 'bossy']],
+    ['Her beads are ___.', 'valuable', ['precious', 'costly'], ['worthless', 'cheap', 'useless']],
+    ['The long ___ tired everyone out.', 'journey', ['trip', 'voyage'], ['ticket', 'station', 'suitcase']],
+  ]),
+  ...swaps(4, [
+    ['Our neighbour is ___ with her food.', 'generous', ['unselfish'], ['mean', 'selfish', 'stingy']],
+    ['The glass bowl is ___.', 'fragile', ['delicate', 'breakable'], ['strong', 'sturdy', 'tough']],
+    ['Mother looked ___ as the storm grew.', 'anxious', ['worried', 'nervous'], ['calm', 'relaxed', 'bored']],
+    ['He tried to ___ the torn page.', 'conceal', ['hide', 'cover'], ['reveal', 'show', 'display']],
+    ['The chief was ___ about the new road.', 'reluctant', ['unwilling', 'hesitant'], ['eager', 'willing', 'keen']],
+    ['Food grew ___ during the drought.', 'scarce', ['sparse'], ['plentiful', 'abundant', 'cheap']],
+  ]),
+  ...swaps(5, [
+    ['The council will ___ the new market next month.', 'inaugurate', ['open'], ['demolish', 'abandon', 'close']],
+    ['Her excuse was ___ and nobody believed it.', 'feeble', ['weak', 'flimsy'], ['strong', 'solid', 'honest']],
+    ['The two accounts of the crash were ___.', 'identical', ['alike', 'matching'], ['different', 'opposite', 'unequal']],
+    ['The head teacher spoke ___ about the broken window.', 'sternly', ['harshly', 'severely'], ['gently', 'kindly', 'softly']],
+    ['Rain in August is ___ in this town.', 'frequent', ['common', 'regular'], ['rare', 'unusual', 'strange']],
+    ['The tailor did the work ___.', 'diligently', ['carefully'], ['carelessly', 'untidily', 'hastily']],
+    ['We must ___ the meeting until Friday.', 'postpone', ['delay'], ['hold', 'cancel', 'attend']],
+    ['The soup was ___ after an hour on the fire.', 'ready', ['prepared'], ['raw', 'frozen', 'spoiled']],
+  ]),
+]
+
+/* ------------------------------------------------------------------ *
  * Anagram pairs — same letters, different word. Checked by sorted letters
  * at generation time, so a typo here fails loudly in the smoke test.
  * ------------------------------------------------------------------ */

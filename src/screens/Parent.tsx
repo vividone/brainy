@@ -3,7 +3,7 @@
  * is he learning, what should I help with, and how much is he playing.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { BAND_LABEL, BAND_STYLE, band, currentMastery, difficultyFor } from '../engine/mastery'
 import {
   ageOptions,
@@ -16,8 +16,10 @@ import {
 } from '../engine/registry'
 import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
+import { Mascot } from '../components/Mascot'
+import { MASCOT_COLOURS } from '../game/cosmetics'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
-import { useStore } from '../state/store'
+import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
 import { buildAnalytics } from '../state/analytics'
 import { setSpeechRate, speak } from '../lib/speech'
@@ -27,7 +29,7 @@ import { setSpeechRate, speak } from '../lib/speech'
  * ------------------------------------------------------------------ */
 
 function Gate({ onPass, onBack }: { onPass: () => void; onBack: () => void }) {
-  const pin = useStore((s) => s.settings.parentPin)
+  const pin = useStore((s) => s.device.parentPin)
   const [entry, setEntry] = useState('')
   const [error, setError] = useState(false)
 
@@ -105,7 +107,7 @@ function Gate({ onPass, onBack }: { onPass: () => void; onBack: () => void }) {
  * Report
  * ------------------------------------------------------------------ */
 
-type Tab = 'progress' | 'help' | 'settings'
+type Tab = 'progress' | 'help' | 'children' | 'settings'
 
 /** Parent-facing difficulty options. `null` hands the choice back to the engine. */
 const DIFFICULTY_CHOICES: { value: Difficulty | null; label: string }[] = [
@@ -122,7 +124,10 @@ export function Parent({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<Tab>('progress')
 
   const store = useStore()
-  const { profile, settings, byDay, history, totals, streak, updateSettings } = store
+  const profile = useProfile()
+  const settings = useSettings()
+  const { byDay, history, totals, streak } = useLearnerData()
+  const updateSettings = store.updateSettings
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
@@ -224,6 +229,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
           [
             ['progress', '📊 Progress'],
             ['help', '💡 How to help'],
+            ['children', '👧 Children'],
             ['settings', '⚙️ Settings'],
           ] as [Tab, string][]
         ).map(([id, label]) => (
@@ -575,12 +581,181 @@ export function Parent({ onBack }: { onBack: () => void }) {
       )}
 
       {/* ---- Settings ---- */}
+      {tab === 'children' && <ChildrenTab />}
       {tab === 'settings' && <SettingsTab />}
     </Screen>
   )
 
+  /** Add, switch, rename and remove the children who share this device. */
+  function ChildrenTab() {
+    const learners = useStore((s) => s.learners)
+    const data = useStore((s) => s.data)
+    const activeId = useStore((s) => s.activeLearnerId)
+    const [adding, setAdding] = useState(false)
+    const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+    const [name, setName] = useState('')
+    const [age, setAge] = useState<number | null>(null)
+    const [colour, setColour] = useState('teal')
+
+    const suggested = age === null ? null : bandForAge(curriculum.id, age)
+
+    return (
+      <div className="mt-4 space-y-4">
+        {learners.map((l) => {
+          const d = data[l.id]
+          const isActive = l.id === activeId
+          const bandLabel = listCurricula()
+            .find((c) => c.id === l.curriculumId)
+            ?.yearBands.find((b) => b.id === l.yearBand)?.label
+          return (
+            <Card key={l.id} className={`p-4 border-slate-200 ${isActive ? 'ring-2 ring-slate-900' : ''}`}>
+              <div className="flex items-center gap-3">
+                <div className="size-16 shrink-0">
+                  <Mascot colour={l.colour} mood="happy" className="w-full h-full" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <input
+                    value={l.name}
+                    onChange={(e) => store.renameLearner(l.id, e.target.value)}
+                    className="w-full bg-transparent text-lg font-black text-slate-900 outline-none focus:bg-slate-50 rounded px-1"
+                    aria-label={`Name for ${l.name}`}
+                  />
+                  <p className="px-1 text-sm font-bold text-slate-500">
+                    {bandLabel} · {d?.totals.questions ?? 0} questions · level{' '}
+                    {Math.max(1, Math.floor((d?.economy.xp ?? 0) / 100) + 1)}
+                  </p>
+                </div>
+                {isActive ? (
+                  <Pill className="bg-slate-900 text-white shrink-0">Playing</Pill>
+                ) : (
+                  <Btn variant="secondary" size="sm" onClick={() => store.switchLearner(l.id)}>
+                    Switch to
+                  </Btn>
+                )}
+              </div>
+              {learners.length > 1 && (
+                <button
+                  onClick={() => setConfirmRemove(l.id)}
+                  className="mt-2 text-sm font-bold text-rose-600 hover:underline"
+                >
+                  Remove {l.name}
+                </button>
+              )}
+            </Card>
+          )
+        })}
+
+        {adding ? (
+          <Card className="p-5 border-slate-300">
+            <h2 className="font-black text-slate-900 mb-3">Add a child</h2>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 16))}
+              placeholder="First name"
+              className="w-full h-14 rounded-2xl border-2 border-slate-300 px-4 text-xl font-black"
+            />
+            <p className="mt-3 font-black text-slate-800">Age</p>
+            <div className="mt-2 grid grid-cols-4 sm:grid-cols-7 gap-2">
+              {ageOptions(curriculum.id).map((a) => (
+                <button
+                  key={a}
+                  onClick={() => setAge(a)}
+                  className={`min-h-12 rounded-2xl border-2 font-black ${a === age ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+            {suggested && (
+              <p className="mt-2 text-sm font-bold text-slate-500">
+                That is usually {suggested.label}. You can change it afterwards.
+              </p>
+            )}
+            <p className="mt-3 font-black text-slate-800">Buddy colour</p>
+            <div className="mt-2 grid grid-cols-6 gap-2">
+              {MASCOT_COLOURS.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setColour(c.id)}
+                  aria-label={c.name}
+                  className={`rounded-xl border-2 p-1 ${c.id === colour ? 'border-slate-900' : 'border-slate-200'}`}
+                >
+                  <Mascot colour={c.id} mood="happy" className="w-full h-10" />
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Btn variant="secondary" size="md" full onClick={() => setAdding(false)}>
+                Cancel
+              </Btn>
+              <Btn
+                size="md"
+                full
+                disabled={!name.trim() || age === null}
+                onClick={() => {
+                  store.addLearner({
+                    name,
+                    curriculumId: curriculum.id,
+                    yearBand: bandForAge(curriculum.id, age ?? 7).id,
+                    age: age ?? undefined,
+                    colour,
+                  })
+                  setAdding(false)
+                  setName('')
+                  setAge(null)
+                }}
+              >
+                Add child
+              </Btn>
+            </div>
+          </Card>
+        ) : (
+          <Btn variant="secondary" size="lg" full onClick={() => setAdding(true)}>
+            ＋ Add another child
+          </Btn>
+        )}
+
+        <Card className="p-5 border-slate-200">
+          <p className="text-sm font-semibold text-slate-500">
+            Each child keeps their own progress, coins, streak and report. Nothing is shared between
+            them except the sound setting and this grown-up code.
+          </p>
+        </Card>
+
+        <Modal
+          open={confirmRemove !== null}
+          onClose={() => setConfirmRemove(null)}
+          title="Remove this child?"
+        >
+          <p className="font-bold text-slate-600">
+            This permanently deletes {learners.find((l) => l.id === confirmRemove)?.name}'s progress,
+            coins and report on this device. Export a backup first if you might want it back.
+          </p>
+          <div className="mt-5 flex gap-3">
+            <Btn variant="secondary" size="lg" full onClick={() => setConfirmRemove(null)}>
+              Cancel
+            </Btn>
+            <Btn
+              variant="danger"
+              size="lg"
+              full
+              onClick={() => {
+                if (confirmRemove) store.removeLearner(confirmRemove)
+                setConfirmRemove(null)
+              }}
+            >
+              Remove
+            </Btn>
+          </div>
+        </Modal>
+      </div>
+    )
+  }
+
   function SettingsTab() {
     const [confirmReset, setConfirmReset] = useState(false)
+    const [importMessage, setImportMessage] = useState<string | null>(null)
+    const fileRef = useRef<HTMLInputElement>(null)
     const [pinDraft, setPinDraft] = useState(settings.parentPin)
 
     const download = () => {
@@ -833,12 +1008,43 @@ export function Parent({ onBack }: { onBack: () => void }) {
           </p>
           <div className="flex flex-wrap gap-2">
             <Btn variant="secondary" size="md" onClick={download}>
-              ⬇ Export progress
+              ⬇ Export backup
+            </Btn>
+            <Btn variant="secondary" size="md" onClick={() => fileRef.current?.click()}>
+              ⬆ Restore backup
             </Btn>
             <Btn variant="danger" size="md" onClick={() => setConfirmReset(true)}>
               Reset progress
             </Btn>
           </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (!file) return
+              const result = store.importSave(await file.text())
+              setImportMessage(result.message)
+            }}
+          />
+          {importMessage && (
+            <p className="mt-3 rounded-xl bg-slate-100 p-3 font-bold text-slate-700">{importMessage}</p>
+          )}
+
+          {/*
+            This is also the cross-device story until cloud sync exists: export
+            on the old tablet, send the file to yourself, restore on the new
+            one. Restoring merges by child rather than replacing, so a sibling
+            already on the target device is not wiped.
+          */}
+          <p className="mt-3 text-xs font-semibold text-slate-400">
+            Moving to a new device? Export here, send the file to yourself, and restore it there.
+            Restoring merges children rather than replacing them, so a sibling already on the other
+            device is kept.
+          </p>
         </Card>
 
         <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Reset all progress?">

@@ -12,29 +12,29 @@ import {
   type Level,
 } from '../engine/registry'
 import type { Curriculum, ProgressMap, StrandDef, SubjectDef } from '../engine/types'
-import { useStore } from './store'
+import { useLearnerData, useProfile } from './store'
 
 /** The saved curriculum, or the default if that pack is no longer present. */
 export function useCurriculum(): Curriculum {
-  const id = useStore((s) => s.profile.curriculumId)
+  const id = useProfile().curriculumId
   return getCurriculum(hasCurriculum(id) ? id : DEFAULT_CURRICULUM_ID)
 }
 
 export function useBands(): string[] {
   const curriculum = useCurriculum()
-  const band = useStore((s) => s.profile.yearBand)
+  const band = useProfile().yearBand
   const known = curriculum.yearBands.some((b) => b.id === band)
   return includedBands(curriculum.id, known ? band : curriculum.yearBands[curriculum.yearBands.length - 1].id)
 }
 
 export function useProgress(): ProgressMap {
   const curriculum = useCurriculum()
-  return useStore((s) => s.progress[curriculum.id]) ?? {}
+  return useLearnerData().progress[curriculum.id] ?? {}
 }
 
 export function useLevelStars(): Record<string, number> {
   const curriculum = useCurriculum()
-  return useStore((s) => s.levelStars[curriculum.id]) ?? {}
+  return useLearnerData().levelStars[curriculum.id] ?? {}
 }
 
 export function useSubject(subjectId: string): SubjectDef | undefined {

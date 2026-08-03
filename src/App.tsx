@@ -11,8 +11,9 @@ import { Room } from './screens/Room'
 import { Session } from './screens/Session'
 import { Shop } from './screens/Shop'
 import { Subject } from './screens/Subject'
+import { WhoIsPlaying } from './screens/WhoIsPlaying'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
-import { useStore, type Awards } from './state/store'
+import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
 import { setSpeechEnabled, setSpeechRate } from './lib/speech'
 
@@ -28,14 +29,18 @@ type Route =
 
 export default function App() {
   const onboarded = useStore((s) => s.onboarded)
-  const settings = useStore((s) => s.settings)
+  const settings = useSettings()
   const finishSession = useStore((s) => s.finishSession)
 
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
-  const yearBand = useStore((s) => s.profile.yearBand)
-  const seenItems = useStore((s) => s.seenItems)
+  const yearBand = useProfile().yearBand
+  const seenItems = useLearnerData().seenItems
+
+  const learnerCount = useStore((s) => s.learners.length)
+  /* Ask who is playing once per app open when siblings share the device. */
+  const [pickedLearner, setPickedLearner] = useState(false)
 
   const [route, setRoute] = useState<Route>({ name: 'home' })
   /** Remembered so "Play again" can rebuild the same kind of session. */
@@ -135,6 +140,16 @@ export default function App() {
   }, [lastLaunch, startDaily, startLevel])
 
   if (!onboarded) return <Onboarding />
+  if (learnerCount > 1 && !pickedLearner) {
+    return (
+      <WhoIsPlaying
+        onPicked={() => {
+          setPickedLearner(true)
+          setRoute({ name: 'home' })
+        }}
+      />
+    )
+  }
 
   switch (route.name) {
     case 'session':
