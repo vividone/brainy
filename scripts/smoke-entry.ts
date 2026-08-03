@@ -139,7 +139,24 @@ let skillCount = 0
 let itemCount = 0
 const noExplanation: string[] = []
 /** Distinct questions observed per skill, for the content-depth report. */
-const depth: { id: string; distinct: number; draws: number }[] = []
+const depth: { id: string; distinct: number; draws: number; forms: number; topShare: number }[] = []
+
+/**
+ * The *shape* of a question, with its variable parts blanked out.
+ *
+ * Exact-duplicate counting is not what a child experiences. A skill that asks
+ * "Which word means the same as 'X'?" two hundred times has two hundred
+ * distinct questions and exactly one question form — and it feels like the
+ * same question every time. This is the metric that matches the complaint.
+ */
+function promptShape(prompt: string): string {
+  return prompt
+    .replace(/\d+/g, '#')
+    .replace(/["'“”‘’][^"'“”‘’]{1,40}["'“”‘’]/g, 'W')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90)
+}
 
 for (const curriculum of listCurricula()) {
   for (const subject of curriculum.subjects) {
@@ -150,6 +167,7 @@ for (const curriculum of listCurricula()) {
         // Signature, not prompt text: shape questions all share one prompt
         // and differ only in the picture.
         const signatures = new Set<string>()
+        const shapes = new Map<string, number>()
 
         for (let d = 1 as Difficulty; d <= 5; d = (d + 1) as Difficulty) {
           for (let s = 0; s < SAMPLES_PER_DIFFICULTY; s++) {
@@ -164,6 +182,8 @@ for (const curriculum of listCurricula()) {
             }
             itemCount++
             signatures.add(itemSignature(item))
+            const shape = promptShape(item.prompt)
+            shapes.set(shape, (shapes.get(shape) ?? 0) + 1)
             if (item.explanation) explained++
             validate(item, where)
           }
@@ -172,7 +192,14 @@ for (const curriculum of listCurricula()) {
         // A skill with a tiny question space gets memorised rather than
         // learned, which is the whole failure mode generation exists to avoid.
         const draws = 5 * SAMPLES_PER_DIFFICULTY
-        depth.push({ id: skill.id, distinct: signatures.size, draws })
+        const topCount = Math.max(0, ...shapes.values())
+        depth.push({
+          id: skill.id,
+          distinct: signatures.size,
+          draws,
+          forms: shapes.size,
+          topShare: draws ? topCount / draws : 1,
+        })
         if (signatures.size / draws < 0.3) {
           warnings.push(
             `${skill.id}: low variety — only ${signatures.size} distinct questions in ${draws} draws`,
@@ -227,10 +254,30 @@ console.log(`\nChecked ${itemCount} generated items across ${skillCount} skills.
   console.log('Content depth')
   console.log(`  ${saturated}/${depth.length} skills never repeated in ${draws} draws`)
   for (const [label, n] of buckets) console.log(`  ${label.padEnd(34)} ${n} skills`)
-  console.log('  thinnest skills:')
-  for (const d of thin) {
-    // A child meeting this skill ~6 times a session sees a repeat once the
-    // pool runs dry; this is the rough runway in daily sessions.
+
+  // Question *shape* is what a child notices. One form repeated with fresh
+  // numbers still feels like the same question.
+  const oneForm = depth.filter((d) => d.forms <= 1)
+  const samey = depth.filter((d) => d.forms > 1 && d.topShare > 0.6)
+  console.log('\n  Question forms')
+  console.log(`    ${oneForm.length} skills ask exactly ONE question shape`)
+  console.log(`    ${samey.length} more lean on one shape for over 60% of draws`)
+  if (oneForm.length) {
+    console.log('    single-shape skills:')
+    for (const d of [...oneForm].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 30)) {
+      console.log(`      ${d.id}`)
+    }
+    if (oneForm.length > 30) console.log(`      … and ${oneForm.length - 30} more`)
+  }
+  if (samey.length) {
+    console.log('    dominated by one shape:')
+    for (const d of [...samey].sort((a, b) => b.topShare - a.topShare)) {
+      console.log(`      ${d.id.padEnd(42)} ${Math.round(d.topShare * 100)}% one shape, ${d.forms} forms`)
+    }
+  }
+
+  console.log('\n  thinnest by distinct questions:')
+  for (const d of thin.slice(0, 8)) {
     const sessions = Math.max(1, Math.round(d.distinct / 6))
     console.log(`    ${d.id.padEnd(42)} ${String(d.distinct).padStart(3)} distinct  (~${sessions} sessions)`)
   }
