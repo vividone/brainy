@@ -132,11 +132,29 @@ export function Home({ onOpenIsland, onDailyQuest, onOpenShop, onOpenRoom, onOpe
 
       {/* Islands ------------------------------------------------------- */}
       {!subject.available ? (
-        <Card className="mt-4 p-8 text-center">
+        <Card className="mt-4 p-6 sm:p-8 text-center">
           <div className="text-6xl mb-3">{subject.icon}</div>
           <h3 className="text-2xl font-black text-brand-900">{subject.name}</h3>
           <p className="mt-2 font-bold text-brand-500 max-w-md mx-auto">{subject.comingSoon}</p>
           <Pill className="mt-4 bg-brand-100 text-brand-700">Coming soon</Pill>
+
+          {subject.plannedTopics && subject.plannedTopics.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-black uppercase tracking-wide text-brand-400 mb-2">
+                What will be in here
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {subject.plannedTopics.map((topic) => (
+                  <span
+                    key={topic}
+                    className="rounded-full bg-brand-50 border-2 border-brand-200 px-3 py-1.5 text-sm font-bold text-brand-700"
+                  >
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       ) : (
         <div className="mt-4">

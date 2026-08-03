@@ -23,7 +23,6 @@ import { useStore } from '../state/store'
 
 const REVEAL_MS = 1100
 const MAX_REQUEUES = 3
-const SECONDS_PER_QUESTION = 45
 
 interface Props {
   plan: SessionPlan
@@ -44,7 +43,7 @@ export function Session({ plan, onFinish, onQuit }: Props) {
   const [wrongStreak, setWrongStreak] = useState(0)
   const [requeues, setRequeues] = useState(0)
   const [answers, setAnswers] = useState<AnsweredItem[]>([])
-  const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION)
+  const [secondsLeft, setSecondsLeft] = useState(settings.timerSeconds)
   const [flash, setFlash] = useState<{ text: string; kind: 'good' | 'bad' } | null>(null)
 
   const startedAt = useRef(Date.now())
@@ -60,13 +59,13 @@ export function Session({ plan, onFinish, onQuit }: Props) {
     setStatus('answering')
     setUsedHint(false)
     setShowHint(false)
-    setSecondsLeft(SECONDS_PER_QUESTION)
+    setSecondsLeft(settings.timerSeconds)
     const text = current.item.speak ?? current.item.prompt
     if (settings.speech && text.length > 34) {
       const t = window.setTimeout(() => speak(text), 260)
       return () => window.clearTimeout(t)
     }
-  }, [index, current, settings.speech])
+  }, [index, current, settings.speech, settings.timerSeconds])
 
   useEffect(() => () => cancelSpeech(), [])
 
@@ -163,20 +162,22 @@ export function Session({ plan, onFinish, onQuit }: Props) {
       buzz([10, 60, 10])
       setFlash({ text: WRONG_WORDS[Math.floor(Math.random() * WRONG_WORDS.length)], kind: 'bad' })
 
+      const pinned = settings.difficultyOverride !== null
       const streak = wrongStreak + 1
       setWrongStreak(streak)
       // Three in a row means the level is wrong for them right now. Drop it
-      // quietly — the child is never told this happened.
-      if (streak >= 3) {
+      // quietly — the child is never told this happened. Skipped when a parent
+      // has pinned the level: they asked for that level, so they get it.
+      if (streak >= 3 && !pinned) {
         softenRemaining(index)
         setWrongStreak(0)
       }
 
-      // Re-queue a fresh, easier question on the same skill so the child gets
-      // another go at the idea rather than just being told the answer.
+      // Re-queue a fresh question on the same skill so the child gets another
+      // go at the idea rather than just being told the answer.
       if (requeues < MAX_REQUEUES) {
         const rng = makeRng(plan.seed + index * 7717 + requeues)
-        const easier = Math.max(1, current.difficulty - 1) as Difficulty
+        const easier = pinned ? current.difficulty : (Math.max(1, current.difficulty - 1) as Difficulty)
         const item = generateItem(plan.curriculumId, current.skillId, easier, rng)
         if (item) {
           setQueue((prev) => [...prev, { ...current, item, difficulty: easier }])
@@ -199,6 +200,7 @@ export function Session({ plan, onFinish, onQuit }: Props) {
       recordAnswer,
       requeues,
       settings.speech,
+      settings.difficultyOverride,
       softenRemaining,
       status,
       usedHint,

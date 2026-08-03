@@ -9,7 +9,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { applyAttempt, type AttemptOutcome } from '../engine/mastery'
 import { levelForXp, scoreSession } from '../engine/scoring'
-import type { ProgressMap, SessionResult } from '../engine/types'
+import type { Difficulty, ProgressMap, SessionResult } from '../engine/types'
 import { DEFAULT_CURRICULUM_ID, DEFAULT_YEAR_BAND } from '../content'
 import type { CosmeticSlot } from '../game/cosmetics'
 import { cosmeticById } from '../game/cosmetics'
@@ -32,6 +32,13 @@ export interface Settings {
   speechRate: number
   sessionLength: number
   timedMode: boolean
+  /** Seconds per question when timed mode is on. */
+  timerSeconds: number
+  /**
+   * null = adapt to mastery (recommended). A number pins every question to
+   * that level, for a parent who knows better than the model does.
+   */
+  difficultyOverride: Difficulty | null
   dyslexiaFont: boolean
   reduceMotion: boolean
   /** 4 digits. Guards the parent zone; not a security boundary. */
@@ -118,6 +125,8 @@ const defaultSettings = (): Settings => ({
   speechRate: 0.9,
   sessionLength: 10,
   timedMode: false,
+  timerSeconds: 45,
+  difficultyOverride: null,
   dyslexiaFont: false,
   reduceMotion: false,
   parentPin: '1234',
@@ -355,10 +364,38 @@ export const useStore = create<Store>()(
     }),
     {
       name: SAVE_KEY,
-      version: 1,
+      version: 2,
       // Actions serialise away on their own; the transient award banner
       // should not survive a reload either.
       partialize: ({ lastAwards: _transient, ...rest }) => rest,
+      /**
+       * Without this, zustand throws away any save written at an older
+       * version — a silent wipe of a child's whole history on upgrade.
+       * `merge` below fills in whatever the old shape was missing, so
+       * carrying the state through unchanged is all that is needed.
+       */
+      migrate: (persisted) => persisted as Store,
+      /**
+       * Fill in anything a older save predates.
+       *
+       * Zustand replaces nested objects wholesale rather than merging them,
+       * so without this a save written before `timerSeconds` existed would
+       * come back with it undefined. Once this is on someone else's tablet we
+       * cannot go and wipe it, so every new setting has to land safely.
+       */
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<SaveState>
+        return {
+          ...current,
+          ...saved,
+          profile: { ...current.profile, ...saved.profile },
+          settings: { ...current.settings, ...saved.settings },
+          economy: { ...current.economy, ...saved.economy },
+          streak: { ...current.streak, ...saved.streak },
+          totals: { ...current.totals, ...saved.totals },
+          lastAwards: null,
+        }
+      },
     },
   ),
 )

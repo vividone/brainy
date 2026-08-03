@@ -39,13 +39,49 @@ export const ngUbe: Curriculum = {
         dataStrand,
       ],
     },
+    /*
+     * Quantitative and Verbal Reasoning are separate subjects, not one.
+     * Nigerian schools timetable and examine them separately, they are
+     * assessed separately at common entrance, and a child is very often
+     * strong at one and weak at the other — which a single blended score
+     * would hide from the parent report.
+     */
     {
-      id: 'reasoning',
-      name: 'Quantitative & Verbal Reasoning',
-      icon: '🧩',
+      id: 'quantitative',
+      name: 'Quantitative Reasoning',
+      icon: '🧮',
+      color: 'sky',
+      available: false,
+      comingSoon: 'Number puzzles, patterns and the shape problems used in common entrance.',
+      plannedTopics: [
+        'Number sequences & patterns',
+        'Missing numbers in shapes',
+        'Number machines (in / out)',
+        'Coding & decoding numbers',
+        'Figure analogies',
+        'Counting squares & shapes',
+        'Spatial reasoning',
+        'Ordering & matching',
+      ],
+      strands: [],
+    },
+    {
+      id: 'verbal',
+      name: 'Verbal Reasoning',
+      icon: '🔤',
       color: 'amber',
       available: false,
-      comingSoon: 'Patterns, analogies, codes, opposites and word puzzles are on the way.',
+      comingSoon: 'Word puzzles, opposites and the letter games that build vocabulary.',
+      plannedTopics: [
+        'Synonyms & antonyms',
+        'Odd one out',
+        'Word analogies',
+        'Alphabetical order',
+        'Coded words',
+        'Jumbled words',
+        'Homonyms & homophones',
+        'Letter sequences',
+      ],
       strands: [],
     },
     {
@@ -54,7 +90,17 @@ export const ngUbe: Curriculum = {
       icon: '🔬',
       color: 'emerald',
       available: false,
-      comingSoon: 'Living things, the body, water, weather and simple machines are on the way.',
+      comingSoon: 'Living things, the body, water, weather and simple machines.',
+      plannedTopics: [
+        'Living & non-living things',
+        'The body & five senses',
+        'Plants & animals',
+        'Food & nutrition',
+        'Water, air & weather',
+        'Hygiene & safety',
+        'Materials & simple machines',
+        'Light, sound & heat',
+      ],
       strands: [],
     },
   ],

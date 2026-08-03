@@ -65,11 +65,12 @@ export default function App() {
       bands,
       progress,
       length: settings.sessionLength,
+      difficultyOverride: settings.difficultyOverride,
     })
     if (plan.items.length === 0) return
     setLastLaunch({ kind: 'daily' })
     setRoute({ name: 'session', plan })
-  }, [bands, curriculum.id, progress, settings.sessionLength])
+  }, [bands, curriculum.id, progress, settings.sessionLength, settings.difficultyOverride])
 
   const startLevel = useCallback(
     (level: Level) => {
@@ -83,12 +84,13 @@ export default function App() {
         bands,
         progress,
         length: settings.sessionLength,
+        difficultyOverride: settings.difficultyOverride,
       })
       if (plan.items.length === 0) return
       setLastLaunch({ kind: 'level', level })
       setRoute({ name: 'session', plan })
     },
-    [bands, curriculum.id, progress, settings.sessionLength],
+    [bands, curriculum.id, progress, settings.sessionLength, settings.difficultyOverride],
   )
 
   const handleFinish = useCallback(

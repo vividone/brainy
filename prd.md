@@ -16,11 +16,14 @@
 
 Kolo is a gamified practice app for lower-primary children. It turns curriculum-aligned drilling into a short daily game: 5–10 minute sessions, immediate feedback, coins, streaks, a mascot to dress up, and a world map that opens up as skills are mastered.
 
-It covers three subject areas that matter for Nigerian primary school and common-entrance preparation:
+It covers four subjects that matter for Nigerian primary school and common-entrance preparation:
 
 1. **Mathematics**
-2. **Quantitative & Verbal Reasoning**
-3. **Basic Science and Technology**
+2. **Quantitative Reasoning**
+3. **Verbal Reasoning**
+4. **Basic Science and Technology**
+
+Quantitative and Verbal Reasoning are deliberately kept **separate subjects** rather than the single combined "QR & VR" line some schemes use. Nigerian schools timetable and examine them separately, common entrance assesses them separately, and — the reason that actually matters here — a child is very often strong at one and weak at the other. A blended score would hide exactly the gap a parent needs to see.
 
 The immediate goal is one child staying sharp across the Basic 2 → Basic 3 transition — consolidating what he already knows and meeting Basic 3 material before school does. The secondary goal is that the same product can be handed to other parents, initially free, potentially paid.
 
@@ -101,7 +104,7 @@ The product must be shareable as a link with no setup ritual: open it, pick a cu
 
 ```
 Curriculum        ng-ube (Nigerian UBE/NERDC) | uk-nc (England National Curriculum)
-  └─ Subject      maths | reasoning | science
+  └─ Subject      maths | quantitative | verbal | science
       └─ Strand   "Number & Numeration", "Basic Operations", …
           └─ Skill    "Add two 3-digit numbers with regrouping"
               └─ Generator   a function producing unlimited question instances
@@ -152,6 +155,10 @@ Bands: **Not started** (0) · **Learning** (<0.4) · **Getting it** (0.4–0.75)
 
 If a child gets three wrong in a row within a session, difficulty drops one level immediately and a hint card is offered. The child is never told this happened.
 
+**Parent override.** A parent can pin every question to a fixed level 1–5 instead of letting mastery drive it. When pinned, the adaptive rules above are suspended entirely — including the three-wrong-in-a-row drop — because a parent who asks for level 2 expects level 2, not level 2 quietly drifting. Mastery is still tracked underneath, so switching back to Auto resumes exactly where the child actually is.
+
+Auto remains the default and the recommendation: it targets the 75–85% success band that keeps a child both learning and willing. The override exists because a parent watching their own child sometimes knows something the model doesn't — a topic covered at school last week, a bad day, a child who is bored and wants it harder.
+
 ### 5.4 No-fail design
 
 Deliberately **not** using hearts/lives. Duolingo's model works on adults with an established habit; on a 7-year-old, being locked out mid-session reliably converts frustration into quitting. Instead:
@@ -161,6 +168,8 @@ Deliberately **not** using hearts/lives. Duolingo's model works on adults with a
 - Coins are earned for finishing regardless of score, with a bonus scaled by accuracy.
 
 Optional **Beat the Clock** mode adds timing — but as a distinct, opt-in game, framed as a race, never as the default. Default sessions are untimed, because timing a child who is still building fluency mostly measures anxiety.
+
+When it is on, the parent sets the countdown: 15, 30, 45, 60, 90 or 120 seconds per question. One fixed number cannot be right for both a times-table drill and a three-sentence word problem, and it certainly isn't right across the whole 6–8 age range, so this is a parent dial rather than a constant.
 
 ### 5.5 Spaced review
 
@@ -260,7 +269,9 @@ PIN-gated by a 4-digit code (a simple maths question guards the entrance too —
 - **This week** — days played, sessions, minutes, questions answered
 - **Mastery by strand** — a bar per strand, colour-coded by band
 - **Needs attention** — the three lowest-mastery skills that have been attempted, each with the actual questions missed and a one-line "how to help at home" tip
-- **Settings** — curriculum, year band, session length, sound, read-aloud voice/speed, Beat the Clock on/off, dyslexia-friendly font, reset progress, export progress as JSON
+- **Settings** — curriculum, year band, **difficulty (Auto or pinned 1–5)**, session length, Beat the Clock on/off and **seconds per question**, sound, read-aloud on/off and speed, dyslexia-friendly font, reduced motion, parent code, reset progress, export progress as JSON
+
+  The difficulty control shows what Auto is currently choosing ("Auto is pitching *Adding big numbers* at level 3 of 5") before a parent decides to override it — otherwise the choice is blind.
 
 The "how to help" tip is the highest-value thing in this screen and the most likely reason a parent recommends the app to another parent.
 
@@ -284,25 +295,29 @@ v1 authors **Nigerian Mathematics** only. The rest is specified here so the data
 
 Roughly 40 skills. Every one gets at least one generator.
 
-### 8.2 Quantitative & Verbal Reasoning *(phase 2)*
+### 8.2 Quantitative Reasoning *(phase 2)*
 
-The subject that international apps simply don't have, and the reason a Nigerian parent would choose this over Khan Academy Kids.
+Number sequences and patterns · missing numbers in shapes (the classic triangle/circle puzzles) · number machines (in/out boxes) · coding and decoding numbers · figure analogies · counting squares and shapes in a figure · matching and sorting · spatial rotation · simple area by counting · ordering by size.
 
-**Quantitative:** number sequences and patterns · missing numbers in shapes (the classic triangle/circle puzzles) · figure analogies · coding and decoding numbers · counting squares and shapes in a figure · matching and sorting · spatial rotation · simple area by counting · ordering by size · number machines (in/out boxes).
+Generates well — nearly all of it is parameterisable, so this is the cheapest of the remaining packs to build.
 
-**Verbal:** synonyms · antonyms · odd one out · word analogies · alphabetical ordering · coded words (letter shifts) · jumbled words · homonyms and homophones · completing sentences · letter sequences · rhyming words · plurals and opposites.
+### 8.3 Verbal Reasoning *(phase 2)*
 
-Verbal reasoning needs curated word lists per year band, vetted for reading level. This is the one area where authored items outnumber generated ones — though coding/decoding, letter sequences, and alphabetical ordering generate very well.
+Synonyms · antonyms · odd one out · word analogies · alphabetical ordering · coded words (letter shifts) · jumbled words · homonyms and homophones · completing sentences · letter sequences · rhyming words · plurals.
 
-### 8.3 Basic Science and Technology *(phase 3)*
+Together these are the subjects international apps simply don't have, and the main reason a Nigerian parent would choose this over Khan Academy Kids.
+
+Verbal is the harder of the two to build: it needs curated word lists per year band, vetted for reading level, so authored items will outnumber generated ones. Coding/decoding, letter sequences and alphabetical ordering do generate well, and should be built first.
+
+### 8.4 Basic Science and Technology *(phase 3)*
 
 Living and non-living things · parts of the body and the five senses · plants: parts and needs · animals: groups, habitats, young · food and nutrition, balanced diet · water: sources, uses, safety · air and weather · our environment and keeping it clean · personal hygiene · safety at home and school · materials and their properties · simple machines · light, sound and heat · energy and where it comes from · basic technology: tools and simple machines around us.
 
 Science is the most diagram-dependent subject and will need a small library of inline SVG illustrations. Plan for that; don't let it block phases 1 and 2.
 
-### 8.4 UK curriculum *(phase 4)*
+### 8.5 UK curriculum *(phase 4)*
 
-Year 2 → Year 3 National Curriculum for maths, reasoning framed as 11+ preparation, and Key Stage 2 science. Sterling replaces naira, names and settings shift, Roman numerals move to Year 4 (where the National Curriculum actually puts them), and the Nigerian "Quantitative & Verbal Reasoning" subject becomes "Reasoning (11+)". A v1 stub ships to prove the switch works end to end.
+Year 2 → Year 3 National Curriculum for maths, reasoning framed as 11+ preparation, and Key Stage 2 science. Sterling replaces naira, names and settings shift, Roman numerals move to Year 4 (where the National Curriculum actually puts them), and the two reasoning subjects keep the split but take the names British 11+ practice uses — "Non-Verbal Reasoning (11+)" and "Verbal Reasoning (11+)". A v1 stub ships to prove the switch works end to end.
 
 ---
 
@@ -447,7 +462,8 @@ This is a children's product, which raises the bar and shapes several decisions 
 | Phase | Deliverable |
 |---|---|
 | **1 — v1 (now)** | Engine, Nigerian Maths pack, full game loop, parent zone, PWA, UK stub |
-| **2** | Quantitative & Verbal Reasoning content pack |
+| **2a** | Quantitative Reasoning pack — mostly generatable, so the cheaper half |
+| **2b** | Verbal Reasoning pack — needs curated word lists per year band |
 | **3** | Basic Science & Technology pack, with SVG illustration library |
 | **4** | Full UK Year 2→3 pack; curriculum switching in the parent zone |
 | **5** | Multi-child profiles on one device; printable weekly report |

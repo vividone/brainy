@@ -4,8 +4,15 @@
  */
 
 import { useMemo, useState } from 'react'
-import { BAND_LABEL, BAND_STYLE, band, currentMastery } from '../engine/mastery'
-import { getSkill, includedBands, listCurricula, skillsInStrand } from '../engine/registry'
+import { BAND_LABEL, BAND_STYLE, band, currentMastery, difficultyFor } from '../engine/mastery'
+import {
+  getSkill,
+  includedBands,
+  listCurricula,
+  nextFocusSkill,
+  skillsInStrand,
+} from '../engine/registry'
+import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { useStore } from '../state/store'
@@ -97,6 +104,16 @@ function Gate({ onPass, onBack }: { onPass: () => void; onBack: () => void }) {
 
 type Tab = 'progress' | 'help' | 'settings'
 
+/** Parent-facing difficulty options. `null` hands the choice back to the engine. */
+const DIFFICULTY_CHOICES: { value: Difficulty | null; label: string }[] = [
+  { value: null, label: 'Adapts' },
+  { value: 1, label: 'Gentlest' },
+  { value: 2, label: 'Easy' },
+  { value: 3, label: 'Steady' },
+  { value: 4, label: 'Stretch' },
+  { value: 5, label: 'Hardest' },
+]
+
 export function Parent({ onBack }: { onBack: () => void }) {
   const [unlocked, setUnlocked] = useState(false)
   const [tab, setTab] = useState<Tab>('progress')
@@ -158,6 +175,15 @@ export function Parent({ onBack }: { onBack: () => void }) {
   }, [progress, history, curriculum.id])
 
   const accuracy = totals.questions ? Math.round((totals.correct / totals.questions) * 100) : 0
+
+  /* What the adaptive engine would pick right now — the useful thing to know
+     before deciding whether to override it. */
+  const autoHint = useMemo(() => {
+    const focus = nextFocusSkill(curriculum.id, subject.id, bands, progress)
+    if (!focus) return 'The level is chosen automatically from how each skill is going.'
+    const level = difficultyFor(currentMastery(progress, focus.id))
+    return `Right now Auto is pitching "${focus.title}" at level ${level} of 5, and will move it as he improves.`
+  }, [curriculum.id, subject.id, bands, progress])
 
   if (!unlocked) return <Gate onPass={() => setUnlocked(true)} onBack={onBack} />
 
@@ -430,6 +456,37 @@ export function Parent({ onBack }: { onBack: () => void }) {
           </p>
         </Card>
 
+        <Card className="p-5 border-slate-200">
+          <h2 className="font-black text-slate-900 mb-1">Difficulty</h2>
+          <p className="text-xs font-semibold text-slate-400 mb-3">
+            Auto aims for about 8 right out of 10 — hard enough to be learning, easy enough to stay
+            willing. Pin a level if you would rather choose it yourself.
+          </p>
+
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {DIFFICULTY_CHOICES.map((choice) => {
+              const selected = settings.difficultyOverride === choice.value
+              return (
+                <button
+                  key={choice.label}
+                  onClick={() => updateSettings({ difficultyOverride: choice.value })}
+                  className={`min-h-16 rounded-2xl border-2 px-1 font-black leading-tight transition
+                    ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                >
+                  <span className="block text-lg">{choice.value ?? 'Auto'}</span>
+                  <span className="block text-[10px] uppercase tracking-wide opacity-80">{choice.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <p className="mt-3 text-sm font-bold text-slate-500">
+            {settings.difficultyOverride === null
+              ? autoHint
+              : `Every question will be pitched at level ${settings.difficultyOverride}. Mastery is still tracked, but the level will not move on its own — including when he gets several wrong in a row.`}
+          </p>
+        </Card>
+
         <Card className="p-5 border-slate-200 divide-y divide-slate-100">
           <h2 className="font-black text-slate-900 pb-2">Play</h2>
 
@@ -447,9 +504,28 @@ export function Parent({ onBack }: { onBack: () => void }) {
             </div>
           </Row>
 
-          <Row label="Beat the Clock" hint="Adds a 45-second timer. Off by default — timing tends to measure anxiety at this age.">
+          <Row
+            label="Beat the Clock"
+            hint="Adds a countdown to each question. Off by default — timing tends to measure anxiety at this age."
+          >
             <Toggle on={settings.timedMode} onToggle={() => updateSettings({ timedMode: !settings.timedMode })} />
           </Row>
+
+          {settings.timedMode && (
+            <Row label="Seconds per question" hint="Word problems need longer than a times table">
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {[15, 30, 45, 60, 90, 120].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => updateSettings({ timerSeconds: n })}
+                    className={`min-h-11 px-3 rounded-xl border-2 font-black tabular-nums ${settings.timerSeconds === n ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                  >
+                    {n}s
+                  </button>
+                ))}
+              </div>
+            </Row>
+          )}
 
           <Row label="Sound effects">
             <Toggle on={settings.sound} onToggle={() => updateSettings({ sound: !settings.sound })} />

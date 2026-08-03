@@ -31,6 +31,12 @@ export interface BuildSessionOpts {
   levelKey?: string
   seed?: number
   now?: number
+  /**
+   * Parent-pinned level. When set, every question in the session is generated
+   * at exactly this difficulty and the adaptive rules are skipped — a parent
+   * who pins level 2 expects level 2, not level 2 drifting upward.
+   */
+  difficultyOverride?: Difficulty | null
 }
 
 /** Generate one question, retrying to avoid one the child has just seen. */
@@ -153,7 +159,9 @@ export function buildSession(opts: BuildSessionOpts): SessionPlan {
 
   slots.forEach((slot, i) => {
     let difficulty: Difficulty
-    if (slot.role === 'stretch') {
+    if (opts.difficultyOverride) {
+      difficulty = opts.difficultyOverride
+    } else if (slot.role === 'stretch') {
       difficulty = 1
     } else if (slot.role === 'review') {
       difficulty = clampDifficulty(difficultyFor(currentMastery(opts.progress, slot.skillId, now)) - 1)

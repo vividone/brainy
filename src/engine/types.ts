@@ -241,6 +241,8 @@ export interface SubjectDef {
   /** False for subjects planned but not yet authored. */
   available: boolean
   comingSoon?: string
+  /** Shown on the coming-soon card so the plan is visible, not just a promise. */
+  plannedTopics?: string[]
   strands: StrandDef[]
 }
 

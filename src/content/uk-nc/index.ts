@@ -223,13 +223,28 @@ export const ukNc: Curriculum = {
         },
       ],
     },
+    /*
+     * The same split as the Nigerian pack, under the names British 11+
+     * practice actually uses: non-verbal rather than quantitative.
+     */
     {
-      id: 'reasoning',
-      name: 'Reasoning (11+)',
-      icon: '🧩',
+      id: 'quantitative',
+      name: 'Non-Verbal Reasoning (11+)',
+      icon: '🧮',
+      color: 'sky',
+      available: false,
+      comingSoon: 'Sequences, analogies and spatial puzzles in the 11+ style.',
+      plannedTopics: ['Number sequences', 'Figure analogies', 'Codes', 'Rotation & reflection'],
+      strands: [],
+    },
+    {
+      id: 'verbal',
+      name: 'Verbal Reasoning (11+)',
+      icon: '🔤',
       color: 'amber',
       available: false,
-      comingSoon: 'Verbal and non-verbal reasoning practice is on the way.',
+      comingSoon: 'Word puzzles in the 11+ style.',
+      plannedTopics: ['Synonyms & antonyms', 'Word analogies', 'Letter sequences', 'Hidden words'],
       strands: [],
     },
     {

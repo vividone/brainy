@@ -2,7 +2,7 @@
 
 A gamified curriculum-practice app for lower-primary children. Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
 
-**v1 ships:** Nigerian (UBE) Mathematics for Basic 2 → Basic 3, plus a small British pack that proves curriculum switching works. Quantitative & Verbal Reasoning and Basic Science are specified and slotted into the data model but not yet authored.
+**v1 ships:** Nigerian (UBE) Mathematics for Basic 2 → Basic 3, plus a small British pack that proves curriculum switching works. Quantitative Reasoning, Verbal Reasoning and Basic Science are separate subjects in the data model with their topic lists visible in the app, but are not yet authored.
 
 Full product spec and architecture: [prd.md](prd.md).
 
@@ -99,7 +99,8 @@ These are the ones most likely to look like bugs if you don't know they were del
 
 - **No lives, no fail state.** A wrong answer shows the right one with a one-line explanation, then re-queues an easier question on the same skill. Sessions always finish.
 - **Finishing always pays.** Coins and XP land regardless of score; only stars reflect accuracy.
-- **Timers are off by default.** Timing a child still building fluency mostly measures anxiety. "Beat the Clock" is opt-in in the parent zone.
+- **Timers are off by default.** Timing a child still building fluency mostly measures anxiety. "Beat the Clock" is opt-in in the parent zone, and the countdown length (15–120s) is a parent setting — one number can't suit both a times-table drill and a word problem.
+- **Difficulty is adaptive by default, overridable by a parent.** Auto targets ~80% success. A parent can pin levels 1–5 instead, which also suspends the automatic drop after three wrong answers — a pinned level stays pinned. Mastery keeps tracking underneath either way.
 - **Long questions are read aloud automatically.** Reading is the bottleneck at this age, not the maths — a child who can't read "altogether" would otherwise be recorded as having a maths gap.
 - **Difficulty adapts silently.** Three wrong in a row quietly drops the level. The child is never told.
 - **Earlier year bands stay in the mix.** Choosing Basic 3 includes Basic 2 content as revision.
