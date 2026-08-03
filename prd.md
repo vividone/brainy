@@ -354,7 +354,27 @@ Introduced at Basic 4 and hidden entirely for younger classes.
 
 **Vocational Studies** — trades and occupations · local crafts and materials · simple woodwork and metalwork · basic electrical work · starting a small business · buying, selling and profit · saving and budgeting · safety at work.
 
-### 8.7 UK and US curricula *(phase 4)*
+### 8.7 Sourcing the fact-heavy subjects
+
+Maths, Quantitative Reasoning and much of English generate from rules. Science & Technology, Social Studies, History and Computer Studies do not — they rest on facts that must be **correct**, at the **right depth for the class**, and matched to what the child's school actually teaches. Guessing at that is how an app quietly teaches a child something wrong.
+
+**What is most useful to gather, in priority order:**
+
+1. **The NERDC/UBE curriculum document for each subject.** This is the single highest-value item. It gives the official scope and sequence per class — what a Basic 4 child is expected to know about soil, versus Basic 6. Often published free by NERDC. Without it, the class-by-class split is guesswork.
+2. **One mainstream textbook per subject**, at roughly the level his school uses. Textbooks show the *depth* and *vocabulary* expected — the curriculum says "Nigerian kingdoms", the textbook shows whether that means three names or eight with dates.
+3. **His actual scheme of work**, if the school publishes one. This beats everything else for term-by-term ordering.
+4. **Past common-entrance papers** for the reasoning and upper-primary subjects — they show the exact question styles children are assessed on.
+
+**Authoritative references for facts that must be exact:**
+
+- States and capitals, national symbols, the constitution: official Nigerian government sources rather than textbook summaries, which sometimes lag reorganisations.
+- Historical dates and figures: at least two independent sources before a fact becomes an answer key.
+
+**How the material gets used.** Facts are not copyrightable, but a specific question's wording — and the selection and arrangement of a question bank — can be. So these sources are used as a **reference for what to teach and to what depth**, and every question is written fresh against that. No copying of question banks, and no reproducing a textbook's exercises. This matters more, not less, once the app is being sold.
+
+**History needs a human reviewer.** More than any other subject here, it involves contested framing and periodisation. Before it goes in front of a child, someone who teaches Nigerian history should read it.
+
+### 8.8 UK and US curricula *(phase 4)*
 
 Year 2 → Year 3 National Curriculum for maths, reasoning framed as 11+ preparation, and Key Stage 2 science. Sterling replaces naira, names and settings shift, Roman numerals move to Year 4 (where the National Curriculum actually puts them), and the two reasoning subjects keep the split but take the names British 11+ practice uses — "Non-Verbal Reasoning (11+)" and "Verbal Reasoning (11+)". A v1 stub ships to prove the switch works end to end.
 
