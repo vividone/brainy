@@ -1,8 +1,11 @@
 /**
- * First run. Under 30 seconds, no email, no account (prd.md §7).
+ * First run — parent-led.
  *
- * Every step between opening the link and the first question loses a family,
- * so this asks the four things the app genuinely cannot work without.
+ * Deliberately addressed to the grown-up, not the child. A 5-to-11-year-old
+ * cannot judge their own school year, choose a curriculum or set a PIN, and a
+ * parent needs to know what this thing does with their child's data before
+ * handing over a tablet. The child's only decision is the mascot colour, and
+ * the last step hands the device over explicitly.
  */
 
 import { useState } from 'react'
@@ -13,27 +16,42 @@ import { Btn, Card, Screen } from '../components/ui'
 import { useStore } from '../state/store'
 import { sfx } from '../lib/sound'
 
+const STEPS = [
+  { key: 'welcome', title: 'Welcome' },
+  { key: 'child', title: 'About your child' },
+  { key: 'class', title: 'Curriculum and class' },
+  { key: 'pin', title: 'Your grown-up code' },
+  { key: 'buddy', title: 'Over to them' },
+] as const
+
 export function Onboarding() {
   const completeOnboarding = useStore((s) => s.completeOnboarding)
   const curricula = listCurricula()
 
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
-  const [curriculumId, setCurriculumId] = useState(curricula[0]?.id ?? 'ng-ube')
   const [age, setAge] = useState<number | null>(null)
+  const [curriculumId, setCurriculumId] = useState(curricula[0]?.id ?? 'ng-ube')
   /** Set only when a parent overrides the class suggested by the age. */
   const [bandOverride, setBandOverride] = useState<string | null>(null)
   const [colour, setColour] = useState('violet')
   const [pin, setPin] = useState('')
+  const [done, setDone] = useState(false)
 
   const curriculum = curricula.find((c) => c.id === curriculumId) ?? curricula[0]
   const bands = curriculum?.yearBands ?? []
   const ages = ageOptions(curriculumId)
   const suggested = age === null ? null : bandForAge(curriculumId, age)
   const effectiveBand = bandOverride ?? suggested?.id ?? ''
+  const firstName = name.trim() || 'your child'
 
-  const steps = ['Who is playing?', 'How old are they?', 'Choose your buddy', 'Grown-up code']
-  const canContinue = [name.trim().length > 0, Boolean(effectiveBand), true, /^\d{4}$/.test(pin)][step]
+  const canContinue = [
+    true,
+    name.trim().length > 0 && age !== null,
+    Boolean(effectiveBand),
+    /^\d{4}$/.test(pin),
+    true,
+  ][step]
 
   const finish = () => {
     sfx.complete()
@@ -49,8 +67,8 @@ export function Onboarding() {
 
   return (
     <Screen className="max-w-2xl">
-      <div className="pt-4 pb-6 text-center">
-        <div className="mx-auto size-28 sm:size-32">
+      <div className="pt-4 pb-5 text-center">
+        <div className="mx-auto size-24 sm:size-28">
           <Mascot colour={colour} mood="happy" float className="w-full h-full" />
         </div>
         <h1 className="mt-2 text-4xl font-black text-brand-800">Kolo</h1>
@@ -58,7 +76,7 @@ export function Onboarding() {
       </div>
 
       <div className="mb-4 flex justify-center gap-2" aria-hidden>
-        {steps.map((_, i) => (
+        {STEPS.map((_, i) => (
           <span
             key={i}
             className={`h-2.5 rounded-full transition-all ${i === step ? 'w-8 bg-brand-600' : i < step ? 'w-2.5 bg-brand-400' : 'w-2.5 bg-brand-200'}`}
@@ -67,33 +85,64 @@ export function Onboarding() {
       </div>
 
       <Card className="p-5 sm:p-6">
-        <h2 className="text-2xl font-black text-brand-900 mb-4">{steps[step]}</h2>
+        <p className="text-xs font-black uppercase tracking-wide text-brand-400 mb-1">
+          For the grown-up · step {step + 1} of {STEPS.length}
+        </p>
+        <h2 className="text-2xl font-black text-brand-900 mb-4">{STEPS[step].title}</h2>
 
+        {/* ---- 0. Welcome ---- */}
         {step === 0 && (
-          <div>
-            <label htmlFor="child-name" className="block font-bold text-brand-700 mb-2">
-              First name only
-            </label>
-            <input
-              id="child-name"
-              value={name}
-              onChange={(e) => setName(e.target.value.slice(0, 16))}
-              placeholder="e.g. Tunde"
-              autoComplete="off"
-              className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-2xl font-black
-                text-brand-900 placeholder:text-brand-300 focus:border-brand-500 outline-none"
-              style={{ borderWidth: 3 }}
-            />
-            <p className="mt-3 text-sm font-semibold text-brand-500">
-              This stays on this device. Nothing is sent anywhere, and there is no account to create.
+          <div className="space-y-4">
+            <p className="font-bold text-brand-700">
+              Kolo gives your child short daily practice — five to ten minutes — in maths, reasoning and
+              more, matched to their school year.
             </p>
+            <ul className="space-y-2.5">
+              {[
+                ['🎯', 'It adapts', 'Questions get harder as they improve, and quietly easier when they struggle.'],
+                ['📊', 'You get a report', 'See what they are strong at, what to help with, and how to help.'],
+                ['🔒', 'Nothing leaves this device', 'No account, no email, no tracking, no ads. Ever.'],
+                ['✈️', 'Works offline', 'Once loaded, it plays with no internet at all.'],
+              ].map(([emoji, title, body]) => (
+                <li key={title} className="flex gap-3">
+                  <span className="text-2xl shrink-0" aria-hidden>
+                    {emoji}
+                  </span>
+                  <span>
+                    <span className="block font-black text-brand-900">{title}</span>
+                    <span className="block text-sm font-semibold text-brand-500">{body}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm font-semibold text-brand-400">Setting up takes about a minute.</p>
           </div>
         )}
 
+        {/* ---- 1. Child ---- */}
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <p className="font-bold text-brand-700 mb-2">Age</p>
+              <label htmlFor="child-name" className="block font-bold text-brand-700 mb-2">
+                Your child's first name
+              </label>
+              <input
+                id="child-name"
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, 16))}
+                placeholder="e.g. Tunde"
+                autoComplete="off"
+                className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-2xl font-black
+                  text-brand-900 placeholder:text-brand-300 focus:border-brand-500 outline-none"
+                style={{ borderWidth: 3 }}
+              />
+              <p className="mt-2 text-sm font-semibold text-brand-500">
+                First name only, and it stays on this device. It is only used to greet them.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-bold text-brand-700 mb-2">How old are they?</p>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                 {ages.map((a) => (
                   <button
@@ -112,9 +161,14 @@ export function Onboarding() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
 
+        {/* ---- 2. Curriculum and class ---- */}
+        {step === 2 && (
+          <div className="space-y-5">
             <div>
-              <p className="font-bold text-brand-700 mb-2">Curriculum</p>
+              <p className="font-bold text-brand-700 mb-2">Which curriculum does {firstName} follow?</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 {curricula.map((c) => (
                   <button
@@ -135,8 +189,6 @@ export function Onboarding() {
               </div>
             </div>
 
-            {/* The class is worked out from the age, but a parent who has held
-                a child back or moved them up gets the final say. */}
             {suggested && (
               <div className="rounded-2xl bg-brand-50 border-2 border-brand-200 p-4">
                 <p className="font-bold text-brand-700">
@@ -159,16 +211,43 @@ export function Onboarding() {
                   ))}
                 </div>
                 <p className="mt-3 text-sm font-semibold text-brand-500">
-                  Tap a different class if that is not right. Earlier years stay in the mix as revision,
-                  so nothing goes rusty.
+                  Change it if {firstName} is ahead or repeating a year. Earlier classes stay available as
+                  revision either way — you can change all of this later.
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {step === 2 && (
+        {/* ---- 3. PIN ---- */}
+        {step === 3 && (
           <div>
+            <label htmlFor="pin" className="block font-bold text-brand-700 mb-2">
+              Choose a 4-digit code
+            </label>
+            <input
+              id="pin"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              placeholder="1234"
+              className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-3xl font-black
+                tracking-[0.5em] text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
+              style={{ borderWidth: 3 }}
+            />
+            <p className="mt-3 text-sm font-semibold text-brand-500">
+              This guards the grown-up area, where the progress report and all the settings live —
+              difficulty, session length, timers and read-aloud. Pick something {firstName} will not guess.
+            </p>
+          </div>
+        )}
+
+        {/* ---- 4. Hand over ---- */}
+        {step === 4 && !done && (
+          <div>
+            <p className="font-bold text-brand-700 mb-3">
+              Last thing, and this one is {firstName}'s: which buddy would they like?
+            </p>
             <div className="grid grid-cols-3 gap-3">
               {MASCOT_COLOURS.map((c) => (
                 <button
@@ -189,29 +268,20 @@ export function Onboarding() {
           </div>
         )}
 
-        {step === 3 && (
-          <div>
-            <label htmlFor="pin" className="block font-bold text-brand-700 mb-2">
-              Choose a 4-digit code for the grown-up area
-            </label>
-            <input
-              id="pin"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              inputMode="numeric"
-              placeholder="1234"
-              className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-3xl font-black
-                tracking-[0.5em] text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
-              style={{ borderWidth: 3 }}
-            />
-            <p className="mt-3 text-sm font-semibold text-brand-500">
-              Progress reports and settings live behind this code, so they stay out of small hands.
+        {step === 4 && done && (
+          <div className="text-center py-4">
+            <div className="mx-auto size-32">
+              <Mascot colour={colour} mood="celebrate" float className="w-full h-full" />
+            </div>
+            <p className="mt-3 text-2xl font-black text-brand-900">All set!</p>
+            <p className="mt-1 font-bold text-brand-500">
+              Hand the tablet to {firstName} and let them tap Start.
             </p>
           </div>
         )}
 
         <div className="mt-6 flex gap-3">
-          {step > 0 && (
+          {step > 0 && !done && (
             <Btn variant="secondary" size="lg" onClick={() => setStep(step - 1)}>
               Back
             </Btn>
@@ -220,12 +290,32 @@ export function Onboarding() {
             size="lg"
             full
             disabled={!canContinue}
-            onClick={() => (step === steps.length - 1 ? finish() : setStep(step + 1))}
+            onClick={() => {
+              if (step < STEPS.length - 1) return setStep(step + 1)
+              if (!done) {
+                sfx.unlock()
+                return setDone(true)
+              }
+              finish()
+            }}
           >
-            {step === steps.length - 1 ? "Let's play! 🚀" : 'Next'}
+            {step === 0
+              ? 'Get started'
+              : step < STEPS.length - 1
+                ? 'Next'
+                : done
+                  ? `Start playing 🚀`
+                  : 'Finish setup'}
           </Btn>
         </div>
       </Card>
+
+      {step === 0 && (
+        <p className="mt-4 text-center text-xs font-semibold text-brand-400">
+          Kolo stores everything in this browser on this device. It makes no network requests after
+          loading, and there is nothing to sign up for.
+        </p>
+      )}
     </Screen>
   )
 }

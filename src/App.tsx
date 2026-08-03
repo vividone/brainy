@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { buildSession } from './engine/session'
 import type { Level } from './engine/registry'
 import type { SessionPlan, SessionResult } from './engine/types'
@@ -10,6 +10,7 @@ import { Results } from './screens/Results'
 import { Room } from './screens/Room'
 import { Session } from './screens/Session'
 import { Shop } from './screens/Shop'
+import { Subject } from './screens/Subject'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
@@ -17,7 +18,8 @@ import { setSpeechEnabled, setSpeechRate } from './lib/speech'
 
 type Route =
   | { name: 'home' }
-  | { name: 'island'; strandId: string }
+  | { name: 'subject'; subjectId: string }
+  | { name: 'island'; strandId: string; subjectId: string }
   | { name: 'session'; plan: SessionPlan }
   | { name: 'results'; result: SessionResult; awards: Awards }
   | { name: 'shop' }
@@ -51,16 +53,36 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      setRoute((r) => (r.name === 'island' || r.name === 'shop' || r.name === 'room' || r.name === 'parent' ? { name: 'home' } : r))
+      setRoute((r) => {
+        if (r.name === 'island') return { name: 'subject', subjectId: r.subjectId }
+        if (r.name === 'subject' || r.name === 'shop' || r.name === 'room' || r.name === 'parent') {
+          return { name: 'home' }
+        }
+        return r
+      })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  /**
+   * Rotate the daily quest across whichever subjects are authored, so a week
+   * covers the range rather than seven days of maths. Keyed to the date so it
+   * is stable within a day — the child gets the same quest if they reopen it.
+   */
+  const dailySubjectId = useMemo(() => {
+    const playable = curriculum.subjects.filter(
+      (s) => s.available && s.strands.some((strand) => strand.skills.length > 0),
+    )
+    if (playable.length === 0) return 'maths'
+    const dayIndex = Math.floor(new Date().setHours(0, 0, 0, 0) / 86_400_000)
+    return playable[dayIndex % playable.length].id
+  }, [curriculum])
+
   const startDaily = useCallback(() => {
     const plan = buildSession({
       curriculumId: curriculum.id,
-      subjectId: 'maths',
+      subjectId: dailySubjectId,
       mode: 'daily',
       bands,
       progress,
@@ -70,7 +92,7 @@ export default function App() {
     if (plan.items.length === 0) return
     setLastLaunch({ kind: 'daily' })
     setRoute({ name: 'session', plan })
-  }, [bands, curriculum.id, progress, settings.sessionLength, settings.difficultyOverride])
+  }, [bands, curriculum.id, dailySubjectId, progress, settings.sessionLength, settings.difficultyOverride])
 
   const startLevel = useCallback(
     (level: Level) => {
@@ -129,9 +151,20 @@ export default function App() {
           onPlayAgain={playAgain}
           onHome={() =>
             setRoute(
-              route.result.strandId ? { name: 'island', strandId: route.result.strandId } : { name: 'home' },
+              route.result.strandId
+                ? { name: 'island', strandId: route.result.strandId, subjectId: route.result.subjectId }
+                : { name: 'home' },
             )
           }
+        />
+      )
+
+    case 'subject':
+      return (
+        <Subject
+          subjectId={route.subjectId}
+          onBack={() => setRoute({ name: 'home' })}
+          onOpenIsland={(strandId) => setRoute({ name: 'island', strandId, subjectId: route.subjectId })}
         />
       )
 
@@ -139,7 +172,7 @@ export default function App() {
       return (
         <Island
           strandId={route.strandId}
-          onBack={() => setRoute({ name: 'home' })}
+          onBack={() => setRoute({ name: 'subject', subjectId: route.subjectId })}
           onPlay={startLevel}
         />
       )
@@ -156,7 +189,7 @@ export default function App() {
     default:
       return (
         <Home
-          onOpenIsland={(strandId) => setRoute({ name: 'island', strandId })}
+          onOpenSubject={(subjectId) => setRoute({ name: 'subject', subjectId })}
           onDailyQuest={startDaily}
           onOpenShop={() => setRoute({ name: 'shop' })}
           onOpenRoom={() => setRoute({ name: 'room' })}

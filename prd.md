@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Victor Olaitan |
 | **Date** | 2 August 2026 |
-| **Status** | Draft v1 — approved to build Maths v1 |
+| **Status** | Living document — phase 1 shipped, phase 2 in progress |
 | **Primary learner** | 7-year-old, finishing Basic 2, entering Basic 3 |
 | **v1 scope** | Structure for Basic 1–6 × 7 subjects × 3 curricula. Mathematics authored end to end; other subjects structured, not yet written. Tablet-first web app, no accounts. |
 
@@ -83,8 +83,8 @@ The product must be shareable as a link with no setup ritual: open it, pick a cu
 - No multiplayer, leaderboards, or any child-to-child contact.
 - No chat, no user-generated content, no AI tutor in-app.
 - No video lessons. This is a practice app, not a teaching app. (Short hint cards, yes; lessons, no.)
-- No payments.
-- No Quantitative/Verbal Reasoning or Science content *authored* in v1 — but the engine, navigation, and data model must already accommodate them so adding them is content work, not engineering work.
+- No payments in phase 1 (see §14 for the model, phase 5 for delivery).
+- Subjects beyond Mathematics are structured but not authored in phase 1 — the engine, navigation and data model already accommodate them, so adding each is content work rather than engineering work.
 
 ---
 
@@ -106,8 +106,8 @@ The product must be shareable as a link with no setup ritual: open it, pick a cu
 ### 5.1 The content hierarchy
 
 ```
-Curriculum        ng-ube (Nigerian UBE/NERDC) | uk-nc (England National Curriculum)
-  └─ Subject      maths | quantitative | verbal | science
+Curriculum        ng-ube (Nigeria) | uk-nc (England) | us-ccss (United States)
+  └─ Subject      maths | quantitative | verbal | english | science | technology | social
       └─ Strand   "Number & Numeration", "Basic Operations", …
           └─ Skill    "Add two 3-digit numbers with regrouping"
               └─ Generator   a function producing unlimited question instances
@@ -490,31 +490,67 @@ This is a children's product, which raises the bar and shapes several decisions 
 
 ## 13. Roadmap
 
-| Phase | Deliverable |
-|---|---|
-| **1 — v1 (now)** | Engine, Nigerian Maths pack, full game loop, parent zone, PWA, UK stub |
-| **2a** | Quantitative Reasoning pack — mostly generatable, so the cheaper half |
-| **2b** | Verbal Reasoning pack — needs curated word lists per year band |
-| **3** | Basic Science & Technology pack, with SVG illustration library |
-| **4** | Full UK Year 2→3 pack; curriculum switching in the parent zone |
-| **5** | Multi-child profiles on one device; printable weekly report |
-| **6** | Optional cloud sync, parent accounts, cross-device — the point at which §12's second half becomes mandatory work |
-| **7** | Distribution: shareable link, then Play Store via TWA if the pull is there |
+Phases 1–3 are content work on an unchanged engine. That is the whole point of the architecture in §9 and §10.
 
-Phases 2–4 are content work on an unchanged engine. That's the whole point of the architecture.
+| Phase | Deliverable | Status |
+|---|---|---|
+| **1** | Engine, game loop, parent zone, PWA. Nigerian Maths Basic 1–6. UK and US maths packs. Age-based placement. Parent-set difficulty and timer. | **Done** |
+| **2** | Quantitative Reasoning, Verbal Reasoning and English Grammar packs, Basic 1–6 | In progress |
+| **3** | Basic Science, Basic Technology and Social Studies packs (needs an SVG illustration library for science) | Planned |
+| **4** | Full UK and US packs across all subjects and years | Planned |
+| **5** | **Licensing and payments** — see §14 | Planned |
+| **6** | **Multi-child profiles** on one device — see §14.3 | Planned |
+| **7** | Optional cloud sync and cross-device. The point at which §12's second half becomes mandatory work. | Planned |
+| **8** | Distribution: shareable link, then Play Store via TWA if the pull is there | Planned |
+| **9** | School licences — the largest revenue opportunity, but a different product with teacher dashboards and class management | Someday |
 
 ---
 
-## 14. Monetisation options (not built in v1)
+## 14. Commercial model
 
-Recorded so the architecture doesn't foreclose them:
+Decided, not yet built. Recorded here so the architecture does not foreclose it.
 
-- **Free core, paid extras** — all curriculum practice free; cloud sync, multi-child, and printable reports paid. Keeps the learning free, charges for parent convenience. Best fit for the stated goal.
-- **Freemium by content** — one subject free, the rest subscription. Higher revenue, worse for the mission.
-- **One-off unlock** — a single payment per family. Simple, fits Nigerian payment preferences (Paystack/Flutterwave), no recurring-billing friction.
-- **School licences** — the largest opportunity by revenue, but a different product with teacher dashboards and class management. Note it, don't chase it yet.
+### 14.1 Licensing mechanism: signed keys, not accounts
 
-Whichever is chosen, **never** ads, and never a paywall mid-session for a child.
+The app has no backend and no accounts, and §12 explains why that is worth protecting. Gating on payment does **not** require giving that up.
+
+- Parent pays through Paystack. Paystack — not us — holds their email and card details.
+- They receive a **licence key**, signed with a private key held offline.
+- The app verifies the key against a bundled public key. Verification is local; the app still makes no network calls.
+- The app stays a static site on free hosting. No servers, no database, no child data in transit.
+
+Stripe or Paddle covers international buyers; Paddle acts as merchant of record and handles VAT and sales tax, which is a real administrative saving for a one-person operation.
+
+### 14.2 What is free
+
+Gating by **content**, never by time. A countdown that locks a child out mid-thought is hostile, and any client-side time limit is trivially bypassed anyway.
+
+- The child's own class in **Mathematics** is free, permanently, for everyone.
+- Other subjects and other classes are part of the paid licence.
+- **No paywall ever interrupts a session.** A started quest always finishes.
+- No advertising in any tier, ever.
+
+### 14.3 Pricing
+
+- **₦5,000 per year** in Nigeria, with a one-time lifetime option offered at launch as an early-adopter reward.
+- Priced regionally elsewhere — roughly **$15–20 per year** — still well under Khan Academy Kids' peers and IXL.
+- **The first 20 families to sign up get it free forever, for one child.** They are the people taking a risk on an unproven app, and their feedback is worth more than their subscription. Additional children on the same licence are paid, at a reduced per-child rate.
+- One licence covers one child. Multi-child support (phase 6) adds profiles on one device, each with its own progress, mascot and report.
+
+### 14.4 The charity commitment
+
+The intention is that **half the money funds development and hosting, and half goes to charity.** Two things must be settled before that is stated publicly, because a public charity claim is a regulated representation, not marketing copy:
+
+1. **Define the base precisely.** "50% of revenue" and "50% of profit" differ substantially once payment processing (1.5–3%) and tax are accounted for. Nigerian tax relief on donations is capped and applies only to approved bodies under the 5th Schedule of CITA, so donating 50% of *revenue* can mean paying tax on money already given away. This needs an accountant's sign-off before publication.
+2. **Name one registered charity, and publish what was actually donated,** with receipts, on a regular cycle. Vague "half goes to charity" claims are where well-intentioned projects get into difficulty.
+
+### 14.5 Scale reality
+
+₦5,000/year × 200 families is roughly ₦1m/year — about $650. Half to charity leaves around ₦500k for development and hosting. At that size this is a worthwhile gesture, not a business. It becomes materially significant at thousands of families, or through school licences (phase 9).
+
+### 14.6 Sequencing
+
+Ship free to roughly 20 families on an unlisted link **first**, and find out whether children keep playing. That single question determines whether anything else here is worth building. Payments come only once retention is real — and those first families keep it free permanently.
 
 ---
 

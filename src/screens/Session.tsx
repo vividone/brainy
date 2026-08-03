@@ -131,6 +131,8 @@ export function Session({ plan, onFinish, onQuit }: Props) {
         correctFirstTry: correct,
         attempts: 1,
         usedHint,
+        role: current.role,
+        difficulty: current.difficulty,
         given: describeResponse(current.item, value),
         expected: describeAnswer(current.item),
       }

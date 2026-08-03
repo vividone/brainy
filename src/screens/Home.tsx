@@ -1,40 +1,51 @@
-/** Home — the island map, the daily quest, and everything the child owns. */
+/**
+ * Home — the child's front door: streak, daily quest, and the subject grid.
+ *
+ * The subjects were a horizontally scrolling tab row. With seven subjects
+ * that meant most of them were off-screen and a 7-year-old never found them.
+ * A grid shows every subject at once, and tapping one opens it.
+ */
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Mascot } from '../components/Mascot'
-import { Btn, Card, IconBtn, Pill, ProgressBar, Screen, Stars } from '../components/ui'
+import { Btn, Card, IconBtn, Pill, ProgressBar, Screen } from '../components/ui'
 import { levelProgress } from '../engine/scoring'
-import { islandStyle } from '../game/theme'
 import { useStore } from '../state/store'
-import { summariseStrands, totalStarsEarned, useBands, useCurriculum, useLevelStars, useProgress } from '../state/selectors'
+import {
+  subjectStyle,
+  summariseSubject,
+  totalStarsEarned,
+  useBands,
+  useCurriculum,
+  useLevelStars,
+  useProgress,
+} from '../state/selectors'
 import { sfx } from '../lib/sound'
 
 interface Props {
-  onOpenIsland: (strandId: string) => void
+  onOpenSubject: (subjectId: string) => void
   onDailyQuest: () => void
   onOpenShop: () => void
   onOpenRoom: () => void
   onOpenParent: () => void
 }
 
-export function Home({ onOpenIsland, onDailyQuest, onOpenShop, onOpenRoom, onOpenParent }: Props) {
+export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOpenParent }: Props) {
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
   const { profile, economy, streak } = useStore()
-  const [subjectId, setSubjectId] = useState('maths')
 
-  const subject = curriculum.subjects.find((s) => s.id === subjectId) ?? curriculum.subjects[0]
   const level = levelProgress(economy.xp)
   const stars = totalStarsEarned(levelStars)
-
-  const strands = useMemo(
-    () => summariseStrands(curriculum.id, subject, bands, progress, levelStars),
-    [curriculum.id, subject, bands, progress, levelStars],
-  )
-
   const bandLabel = curriculum.yearBands.find((b) => b.id === profile.yearBand)?.label ?? ''
+
+  const subjects = useMemo(
+    () =>
+      curriculum.subjects.map((s) => summariseSubject(curriculum.id, s, bands, progress, levelStars)),
+    [curriculum, bands, progress, levelStars],
+  )
 
   return (
     <Screen>
@@ -111,117 +122,66 @@ export function Home({ onOpenIsland, onDailyQuest, onOpenShop, onOpenRoom, onOpe
       </Card>
 
       {/* Subjects ------------------------------------------------------ */}
-      <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
-        {curriculum.subjects.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => {
-              sfx.tap()
-              setSubjectId(s.id)
-            }}
-            className={`shrink-0 min-h-12 rounded-2xl border-3 px-4 font-black transition
-              ${s.id === subject.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-brand-200 bg-white text-brand-700'}
-              ${s.available ? '' : 'opacity-60'}`}
-            style={{ borderWidth: 3 }}
-          >
-            {s.icon} {s.name}
-            {!s.available && <span className="ml-1.5 text-xs">🔒</span>}
-          </button>
-        ))}
-      </div>
+      <p className="mt-6 mb-2 text-sm font-black uppercase tracking-wide text-brand-400">
+        {bandLabel} · Choose a subject
+      </p>
 
-      {/* Islands ------------------------------------------------------- */}
-      {!subject.available ? (
-        <Card className="mt-4 p-6 sm:p-8 text-center">
-          <div className="text-6xl mb-3">{subject.icon}</div>
-          <h3 className="text-2xl font-black text-brand-900">{subject.name}</h3>
-          <p className="mt-2 font-bold text-brand-500 max-w-md mx-auto">{subject.comingSoon}</p>
-          <Pill className="mt-4 bg-brand-100 text-brand-700">Coming soon</Pill>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {subjects.map((s) => {
+          const style = subjectStyle(s.subject.color)
+          const pct = s.starsPossible ? (s.starsEarned / s.starsPossible) * 100 : 0
+          const ready = s.subject.available && s.skillCount > 0
 
-          {subject.plannedTopics && subject.plannedTopics.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs font-black uppercase tracking-wide text-brand-400 mb-2">
-                What will be in here
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {subject.plannedTopics.map((topic) => (
-                  <span
-                    key={topic}
-                    className="rounded-full bg-brand-50 border-2 border-brand-200 px-3 py-1.5 text-sm font-bold text-brand-700"
-                  >
-                    {topic}
+          return (
+            <Card
+              key={s.subject.id}
+              onClick={() => {
+                sfx.whoosh()
+                onOpenSubject(s.subject.id)
+              }}
+              className="p-0 overflow-hidden"
+            >
+              <div className={`bg-gradient-to-br ${style.grad} px-3 py-4 text-center relative`}>
+                <span className="block text-4xl sm:text-5xl" aria-hidden>
+                  {s.subject.icon}
+                </span>
+                {!ready && (
+                  <span className="absolute top-2 right-2 text-lg" title="Coming soon">
+                    🔒
                   </span>
-                ))}
+                )}
               </div>
-            </div>
-          )}
-        </Card>
-      ) : (
-        <div className="mt-4">
-          <p className="text-sm font-black uppercase tracking-wide text-brand-400 mb-2">
-            {bandLabel} · {subject.name}
-          </p>
 
-          <ol className="relative space-y-3">
-            {strands.map((s, i) => {
-              const style = islandStyle(s.strand.theme)
-              const pct = s.starsPossible ? (s.starsEarned / s.starsPossible) * 100 : 0
-              const complete = s.starsEarned === s.starsPossible && s.starsPossible > 0
+              <div className="p-3">
+                <p className="font-black text-brand-900 leading-tight text-sm sm:text-base">
+                  {s.subject.name}
+                </p>
 
-              return (
-                <li key={s.strand.id} className="relative">
-                  {i > 0 && (
-                    <span
-                      aria-hidden
-                      className="absolute -top-3 left-9 h-3 w-1 rounded-full bg-brand-200"
-                    />
-                  )}
-                  <Card
-                    onClick={
-                      s.unlocked
-                        ? () => {
-                            sfx.whoosh()
-                            onOpenIsland(s.strand.id)
-                          }
-                        : undefined
-                    }
-                    className={`p-3 sm:p-4 flex items-center gap-3 sm:gap-4 ${s.unlocked ? '' : 'opacity-60'}`}
-                  >
-                    <div
-                      className={`grid place-items-center size-16 sm:size-20 shrink-0 rounded-2xl bg-gradient-to-br ${style.gradient} text-3xl sm:text-4xl border-2 border-white shadow-inner`}
-                    >
-                      {s.unlocked ? style.emoji : '🔒'}
+                {ready ? (
+                  <>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <ProgressBar
+                        pct={pct}
+                        className="h-2 flex-1"
+                        barClass="bg-gradient-to-r from-amber-400 to-amber-500"
+                        label={`${s.subject.name} progress`}
+                      />
+                      <span className="text-[11px] font-black text-brand-500 tabular-nums shrink-0">
+                        {s.starsEarned}/{s.starsPossible}
+                      </span>
                     </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg sm:text-xl font-black text-brand-900 truncate">
-                          {s.strand.name}
-                        </h3>
-                        {complete && <span className="text-xl" title="Island complete">🏆</span>}
-                      </div>
-                      <p className="text-sm font-semibold text-brand-500 truncate">
-                        {s.unlocked ? s.strand.blurb : `Earn ${s.requiredStars} stars to unlock`}
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <ProgressBar
-                          pct={pct}
-                          className="h-2.5 flex-1"
-                          barClass="bg-gradient-to-r from-amber-400 to-amber-500"
-                          label={`${s.strand.name} progress`}
-                        />
-                        <span className="text-xs font-black text-brand-500 tabular-nums shrink-0">
-                          ⭐ {s.starsEarned}/{s.starsPossible}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                </li>
-              )
-            })}
-          </ol>
-        </div>
-      )}
+                    <p className="mt-1 text-xs font-bold text-brand-400">
+                      {s.masteredCount} of {s.skillCount} skills mastered
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1.5 text-xs font-bold text-brand-400">Coming soon — tap to see</p>
+                )}
+              </div>
+            </Card>
+          )
+        })}
+      </div>
 
       {/* Bottom actions ------------------------------------------------ */}
       <div className="mt-6 grid grid-cols-2 gap-3">
@@ -235,6 +195,3 @@ export function Home({ onOpenIsland, onDailyQuest, onOpenShop, onOpenRoom, onOpe
     </Screen>
   )
 }
-
-/** Small reusable star row used on the island screen too. */
-export { Stars }

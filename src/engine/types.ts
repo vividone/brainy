@@ -347,6 +347,14 @@ export interface AnsweredItem {
   correctFirstTry: boolean
   attempts: number
   usedHint: boolean
+  /**
+   * Why this question was asked. Recorded so the parent report can measure
+   * retention — accuracy on `review` items is the only honest signal that
+   * something was learned rather than crammed.
+   */
+  role?: 'focus' | 'review' | 'stretch'
+  /** 1-5, so the report can distinguish "got it wrong" from "got it wrong at level 5". */
+  difficulty?: Difficulty
   /** What the child actually answered, rendered for the parent zone. */
   given: string
   expected: string

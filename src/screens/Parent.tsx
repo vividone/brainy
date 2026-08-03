@@ -19,6 +19,7 @@ import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../compone
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
+import { buildAnalytics } from '../state/analytics'
 import { setSpeechRate, speak } from '../lib/speech'
 
 /* ------------------------------------------------------------------ *
@@ -140,7 +141,21 @@ export function Parent({ onBack }: { onBack: () => void }) {
     }
   }, [byDay])
 
-  const subject = curriculum.subjects.find((s) => s.id === 'maths') ?? curriculum.subjects[0]
+  const stats = useMemo(
+    () => buildAnalytics(curriculum, bands, profile.yearBand, progress, byDay, history),
+    [curriculum, bands, profile.yearBand, progress, byDay, history],
+  )
+
+  /** Subject shown in the difficulty hint — the one they are most active in. */
+  const subject = useMemo(() => {
+    const playable = curriculum.subjects.filter((s) => s.available && s.strands.length > 0)
+    const busiest = [...stats.subjects].sort((a, b) => b.questions - a.questions)[0]
+    return (
+      curriculum.subjects.find((s) => s.id === busiest?.id && s.available) ??
+      playable[0] ??
+      curriculum.subjects[0]
+    )
+  }, [curriculum, stats.subjects])
 
   const strandRows = useMemo(
     () =>
@@ -261,8 +276,195 @@ export function Parent({ onBack }: { onBack: () => void }) {
             </p>
           </Card>
 
+          {/* Readiness for their own class — the headline a parent wants. */}
           <Card className="p-5 border-slate-200">
-            <h2 className="font-black text-slate-900 mb-3">Mastery by topic</h2>
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="font-black text-slate-900">
+                  {curriculum.yearBands.find((b) => b.id === profile.yearBand)?.label} readiness
+                </h2>
+                <p className="text-sm font-bold text-slate-500">
+                  {stats.classMasteredCount} of {stats.classSkillCount} skills in {profile.name}'s own class
+                  are at mastered or better.
+                </p>
+              </div>
+              <p className="shrink-0 text-4xl font-black tabular-nums text-violet-600">
+                {Math.round(stats.classReadiness * 100)}%
+              </p>
+            </div>
+            <ProgressBar
+              pct={stats.classReadiness * 100}
+              className="mt-3 h-4"
+              barClass="bg-gradient-to-r from-violet-400 to-violet-600"
+              label="Class readiness"
+            />
+            <p className="mt-2 text-xs font-semibold text-slate-400">
+              Earlier classes are tracked separately as revision, so this measures the year they are
+              actually in.
+            </p>
+          </Card>
+
+          {/* 30-day consistency. Habit is the thing that predicts progress. */}
+          <Card className="p-5 border-slate-200">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-black text-slate-900">Last 30 days</h2>
+              <span className="text-sm font-bold text-slate-500">
+                {stats.daysPlayedLast30} active {stats.daysPlayedLast30 === 1 ? 'day' : 'days'}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-10 gap-1.5">
+              {stats.activity.map((d) => {
+                const level =
+                  d.questions === 0 ? 0 : d.questions < 6 ? 1 : d.questions < 15 ? 2 : d.questions < 30 ? 3 : 4
+                const shade = ['bg-slate-100', 'bg-violet-200', 'bg-violet-400', 'bg-violet-500', 'bg-violet-700'][level]
+                return (
+                  <div
+                    key={d.day}
+                    className={`aspect-square rounded-md ${shade}`}
+                    title={`${d.day}: ${d.questions} questions, ${d.minutes} min`}
+                  />
+                )
+              })}
+            </div>
+            <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
+              <span>Less</span>
+              {['bg-slate-100', 'bg-violet-200', 'bg-violet-400', 'bg-violet-500', 'bg-violet-700'].map((c) => (
+                <span key={c} className={`size-3 rounded ${c}`} />
+              ))}
+              <span>More</span>
+            </div>
+          </Card>
+
+          {/* Accuracy over time, and retention after a gap. */}
+          <Card className="p-5 border-slate-200">
+            <h2 className="font-black text-slate-900 mb-3">Are they improving?</h2>
+            <div className="flex items-end justify-between gap-2 h-28">
+              {stats.accuracyTrend.map((w) => (
+                <div key={w.label} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
+                  <span className="text-[10px] font-black text-slate-500 tabular-nums">
+                    {w.accuracy === null ? '' : `${Math.round(w.accuracy * 100)}%`}
+                  </span>
+                  <div
+                    className={`w-full rounded-t-md ${w.accuracy === null ? 'bg-slate-100' : 'bg-emerald-500'}`}
+                    style={{ height: `${w.accuracy === null ? 3 : Math.max(4, w.accuracy * 100)}%` }}
+                    title={`${w.questions} questions`}
+                  />
+                  <span className="text-[10px] font-black text-slate-400 text-center leading-tight">
+                    {w.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              First-try accuracy per week. It can dip when they move up a level — that is the app making
+              things harder, not them getting worse.
+            </p>
+
+            <div className="mt-4 rounded-2xl bg-slate-50 p-3">
+              <p className="font-black text-slate-800">
+                Retention:{' '}
+                {stats.retention.rate === null ? (
+                  <span className="text-slate-400">not enough data yet</span>
+                ) : (
+                  <span className="text-emerald-600">{Math.round(stats.retention.rate * 100)}%</span>
+                )}
+              </p>
+              <p className="text-xs font-semibold text-slate-500">
+                {stats.retention.answered > 0
+                  ? `Of ${stats.retention.answered} questions brought back days later, ${stats.retention.correct} were right first time. This is the honest measure of whether things stuck.`
+                  : 'Once skills come back around for spaced review, this will show how much stuck.'}
+              </p>
+            </div>
+          </Card>
+
+          {/* Per-subject, now that there is more than one. */}
+          {stats.subjects.length > 1 && (
+            <Card className="p-5 border-slate-200">
+              <h2 className="font-black text-slate-900 mb-3">By subject</h2>
+              <div className="space-y-3">
+                {stats.subjects.map((s) => {
+                  const pct = Math.round(s.mastery * 100)
+                  const colour =
+                    pct >= 75 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-400' : pct > 0 ? 'bg-rose-400' : 'bg-slate-300'
+                  return (
+                    <div key={s.id}>
+                      <div className="flex justify-between text-sm font-bold text-slate-600">
+                        <span>
+                          {s.icon} {s.name}
+                        </span>
+                        <span className="tabular-nums">
+                          {pct}% · {s.masteredCount}/{s.skillCount} mastered
+                        </span>
+                      </div>
+                      <ProgressBar pct={pct} className="mt-1 h-3" barClass={colour} label={s.name} />
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* Strongest and weakest, plus what is slipping. */}
+          {(stats.strongest.length > 0 || stats.goingRusty.length > 0) && (
+            <Card className="p-5 border-slate-200">
+              <h2 className="font-black text-slate-900 mb-3">Strengths and gaps</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-600 mb-1.5">
+                    Strongest
+                  </p>
+                  {stats.strongest.length === 0 ? (
+                    <p className="text-sm font-semibold text-slate-400">Not enough data yet.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {stats.strongest.map((s) => (
+                        <li key={s.id} className="flex justify-between gap-2 text-sm">
+                          <span className="font-bold text-slate-700 truncate">{s.title}</span>
+                          <span className="shrink-0 font-black text-emerald-600 tabular-nums">
+                            {Math.round(s.mastery * 100)}%
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-rose-600 mb-1.5">
+                    Needs work
+                  </p>
+                  {stats.weakest.length === 0 ? (
+                    <p className="text-sm font-semibold text-slate-400">Not enough data yet.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {stats.weakest.map((s) => (
+                        <li key={s.id} className="flex justify-between gap-2 text-sm">
+                          <span className="font-bold text-slate-700 truncate">{s.title}</span>
+                          <span className="shrink-0 font-black text-rose-600 tabular-nums">
+                            {Math.round(s.mastery * 100)}%
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {stats.goingRusty.length > 0 && (
+                <div className="mt-4 rounded-2xl bg-amber-50 border-2 border-amber-200 p-3">
+                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">Going rusty</p>
+                  <p className="text-sm font-bold text-amber-900">
+                    {stats.goingRusty.map((s) => s.title).join(', ')}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-amber-700">
+                    Mastered once, but not practised lately. Five minutes each would bring them back.
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+
+          <Card className="p-5 border-slate-200">
+            <h2 className="font-black text-slate-900 mb-3">Mastery by topic — {subject.name}</h2>
             <div className="space-y-3">
               {strandRows.map((row) => {
                 const pct = Math.round(row.mean * 100)
@@ -292,6 +494,8 @@ export function Parent({ onBack }: { onBack: () => void }) {
             <p className="text-sm font-bold text-slate-500">
               {totals.questions} questions · {accuracy}% right first time · {formatDuration(totals.ms)} ·
               longest streak {streak.longest} {streak.longest === 1 ? 'day' : 'days'}
+              {stats.medianSessionMinutes !== null &&
+                ` · typical session ${stats.medianSessionMinutes < 1 ? 'under a minute' : `${Math.round(stats.medianSessionMinutes)} min`}`}
             </p>
             {history.length > 0 && (
               <div className="mt-3 divide-y divide-slate-100">

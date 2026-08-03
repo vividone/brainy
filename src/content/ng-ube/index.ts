@@ -9,6 +9,9 @@ import { moneyStrand } from './maths/money'
 import { measurementStrand } from './maths/measurement'
 import { geometryStrand } from './maths/geometry'
 import { dataStrand } from './maths/data'
+import { quantitativeSubject } from './quantitative'
+import { verbalSubject } from './verbal'
+import { englishSubject } from './english'
 
 export const ngUbe: Curriculum = {
   id: 'ng-ube',
@@ -42,72 +45,15 @@ export const ngUbe: Curriculum = {
       ],
     },
     /*
-     * Quantitative and Verbal Reasoning are separate subjects, not one.
-     * Nigerian schools timetable and examine them separately, they are
-     * assessed separately at common entrance, and a child is very often
-     * strong at one and weak at the other — which a single blended score
-     * would hide from the parent report.
+     * Each remaining subject lives in its own folder so it can be authored
+     * independently — see src/content/ng-ube/<subject>/index.ts.
      */
-    {
-      id: 'quantitative',
-      name: 'Quantitative Reasoning',
-      icon: '🧮',
-      color: 'sky',
-      available: false,
-      comingSoon: 'Number puzzles, patterns and the shape problems used in common entrance.',
-      plannedTopics: [
-        'Number sequences & patterns',
-        'Missing numbers in shapes',
-        'Number machines (in / out)',
-        'Coding & decoding numbers',
-        'Figure analogies',
-        'Counting squares & shapes',
-        'Spatial reasoning',
-        'Ordering & matching',
-      ],
-      strands: [],
-    },
-    {
-      id: 'verbal',
-      name: 'Verbal Reasoning',
-      icon: '🔤',
-      color: 'amber',
-      available: false,
-      comingSoon: 'Word puzzles, opposites and the letter games that build vocabulary.',
-      plannedTopics: [
-        'Synonyms & antonyms',
-        'Odd one out',
-        'Word analogies',
-        'Alphabetical order',
-        'Coded words',
-        'Jumbled words',
-        'Homonyms & homophones',
-        'Letter sequences',
-      ],
-      strands: [],
-    },
-    {
-      id: 'english',
-      name: 'English Grammar',
-      icon: '📖',
-      color: 'rose',
-      available: false,
-      comingSoon: 'Parts of speech, tenses, punctuation and sentence building.',
-      plannedTopics: [
-        'Nouns, verbs & adjectives',
-        'Singular & plural',
-        'Pronouns & articles',
-        'Tenses (past, present, future)',
-        'Punctuation & capital letters',
-        'Sentence building',
-        'Prepositions & conjunctions',
-        'Comprehension basics',
-      ],
-      strands: [],
-    },
+    quantitativeSubject,
+    verbalSubject,
+    englishSubject,
     {
       id: 'science',
-      name: 'Basic Science & Technology',
+      name: 'Basic Science',
       icon: '🔬',
       color: 'emerald',
       available: false,

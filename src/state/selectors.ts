@@ -118,3 +118,51 @@ export function levelUnlocked(
 
 export const totalStarsEarned = (levelStars: Record<string, number>): number =>
   Object.values(levelStars).reduce((a, b) => a + b, 0)
+
+export interface SubjectSummary {
+  subject: SubjectDef
+  skillCount: number
+  startedCount: number
+  masteredCount: number
+  /** Mean mastery across the subject's in-band skills, 0-1. */
+  mastery: number
+  starsEarned: number
+  starsPossible: number
+}
+
+/** One row per subject, for the home grid and the parent report. */
+export function summariseSubject(
+  curriculumId: string,
+  subject: SubjectDef,
+  bands: string[],
+  progress: ProgressMap,
+  levelStars: Record<string, number>,
+  now = Date.now(),
+): SubjectSummary {
+  const skills = subject.strands.flatMap((strand) => skillsInStrand(curriculumId, strand.id, bands))
+  const masteries = skills.map((s) => currentMastery(progress, s.id, now))
+  const levels = subject.strands.flatMap((strand) => buildLevels(curriculumId, strand.id, bands))
+
+  return {
+    subject,
+    skillCount: skills.length,
+    startedCount: skills.filter((s) => (progress[s.id]?.attempts ?? 0) > 0).length,
+    masteredCount: masteries.filter((m) => m >= 0.75).length,
+    mastery: masteries.length ? masteries.reduce((a, b) => a + b, 0) / masteries.length : 0,
+    starsEarned: levels.reduce((sum, l) => sum + (levelStars[l.key] ?? 0), 0),
+    starsPossible: levels.length * 3,
+  }
+}
+
+/** Tailwind classes per subject colour, so a subject looks the same everywhere. */
+export const SUBJECT_STYLE: Record<string, { grad: string; soft: string; text: string }> = {
+  violet: { grad: 'from-violet-400 to-purple-600', soft: 'bg-violet-50', text: 'text-violet-700' },
+  sky: { grad: 'from-sky-400 to-blue-600', soft: 'bg-sky-50', text: 'text-sky-700' },
+  amber: { grad: 'from-amber-400 to-orange-500', soft: 'bg-amber-50', text: 'text-amber-700' },
+  rose: { grad: 'from-rose-400 to-pink-600', soft: 'bg-rose-50', text: 'text-rose-700' },
+  emerald: { grad: 'from-emerald-400 to-green-600', soft: 'bg-emerald-50', text: 'text-emerald-700' },
+  slate: { grad: 'from-slate-400 to-slate-600', soft: 'bg-slate-50', text: 'text-slate-700' },
+  orange: { grad: 'from-orange-400 to-red-500', soft: 'bg-orange-50', text: 'text-orange-700' },
+}
+
+export const subjectStyle = (colour: string) => SUBJECT_STYLE[colour] ?? SUBJECT_STYLE.violet
