@@ -14,7 +14,7 @@ import { BADGES } from '../game/cosmetics'
 import { PRAISE } from '../game/theme'
 import { sfx } from '../lib/sound'
 import { speak } from '../lib/speech'
-import { useLearnerData, useProfile, useSettings } from '../state/store'
+import { useLearnerData, useSettings } from '../state/store'
 import type { Awards } from '../state/store'
 
 interface Props {
@@ -25,7 +25,6 @@ interface Props {
 }
 
 export function Results({ result, awards, onPlayAgain, onHome }: Props) {
-  const profile = useProfile()
   const { economy, streak } = useLearnerData()
   const settings = useSettings()
   const [shownStars, setShownStars] = useState(0)
@@ -58,7 +57,8 @@ export function Results({ result, awards, onPlayAgain, onHome }: Props) {
       <div className="pt-6 text-center">
         <div className="mx-auto size-32 sm:size-40">
           <Mascot
-            colour={profile.colour}
+            characterId={economy.equipped.character}
+            petId={economy.equipped.pet}
             mood={result.stars >= 2 ? 'celebrate' : 'happy'}
             hat={economy.equipped.hat}
             eyes={economy.equipped.eyes}

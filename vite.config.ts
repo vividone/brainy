@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Kolo — Learn & Play',
-        short_name: 'Kolo',
+        name: 'Brainy — Learn & Play',
+        short_name: 'Brainy',
         description: 'Gamified maths, reasoning and science practice for primary school',
         theme_color: '#7c3aed',
         background_color: '#faf5ff',

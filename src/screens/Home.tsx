@@ -67,7 +67,8 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
           aria-label="Open my room"
         >
           <Mascot
-            colour={profile.colour}
+            characterId={economy.equipped.character}
+            petId={economy.equipped.pet}
             mood="happy"
             hat={economy.equipped.hat}
             eyes={economy.equipped.eyes}

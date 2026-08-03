@@ -25,7 +25,7 @@ import { Btn, IconBtn, Modal, ProgressBar } from '../components/ui'
 import { CORRECT_WORDS, WRONG_WORDS } from '../game/theme'
 import { buzz, sfx } from '../lib/sound'
 import { cancelSpeech, speak } from '../lib/speech'
-import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
+import { useLearnerData, useSettings, useStore } from '../state/store'
 
 const REVEAL_MS = 1100
 const MAX_REQUEUES = 3
@@ -37,7 +37,6 @@ interface Props {
 }
 
 export function Session({ plan, onFinish, onQuit }: Props) {
-  const profile = useProfile()
   const settings = useSettings()
   const { economy } = useLearnerData()
   const recordAnswer = useStore((s) => s.recordAnswer)
@@ -352,7 +351,8 @@ export function Session({ plan, onFinish, onQuit }: Props) {
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <div className="size-16 shrink-0">
               <Mascot
-                colour={profile.colour}
+                characterId={economy.equipped.character}
+            petId={economy.equipped.pet}
                 mood={mood}
                 hat={economy.equipped.hat}
                 eyes={economy.equipped.eyes}

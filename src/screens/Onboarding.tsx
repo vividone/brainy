@@ -4,13 +4,15 @@
  * Deliberately addressed to the grown-up, not the child. A 5-to-11-year-old
  * cannot judge their own school year, choose a curriculum or set a PIN, and a
  * parent needs to know what this thing does with their child's data before
- * handing over a tablet. The child's only decision is the mascot colour, and
+ * handing over a tablet. The child's only decision is their character and pet, and
  * the last step hands the device over explicitly.
  */
 
 import { useState } from 'react'
 import { ageOptions, bandForAge, listCurricula } from '../engine/registry'
-import { MASCOT_COLOURS } from '../game/cosmetics'
+import { APP_NAME, CHARACTERS, PETS } from '../game/characters'
+import { Character } from '../components/Character'
+import { Pet } from '../components/Pet'
 import { Mascot } from '../components/Mascot'
 import { Btn, Card, Screen } from '../components/ui'
 import { useStore } from '../state/store'
@@ -34,7 +36,8 @@ export function Onboarding() {
   const [curriculumId, setCurriculumId] = useState(curricula[0]?.id ?? 'ng-ube')
   /** Set only when a parent overrides the class suggested by the age. */
   const [bandOverride, setBandOverride] = useState<string | null>(null)
-  const [colour, setColour] = useState('violet')
+  const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
+  const [petId, setPetId] = useState(PETS[0].id)
   const [pin, setPin] = useState('')
   const [done, setDone] = useState(false)
 
@@ -60,7 +63,8 @@ export function Onboarding() {
       curriculumId,
       yearBand: effectiveBand,
       age: age ?? undefined,
-      colour,
+      characterId,
+      petId,
       parentPin: pin,
     })
   }
@@ -69,9 +73,9 @@ export function Onboarding() {
     <Screen className="max-w-2xl">
       <div className="pt-4 pb-5 text-center">
         <div className="mx-auto size-24 sm:size-28">
-          <Mascot colour={colour} mood="happy" float className="w-full h-full" />
+          <Mascot characterId={characterId} petId={petId} mood="happy" variant="buddy" float className="w-full h-full" />
         </div>
-        <h1 className="mt-2 text-4xl font-black text-brand-800">Kolo</h1>
+        <h1 className="mt-2 text-4xl font-black text-brand-800">{APP_NAME}</h1>
         <p className="text-brand-500 font-bold">Learn. Play. Level up.</p>
       </div>
 
@@ -94,7 +98,7 @@ export function Onboarding() {
         {step === 0 && (
           <div className="space-y-4">
             <p className="font-bold text-brand-700">
-              Kolo gives your child short daily practice — five to ten minutes — in maths, reasoning and
+              {APP_NAME} gives your child short daily practice — five to ten minutes — in maths, reasoning and
               more, matched to their school year.
             </p>
             <ul className="space-y-2.5">
@@ -244,26 +248,52 @@ export function Onboarding() {
 
         {/* ---- 4. Hand over ---- */}
         {step === 4 && !done && (
-          <div>
-            <p className="font-bold text-brand-700 mb-3">
-              Last thing, and this one is {firstName}'s: which buddy would they like?
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {MASCOT_COLOURS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    sfx.tap()
-                    setColour(c.id)
-                  }}
-                  aria-label={c.name}
-                  className={`rounded-2xl border-3 p-2 transition ${c.id === colour ? 'border-brand-600 bg-brand-50 scale-105' : 'border-brand-200 bg-white'}`}
-                  style={{ borderWidth: 3 }}
-                >
-                  <Mascot colour={c.id} mood="happy" className="w-full h-20" />
-                  <span className="block text-sm font-black text-brand-700">{c.name}</span>
-                </button>
-              ))}
+          <div className="space-y-5">
+            <div>
+              <p className="font-bold text-brand-700 mb-2">
+                Last thing, and this one is {firstName}'s: who would they like to be?
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {CHARACTERS.filter((c) => c.price === 0).map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      sfx.tap()
+                      setCharacterId(c.id)
+                    }}
+                    aria-label={c.name}
+                    className={`rounded-2xl border-3 p-1 transition ${c.id === characterId ? 'border-brand-600 bg-brand-50 scale-105' : 'border-brand-200 bg-white'}`}
+                    style={{ borderWidth: 3 }}
+                  >
+                    <Character def={c} mood="happy" className="w-full h-16" />
+                    <span className="block text-xs font-black text-brand-700">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="font-bold text-brand-700 mb-2">And a pet to come along?</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PETS.filter((p) => p.price === 0).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      sfx.tap()
+                      setPetId(p.id)
+                    }}
+                    aria-label={p.name}
+                    className={`rounded-2xl border-3 p-1 transition ${p.id === petId ? 'border-brand-600 bg-brand-50 scale-105' : 'border-brand-200 bg-white'}`}
+                    style={{ borderWidth: 3 }}
+                  >
+                    <Pet def={p} mood="happy" className="w-full h-16" />
+                    <span className="block text-xs font-black text-brand-700">{p.name.split(' ')[0]}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-sm font-semibold text-brand-500">
+                More characters and pets can be earned with coins from playing.
+              </p>
             </div>
           </div>
         )}
@@ -271,7 +301,7 @@ export function Onboarding() {
         {step === 4 && done && (
           <div className="text-center py-4">
             <div className="mx-auto size-32">
-              <Mascot colour={colour} mood="celebrate" float className="w-full h-full" />
+              <Mascot characterId={characterId} petId={petId} mood="celebrate" variant="buddy" float className="w-full h-full" />
             </div>
             <p className="mt-3 text-2xl font-black text-brand-900">All set!</p>
             <p className="mt-1 font-bold text-brand-500">
@@ -312,7 +342,7 @@ export function Onboarding() {
 
       {step === 0 && (
         <p className="mt-4 text-center text-xs font-semibold text-brand-400">
-          Kolo stores everything in this browser on this device. It makes no network requests after
+          {APP_NAME} stores everything in this browser on this device. It makes no network requests after
           loading, and there is nothing to sign up for.
         </p>
       )}

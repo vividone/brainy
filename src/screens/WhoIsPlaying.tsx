@@ -43,7 +43,8 @@ export function WhoIsPlaying({ onPicked }: { onPicked: () => void }) {
             >
               <div className="mx-auto size-24 sm:size-28">
                 <Mascot
-                  colour={learner.colour}
+                  characterId={d?.economy.equipped.character}
+                  petId={d?.economy.equipped.pet}
                   mood="happy"
                   hat={d?.economy.equipped.hat}
                   eyes={d?.economy.equipped.eyes}

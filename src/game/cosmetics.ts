@@ -3,7 +3,7 @@
  * and nothing in the app is ever gated behind real money (prd.md §6.4).
  */
 
-export type CosmeticSlot = 'hat' | 'eyes' | 'neck' | 'room'
+export type CosmeticSlot = 'character' | 'pet' | 'hat' | 'eyes' | 'neck' | 'room'
 
 export interface Cosmetic {
   id: string
@@ -13,6 +13,8 @@ export interface Cosmetic {
   /** Shown on the shop card. */
   emoji: string
 }
+
+import { CHARACTERS, PETS } from './characters'
 
 export const COSMETICS: Cosmetic[] = [
   { id: 'hat.cap', name: 'Baseball Cap', slot: 'hat', price: 40, emoji: '🧢' },
@@ -37,6 +39,8 @@ export const COSMETICS: Cosmetic[] = [
 ]
 
 export const SLOT_LABEL: Record<CosmeticSlot, string> = {
+  character: 'Characters',
+  pet: 'Pets',
   hat: 'Hats',
   eyes: 'Glasses',
   neck: 'Neck',
@@ -75,7 +79,7 @@ export const BADGES: Badge[] = [
   { id: 'streak-30', name: 'Unstoppable', description: 'Played 30 days in a row', emoji: '🏆' },
   { id: 'sharp-sharp', name: 'Sharp Sharp', description: '10 correct answers in a row', emoji: '🎯' },
   { id: 'perfect', name: 'Perfect Round', description: 'Got every question right first time', emoji: '💯' },
-  { id: 'kolo-full', name: 'Kolo Full', description: 'Saved up 500 coins', emoji: '🪙' },
+  { id: 'kolo-full', name: 'Money Box Full', description: 'Saved up 500 coins', emoji: '🪙' },
   { id: 'century', name: 'Century', description: 'Answered 100 questions', emoji: '💪' },
   { id: 'five-hundred', name: 'Big Brain', description: 'Answered 500 questions', emoji: '🧠' },
   { id: 'island-master', name: 'Island Master', description: 'Mastered every skill on an island', emoji: '🏝️' },
@@ -84,3 +88,27 @@ export const BADGES: Badge[] = [
 ]
 
 export const badgeById = (id: string): Badge | undefined => BADGES.find((b) => b.id === id)
+
+/* ------------------------------------------------------------------ *
+ * Unified shop lookup
+ *
+ * Characters and pets live in their own file because they carry drawing
+ * data, but the wallet should not care which roster something came from.
+ * ------------------------------------------------------------------ */
+
+export interface ShopItem {
+  id: string
+  name: string
+  price: number
+  slot: CosmeticSlot
+}
+
+export function shopItemById(id: string): ShopItem | undefined {
+  const cosmetic = COSMETICS.find((c) => c.id === id)
+  if (cosmetic) return { id: cosmetic.id, name: cosmetic.name, price: cosmetic.price, slot: cosmetic.slot }
+  const character = CHARACTERS.find((c) => c.id === id)
+  if (character) return { id: character.id, name: character.name, price: character.price, slot: 'character' }
+  const pet = PETS.find((p) => p.id === id)
+  if (pet) return { id: pet.id, name: pet.name, price: pet.price, slot: 'pet' }
+  return undefined
+}

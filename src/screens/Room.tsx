@@ -3,6 +3,7 @@
 import { Mascot } from '../components/Mascot'
 import { Card, IconBtn, Pill, Screen } from '../components/ui'
 import { BADGES } from '../game/cosmetics'
+import { characterById, petById } from '../game/characters'
 import { levelProgress } from '../engine/scoring'
 import { islandStyle } from '../game/theme'
 import { useLearnerData, useProfile } from '../state/store'
@@ -57,7 +58,8 @@ export function Room({ onBack }: { onBack: () => void }) {
         )}
         <div className="mx-auto size-44 sm:size-52 relative">
           <Mascot
-            colour={profile.colour}
+            characterId={economy.equipped.character}
+            petId={economy.equipped.pet}
             mood="happy"
             hat={economy.equipped.hat}
             eyes={economy.equipped.eyes}
@@ -66,7 +68,9 @@ export function Room({ onBack }: { onBack: () => void }) {
             className="w-full h-full"
           />
         </div>
-        <p className={`mt-2 text-2xl font-black ${dark ? 'text-white' : 'text-brand-900'}`}>Kolo</p>
+        <p className={`mt-2 text-2xl font-black ${dark ? 'text-white' : 'text-brand-900'}`}>
+          {characterById(economy.equipped.character).name} &amp; {petById(economy.equipped.pet).name.split(' ')[0]}
+        </p>
         <p className={`font-bold ${dark ? 'text-brand-100' : 'text-brand-500'}`}>
           Level {level.level} · {stars} ⭐ · {streak.longest} day best streak
         </p>

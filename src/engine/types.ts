@@ -1,5 +1,5 @@
 /**
- * Core types for the Kolo learning engine.
+ * Core types for the Brainy learning engine.
  *
  * Nothing in `engine/` may import from `content/`. Curriculum packs are
  * discovered through the registry at runtime. That rule is what keeps the

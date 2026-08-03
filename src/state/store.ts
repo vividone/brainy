@@ -16,9 +16,14 @@ import { levelForXp, scoreSession } from '../engine/scoring'
 import type { Difficulty, ProgressMap, SessionResult } from '../engine/types'
 import { DEFAULT_CURRICULUM_ID, DEFAULT_YEAR_BAND } from '../content'
 import type { CosmeticSlot } from '../game/cosmetics'
-import { cosmeticById } from '../game/cosmetics'
+import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
+import { shopItemById } from '../game/cosmetics'
 import { dayKey, daysBetween } from '../lib/dates'
 
+/*
+ * Storage key kept from the app's earlier name on purpose: changing it
+ * would orphan every save already on a device.
+ */
 export const SAVE_KEY = 'kolo.save.v1'
 export const SAVE_VERSION = 3
 const HISTORY_LIMIT = 60
@@ -141,7 +146,8 @@ export interface NewLearner {
   curriculumId: string
   yearBand: string
   age?: number
-  colour: string
+  characterId?: string
+  petId?: string
 }
 
 interface Actions {
@@ -191,7 +197,14 @@ export const emptyLearnerData = (): LearnerData => ({
   settings: defaultLearnerSettings(),
   progress: {},
   levelStars: {},
-  economy: { xp: 0, coins: 0, owned: [], equipped: {} },
+  economy: {
+    xp: 0,
+    coins: 0,
+    // Every free character and pet from the start, so a new child has a
+    // real choice on the first screen rather than one default.
+    owned: [...STARTER_OWNED],
+    equipped: { character: CHARACTERS[0].id, pet: PETS[0].id },
+  },
   streak: { current: 0, longest: 0, lastPlayed: null, freezes: 1, lastFreezeGrant: null },
   badges: [],
   history: [],
@@ -250,7 +263,7 @@ export const useStore = create<Store>()(
       return {
         ...initialState(),
 
-        completeOnboarding: ({ name, curriculumId, yearBand, age, colour, parentPin }) =>
+        completeOnboarding: ({ name, curriculumId, yearBand, age, characterId, petId, parentPin }) =>
           set((s) => {
             const id = s.learners[0]?.id ?? newId()
             const learner: Profile = {
@@ -259,14 +272,26 @@ export const useStore = create<Store>()(
               curriculumId,
               yearBand,
               age,
-              colour,
+              colour: 'violet',
               createdAt: Date.now(),
+            }
+            const base = s.data[id] ?? emptyLearnerData()
+            const data: LearnerData = {
+              ...base,
+              economy: {
+                ...base.economy,
+                equipped: {
+                  ...base.economy.equipped,
+                  character: characterId ?? CHARACTERS[0].id,
+                  pet: petId ?? PETS[0].id,
+                },
+              },
             }
             return {
               onboarded: true,
               learners: [learner],
               activeLearnerId: id,
-              data: { [id]: s.data[id] ?? emptyLearnerData() },
+              data: { [id]: data },
               device: {
                 ...s.device,
                 parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.device.parentPin,
@@ -462,7 +487,7 @@ export const useStore = create<Store>()(
         purchase: (cosmeticId) => {
           const s = get()
           const d = active(s)
-          const item = cosmeticById(cosmeticId)
+          const item = shopItemById(cosmeticId)
           if (!item) return false
           if (d.economy.owned.includes(cosmeticId)) return false
           if (d.economy.coins < item.price) return false
@@ -490,8 +515,29 @@ export const useStore = create<Store>()(
         addLearner: (learner) => {
           const id = newId()
           set((s) => ({
-            learners: [...s.learners, { ...learner, id, name: learner.name.trim() || 'Champion', createdAt: Date.now() }],
-            data: { ...s.data, [id]: emptyLearnerData() },
+            learners: [
+              ...s.learners,
+              {
+                ...learner,
+                id,
+                colour: 'violet',
+                name: learner.name.trim() || 'Champion',
+                createdAt: Date.now(),
+              },
+            ],
+            data: {
+              ...s.data,
+              [id]: {
+                ...emptyLearnerData(),
+                economy: {
+                  ...emptyLearnerData().economy,
+                  equipped: {
+                    character: learner.characterId ?? CHARACTERS[0].id,
+                    pet: learner.petId ?? PETS[0].id,
+                  },
+                },
+              },
+            },
             activeLearnerId: id,
           }))
           return id
@@ -574,7 +620,7 @@ export const useStore = create<Store>()(
             device: DeviceSettings
           }>
           if (!incoming || !Array.isArray(incoming.learners) || typeof incoming.data !== 'object') {
-            return { ok: false, message: 'That does not look like a Kolo backup.' }
+            return { ok: false, message: 'That does not look like a Brainy backup.' }
           }
 
           const s = get()

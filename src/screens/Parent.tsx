@@ -17,7 +17,7 @@ import {
 import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
 import { Mascot } from '../components/Mascot'
-import { MASCOT_COLOURS } from '../game/cosmetics'
+import { CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
@@ -595,7 +595,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
     const [name, setName] = useState('')
     const [age, setAge] = useState<number | null>(null)
-    const [colour, setColour] = useState('teal')
+    const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
 
     const suggested = age === null ? null : bandForAge(curriculum.id, age)
 
@@ -611,7 +611,12 @@ export function Parent({ onBack }: { onBack: () => void }) {
             <Card key={l.id} className={`p-4 border-slate-200 ${isActive ? 'ring-2 ring-slate-900' : ''}`}>
               <div className="flex items-center gap-3">
                 <div className="size-16 shrink-0">
-                  <Mascot colour={l.colour} mood="happy" className="w-full h-full" />
+                  <Mascot
+                    characterId={data[l.id]?.economy.equipped.character}
+                    petId={data[l.id]?.economy.equipped.pet}
+                    mood="happy"
+                    className="w-full h-full"
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <input
@@ -671,16 +676,16 @@ export function Parent({ onBack }: { onBack: () => void }) {
                 That is usually {suggested.label}. You can change it afterwards.
               </p>
             )}
-            <p className="mt-3 font-black text-slate-800">Buddy colour</p>
+            <p className="mt-3 font-black text-slate-800">Character</p>
             <div className="mt-2 grid grid-cols-6 gap-2">
-              {MASCOT_COLOURS.map((c) => (
+              {CHARACTERS.filter((c) => c.price === 0).map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => setColour(c.id)}
+                  onClick={() => setCharacterId(c.id)}
                   aria-label={c.name}
-                  className={`rounded-xl border-2 p-1 ${c.id === colour ? 'border-slate-900' : 'border-slate-200'}`}
+                  className={`rounded-xl border-2 p-1 ${c.id === characterId ? 'border-slate-900' : 'border-slate-200'}`}
                 >
-                  <Mascot colour={c.id} mood="happy" className="w-full h-10" />
+                  <Mascot characterId={c.id} mood="happy" className="w-full h-10" />
                 </button>
               ))}
             </div>
@@ -698,7 +703,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
                     curriculumId: curriculum.id,
                     yearBand: bandForAge(curriculum.id, age ?? 7).id,
                     age: age ?? undefined,
-                    colour,
+                    characterId,
                   })
                   setAdding(false)
                   setName('')
