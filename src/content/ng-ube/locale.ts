@@ -42,7 +42,10 @@ export const ngLocale: Locale = {
     { one: 'ball', many: 'balls', glyph: '⚽' },
     { one: 'sweet', many: 'sweets', glyph: '🍬' },
     { one: 'chicken', many: 'chickens', glyph: '🐔' },
-    { one: 'fish', many: 'fishes', glyph: '🐟' },
+    // "fish" is its own plural in standard English. "Fishes" is common in
+    // Nigerian speech and is not wrong, but a grammar question generated from
+    // this pool would then have two defensible answers.
+    { one: 'fish', many: 'fish', glyph: '🐟' },
     { one: 'flower', many: 'flowers', glyph: '🌸' },
     { one: 'star', many: 'stars', glyph: '⭐' },
     { one: 'cup', many: 'cups', glyph: '🥤' },

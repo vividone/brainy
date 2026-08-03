@@ -5,6 +5,7 @@ import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, tapMany } from '../../shared/authoring'
 import { CONFUSABLE_CLOZE, KIND_MARK, QUOTES, TYPED_SENTENCES } from './banks'
 import {
+  BELONGINGS,
   BOYS,
   CONTRACTIONS,
   DAY_NAMES,
@@ -12,7 +13,7 @@ import {
   MONTH_NAMES,
   PLACES,
   REGULAR_NOUNS,
-  SAFE_SENTENCE_NOUNS,
+  SHOPPING,
   articleFor,
   contractionWrongs,
   graded,
@@ -94,7 +95,7 @@ const capitals: SkillDef = {
       )
     }
 
-    const noun = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const noun = rng.pick(graded(SHOPPING, difficulty))
     const art = articleFor(noun.s)
     const Noun = `${noun.s.charAt(0).toUpperCase()}${noun.s.slice(1)}`
     return mc(
@@ -179,7 +180,7 @@ const commas: SkillDef = {
   helpAtHome: 'Write the shopping list as one sentence and put the commas in together.',
   generate: ({ rng, difficulty }): Item => {
     const count = difficulty <= 2 ? 3 : difficulty === 3 ? rng.int(3, 4) : rng.int(4, 5)
-    const items = rng.sample(graded(REGULAR_NOUNS, difficulty), count).map((w) => w.p)
+    const items = rng.sample(graded(SHOPPING, difficulty), count).map((w) => w.p)
     const head = items.slice(0, -1)
     const last = items[items.length - 1]
     const correct = `${head.join(', ')} and ${last}`
@@ -272,7 +273,7 @@ const possession: SkillDef = {
   helpAtHome: 'Point at things and say who owns them: "That is Ada’s bag, those are the boys’ bags."',
   generate: ({ rng, difficulty }): Item => {
     const owner = rng.pick(graded(OWNERS, difficulty))
-    const item = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const item = rng.pick(graded(BELONGINGS, difficulty))
     const name = someone(rng)
     const variant = rng.int(1, difficulty <= 2 ? 2 : 4)
 

@@ -13,14 +13,14 @@ import {
 } from './banks'
 import {
   ACTIONS,
+  BELONGINGS,
   BOYS,
   DAY_NAMES,
   GIRLS,
   IRREGULAR_NOUNS,
+  PEOPLE_NOUNS,
   PLACES,
-  REGULAR_NOUNS,
   SAFE_SENTENCE_ADVERBS,
-  SAFE_SENTENCE_NOUNS,
   THING_ADJECTIVES,
   articleFor,
   graded,
@@ -36,8 +36,7 @@ const capOf = (d: number): Tier => (d <= 2 ? 1 : d <= 3 ? 2 : 3)
  * is hungry".
  */
 const NEUTRAL_ADJ = [
-  'big', 'small', 'old', 'new', 'clean', 'dirty', 'heavy', 'white',
-  'strong', 'tall', 'short', 'bright', 'wet', 'hot', 'soft',
+  'big', 'small', 'old', 'new', 'clean', 'dirty', 'heavy', 'wet', 'bright', 'strong',
 ]
 
 function clozeItem(rng: Rng, bank: Cloze[], difficulty: number, prompt: string) {
@@ -108,7 +107,7 @@ const isAre: SkillDef = {
   hint: 'One thing takes "is". More than one takes "are". "I" always takes "am".',
   helpAtHome: 'Point at one thing then several and say it together: "It is… They are…"',
   generate: ({ rng, difficulty }): Item => {
-    const noun = rng.pick(graded(REGULAR_NOUNS, difficulty))
+    const noun = rng.pick(graded([...BELONGINGS, ...PEOPLE_NOUNS], difficulty))
     const adj = rng.pick(NEUTRAL_ADJ)
     const variant = rng.int(1, difficulty <= 2 ? 3 : 4)
 
@@ -163,7 +162,7 @@ const hasHave: SkillDef = {
   hint: 'He, she and it take "has". I, you, we and they take "have".',
   helpAtHome: 'Go round the room: "She has a bag, they have bags, I have a pencil."',
   generate: ({ rng, difficulty }): Item => {
-    const noun = rng.pick(graded(REGULAR_NOUNS, difficulty))
+    const noun = rng.pick(graded(BELONGINGS, difficulty))
     const count = rng.int(2, 6)
     const variant = rng.int(1, difficulty <= 2 ? 2 : 3)
 
@@ -202,7 +201,7 @@ const subjectVerb: SkillDef = {
   hint: 'One person or thing → the verb takes an s. More than one → no s.',
   helpAtHome: 'Say a wrong sentence on purpose ("the boys plays") and let them correct you.',
   generate: ({ rng, difficulty }): Item => {
-    const noun = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const noun = rng.pick(graded(PEOPLE_NOUNS, difficulty))
     const frames = [
       { base: 'play', s: 'plays', obj: 'football every evening' },
       { base: 'sing', s: 'sings', obj: 'in the choir on Sundays' },

@@ -125,7 +125,10 @@ const pluralS: SkillDef = {
     if (variant === 2) return pluralInSentence(rng, word, rng.int(2, 9), 'Most words just add s.')
 
     if (variant === 3) {
-      const noun = thing(rng, locale)
+      // "3 fish" is every bit as correct as "3 fishes", so the one noun in the
+      // locale pool with two defensible plurals is kept out of this question.
+      const pool2 = locale.objects.filter((o) => o.one !== 'fish')
+      const noun = pool2.length ? rng.pick(pool2) : thing(rng, locale)
       const count = rng.int(2, 6)
       return mc(rng, 'Which sentence is correct?', `I can see ${count} ${noun.many}.`, [
         `I can see ${count} ${noun.one}.`,

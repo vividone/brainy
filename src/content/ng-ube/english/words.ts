@@ -867,6 +867,30 @@ export const PLACE_NOUNS: { word: string; tier: Tier }[] = [
 /** Prepositions that work with any of the places above. */
 export const PLACE_PREPOSITIONS = ['near', 'beside', 'behind']
 
+/** Things a person can own — for apostrophe work. */
+export const BELONGINGS: NounWord[] = [
+  n('bag', 'bags', 1), n('book', 'books', 1), n('pencil', 'pencils', 1),
+  n('cap', 'caps', 1), n('shoe', 'shoes', 1), n('torch', 'torches', 2),
+  n('blanket', 'blankets', 2), n('uniform', 'uniforms', 2), n('sandal', 'sandals', 2),
+  n('bicycle', 'bicycles', 2), n('drum', 'drums', 1), n('plate', 'plates', 1),
+  n('cup', 'cups', 1), n('ruler', 'rulers', 2), n('biro', 'biros', 1),
+  n('basket', 'baskets', 1), n('key', 'keys', 1), n('radio', 'radios', 2),
+  n('umbrella', 'umbrellas', 2), n('textbook', 'textbooks', 2),
+]
+
+/** Things you can plausibly buy at a market — for list and comma work. */
+export const SHOPPING: NounWord[] = [
+  n('yam', 'yams', 1), n('orange', 'oranges', 1), n('mango', 'mangoes', 1),
+  n('banana', 'bananas', 1), n('plantain', 'plantains', 1), n('tomato', 'tomatoes', 1),
+  n('egg', 'eggs', 1), n('onion', 'onions', 1), n('groundnut', 'groundnuts', 2),
+  n('biro', 'biros', 1), n('pencil', 'pencils', 1), n('textbook', 'textbooks', 2),
+  n('sandal', 'sandals', 2), n('broom', 'brooms', 1), n('bucket', 'buckets', 1),
+  n('sweet', 'sweets', 1), n('cup', 'cups', 1), n('plate', 'plates', 1),
+  n('spoon', 'spoons', 1), n('blanket', 'blankets', 2), n('sock', 'socks', 1),
+  n('cap', 'caps', 1), n('candle', 'candles', 2), n('mat', 'mats', 1),
+  n('pineapple', 'pineapples', 2), n('lantern', 'lanterns', 3),
+]
+
 /** Adjectives that describe people, and adjectives that describe objects. */
 export const PERSON_ADJECTIVES: { word: string; tier: Tier }[] = [
   { word: 'tall', tier: 1 }, { word: 'young', tier: 1 }, { word: 'old', tier: 1 },
