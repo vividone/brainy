@@ -4,7 +4,6 @@ import type { Rng } from '../../../engine/rng'
 import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { mc, tapMany, thing } from '../../shared/authoring'
 import {
-  ALL_PLURAL_NOUNS,
   ALL_VERBS,
   BOYS,
   ER_ADJECTIVES,
@@ -211,39 +210,6 @@ const pluralIrregular: SkillDef = {
     return tapMany(rng, 'Tap every word with a TRICKY plural (not just + s or -es)', board, {
       explanation: 'Words like man, child and foot change their spelling completely.',
     })
-  },
-}
-
-const pluralMixed: SkillDef = {
-  id: 'ng.en.forms.plural-mixed',
-  title: 'Every plural rule',
-  yearBand: 'b5',
-  prerequisites: ['ng.en.forms.plural-irregular'],
-  concepts: ['plural-mixed'],
-  hint: 'Look at the last letters first: s/x/ch/sh, consonant + y, or -f. Then check the odd ones.',
-  helpAtHome: 'Open any page and ask for the plural of the first five nouns you spot.',
-  generate: ({ rng, difficulty }): Item => {
-    const pool = graded(ALL_PLURAL_NOUNS, difficulty)
-    const word = rng.pick(pool)
-    const variant = rng.int(1, 3)
-
-    if (variant === 1) return pluralQuestion(rng, word, 'Check the ending of the word before you choose.')
-    if (variant === 2) return pluralInSentence(rng, word, rng.int(2, 9), 'Check the ending of the word.')
-
-    // sheep and deer read as both singular and plural, so they cannot appear
-    // on a board that asks the child to sort one from the other.
-    const board = rng.sample(pool.filter((w) => w.s !== w.p), 6)
-    const wantSingular = rng.chance(0.5)
-    const options = board.map((w, i) => ({
-      value: i % 2 === 0 ? w.p : w.s,
-      correct: wantSingular ? i % 2 !== 0 : i % 2 === 0,
-    }))
-    return tapMany(
-      rng,
-      wantSingular ? 'Tap every word that means ONE thing' : 'Tap every word that means MORE THAN ONE',
-      options,
-      { explanation: wantSingular ? 'Singular means just one of something.' : 'Plural means more than one.' },
-    )
   },
 }
 
@@ -597,58 +563,6 @@ const comparativeMore: SkillDef = {
 }
 
 /* ------------------------------------------------------------------ *
- * Word pairs
- * ------------------------------------------------------------------ */
-
-interface Pair { a: string; b: string; kind: 'gender' | 'young'; tier: Tier }
-
-const PAIRS: Pair[] = [
-  { a: 'king', b: 'queen', kind: 'gender', tier: 1 },
-  { a: 'boy', b: 'girl', kind: 'gender', tier: 1 },
-  { a: 'man', b: 'woman', kind: 'gender', tier: 1 },
-  { a: 'father', b: 'mother', kind: 'gender', tier: 1 },
-  { a: 'brother', b: 'sister', kind: 'gender', tier: 1 },
-  { a: 'uncle', b: 'aunt', kind: 'gender', tier: 2 },
-  { a: 'son', b: 'daughter', kind: 'gender', tier: 2 },
-  { a: 'husband', b: 'wife', kind: 'gender', tier: 2 },
-  { a: 'cock', b: 'hen', kind: 'gender', tier: 2 },
-  { a: 'nephew', b: 'niece', kind: 'gender', tier: 3 },
-  { a: 'prince', b: 'princess', kind: 'gender', tier: 2 },
-  { a: 'bull', b: 'cow', kind: 'gender', tier: 2 },
-  { a: 'cow', b: 'calf', kind: 'young', tier: 2 },
-  { a: 'goat', b: 'kid', kind: 'young', tier: 2 },
-  { a: 'dog', b: 'puppy', kind: 'young', tier: 1 },
-  { a: 'cat', b: 'kitten', kind: 'young', tier: 1 },
-  { a: 'hen', b: 'chick', kind: 'young', tier: 1 },
-  { a: 'sheep', b: 'lamb', kind: 'young', tier: 2 },
-  { a: 'horse', b: 'foal', kind: 'young', tier: 3 },
-  { a: 'duck', b: 'duckling', kind: 'young', tier: 2 },
-]
-
-const wordPairs: SkillDef = {
-  id: 'ng.en.forms.pairs',
-  title: 'Word pairs',
-  yearBand: 'b4',
-  prerequisites: ['ng.en.wordtypes.nouns'],
-  concepts: ['gender-nouns', 'young-of-animals'],
-  hint: 'Some nouns come in pairs — a male and a female, or an adult and its young.',
-  helpAtHome: 'Ask for the matching word: king/queen, cock/hen, cow/calf, goat/kid.',
-  generate: ({ rng, difficulty }): Item => {
-    const cap: Tier = difficulty <= 2 ? 1 : difficulty <= 3 ? 2 : 3
-    const pool = PAIRS.filter((p) => p.tier <= cap)
-    const pair = rng.pick(pool.length >= 4 ? pool : PAIRS)
-    const others = PAIRS.filter((p) => p.kind === pair.kind && p.b !== pair.b && p.a !== pair.b)
-
-    if (pair.kind === 'gender') {
-      return mc(rng, `A ${pair.a} is male. What do we call the female?`, pair.b,
-        rng.sample(others.map((p) => p.b), 3), { explanation: `${pair.a} → ${pair.b}.` })
-    }
-    return mc(rng, `What do we call the young of a ${pair.a}?`, pair.b,
-      rng.sample(others.map((p) => p.b), 3), { explanation: `A young ${pair.a} is called a ${pair.b}.` })
-  },
-}
-
-/* ------------------------------------------------------------------ *
  * Prefixes and suffixes
  * ------------------------------------------------------------------ */
 
@@ -756,11 +670,9 @@ export const wordFormsStrand: StrandDef = {
     pastRegular,
     futureTense,
     comparatives,
-    wordPairs,
     pluralIrregular,
     pastIrregular,
     continuous,
-    pluralMixed,
     comparativeMore,
     prefixes,
     suffixes,

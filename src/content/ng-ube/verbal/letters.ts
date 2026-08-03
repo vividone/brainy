@@ -411,23 +411,22 @@ const codes: SkillDef = {
     const direction = shift > 0 ? 'forward' : 'back'
     const clue = `${upper(sample)} is written as ${shiftWord(sample, shift)}.`
 
+    // Offsets that can never land on the answer, on the plain word, or on the
+    // coded word already printed in the question.
+    const offsets = (exclude: number[]) =>
+      [shift + 1, shift - 1, -shift, shift + 2, 2].filter(
+        (o, i, all) => o !== 0 && !exclude.includes(o) && all.indexOf(o) === i,
+      )
+
     if (rng.chance(0.5)) {
-      const wrong = [
-        shiftWord(target, shift + 1),
-        shiftWord(target, shift - 1),
-        shiftWord(target, -shift),
-      ].filter((w) => w !== coded)
+      const wrong = offsets([shift]).slice(0, 3).map((o) => shiftWord(target, o))
       return mc(rng, `In a code, ${clue}\nHow is ${upper(target)} written?`, coded, wrong, {
         speak: `In a code, ${sample} is written as ${spell(shiftWord(sample, shift))}. How is ${target} written?`,
         explanation: `Every letter moves ${Math.abs(shift)} place${Math.abs(shift) === 1 ? '' : 's'} ${direction}, so ${upper(target)} becomes ${coded}.`,
       })
     }
 
-    const wrong = [
-      shiftWord(coded, -shift + 1),
-      shiftWord(coded, -shift - 1),
-      shiftWord(coded, shift),
-    ].filter((w) => w !== upper(target))
+    const wrong = offsets([shift]).slice(0, 3).map((o) => shiftWord(target, o))
     return mc(rng, `In a code, ${clue}\nWhat does ${coded} mean?`, upper(target), wrong, {
       speak: `In a code, ${sample} is written as ${spell(shiftWord(sample, shift))}. What does ${spell(coded)} mean?`,
       explanation: `Move every letter ${Math.abs(shift)} place${Math.abs(shift) === 1 ? '' : 's'} back the other way to get ${upper(target)}.`,

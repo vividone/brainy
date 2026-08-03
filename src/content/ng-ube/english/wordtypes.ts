@@ -11,6 +11,7 @@ import {
   type Cloze,
 } from './banks'
 import {
+  ACTIONS,
   ADVERBS,
   ARTICLE_NOUNS,
   BOYS,
@@ -23,6 +24,7 @@ import {
   SAFE_SENTENCE_ADVERBS,
   SAFE_SENTENCE_NOUNS,
   SAFE_SENTENCE_VERBS,
+  THING_ADJECTIVES,
   adverbWrongs,
   articleFor,
   graded,
@@ -186,14 +188,13 @@ const verbs: SkillDef = {
     }
 
     const person = rng.pick([...GIRLS, ...BOYS])
-    const verb = rng.pick(graded(SAFE_SENTENCE_VERBS, difficulty))
-    const noun = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const action = rng.pick(graded(ACTIONS, difficulty))
     return mc(
       rng,
-      `What did ${person} do?\n${person} ${verb.past} the ${noun.s}.`,
-      verb.past,
-      [person, noun.s, 'the'],
-      { explanation: `The verb "${verb.past}" is the action word.` },
+      `What did ${person} do?\n${person} ${action.past} the ${action.objP}.`,
+      action.past,
+      [person, action.objP, 'the'],
+      { explanation: `The verb "${action.past}" is the action word.` },
     )
   },
 }
@@ -228,14 +229,14 @@ const adjectives: SkillDef = {
       )
     }
 
-    const adj = rng.pick(graded(SAFE_SENTENCE_ADJECTIVES, difficulty))
-    const noun = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const adj = rng.pick(graded(THING_ADJECTIVES, difficulty)).word
+    const noun = rng.pick(graded(ACTIONS, difficulty)).objS
     return mc(
       rng,
-      `Which noun is being described?\nThe ${adj.word} ${noun.s} was left outside.`,
-      noun.s,
-      [adj.word, 'the', 'outside'],
-      { explanation: `"${adj.word}" describes the noun "${noun.s}".` },
+      `Which noun is being described?\nThe ${adj} ${noun} was left outside.`,
+      noun,
+      [adj, 'the', 'outside'],
+      { explanation: `"${adj}" describes the noun "${noun}".` },
     )
   },
 }
@@ -276,22 +277,22 @@ const pronouns: SkillDef = {
     }
 
     if (variant === 3) {
-      const noun = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+      const noun = rng.pick(graded(ACTIONS, difficulty)).objS
       return mc(
         rng,
-        `Which word fits?\nThe ${noun.s} is old. ____ is going to break.`,
+        `Which word fits?\nThe ${noun} is old. ____ is going to break.`,
         'It',
         ['He', 'She', 'They'],
-        { explanation: `A ${noun.s} is a thing, not a person, so we say "It".` },
+        { explanation: `A ${noun} is a thing, not a person, so we say "It".` },
       )
     }
 
     const girl = rng.chance(0.5)
     const name = girl ? rng.pick(GIRLS) : rng.pick(BOYS)
-    const verb = rng.pick(graded(SAFE_SENTENCE_VERBS, difficulty))
+    const verb = rng.pick(['greeted', 'thanked', 'helped', 'followed', 'called'])
     return mc(
       rng,
-      `Which word fits?\nI saw ${name} at the gate and I ${verb.past} ____.`,
+      `Which word fits?\nI saw ${name} at the gate and I ${verb} ____.`,
       girl ? 'her' : 'him',
       [girl ? 'she' : 'he', 'they', 'it'],
       { explanation: `After the verb we use "${girl ? 'her' : 'him'}", not "${girl ? 'she' : 'he'}".` },
@@ -463,14 +464,13 @@ const conjunctions: SkillDef = {
 
     // Generated so the strand does not run out of sentences to inspect.
     const name = rng.pick([...GIRLS, ...BOYS])
-    const [v1, v2] = rng.sample(graded(SAFE_SENTENCE_VERBS, difficulty), 2)
-    const [n1, n2] = rng.sample(graded(SAFE_SENTENCE_NOUNS, difficulty), 2)
-    const sentence = `${name} ${v1.past} the ${n1.s} and ${v2.past} the ${n2.s}.`
+    const [a1, a2] = rng.sample(graded(ACTIONS, difficulty), 2)
+    const sentence = `${name} ${a1.past} the ${a1.objP} and ${a2.past} the ${a2.objP}.`
     return mc(
       rng,
       `Which word is the joining word?\n${sentence}`,
       'and',
-      [name, v1.past, n2.s],
+      [name, a1.past, a2.objP],
       { explanation: `"and" joins the two things ${name} did.` },
     )
   },

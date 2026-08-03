@@ -12,16 +12,16 @@ import {
   type SentenceKind,
 } from './banks'
 import {
+  ACTIONS,
   BOYS,
   DAY_NAMES,
   GIRLS,
   IRREGULAR_NOUNS,
   PLACES,
   REGULAR_NOUNS,
-  SAFE_SENTENCE_ADJECTIVES,
   SAFE_SENTENCE_ADVERBS,
   SAFE_SENTENCE_NOUNS,
-  SAFE_SENTENCE_VERBS,
+  THING_ADJECTIVES,
   articleFor,
   graded,
   type Tier,
@@ -62,30 +62,29 @@ const wordOrder: SkillDef = {
   helpAtHome: 'Write a short sentence on paper, cut it into words, and rebuild it together.',
   generate: ({ rng, difficulty }): Item => {
     const name = someone(rng)
-    const verb = rng.pick(graded(SAFE_SENTENCE_VERBS, difficulty))
-    const adj = rng.pick(graded(SAFE_SENTENCE_ADJECTIVES, difficulty))
-    const adv = rng.pick(graded(SAFE_SENTENCE_ADVERBS, difficulty))
-    const n1 = rng.pick(graded(SAFE_SENTENCE_NOUNS, difficulty))
+    const action = rng.pick(graded(ACTIONS, difficulty))
+    const adj = rng.pick(graded(THING_ADJECTIVES, difficulty)).word
+    const adv = rng.pick(graded(SAFE_SENTENCE_ADVERBS, difficulty)).word
 
     // At most one article per sentence: with both "a" and "the" on the board
     // the child could build two equally correct orders.
     const shapes: string[][] = [
-      [name, verb.past, 'the', `${n1.s}.`],
-      ['The', n1.s, 'is', `${adj.word}.`],
-      [name, verb.past, articleFor(adj.word), adj.word, `${n1.s}.`],
+      [name, action.past, 'the', `${action.objS}.`],
+      ['The', action.objS, 'is', `${adj}.`],
+      [name, action.past, articleFor(adj), adj, `${action.objS}.`],
     ]
     if (difficulty >= 3) {
-      shapes.push([name, adv.word, verb.past, 'the', `${n1.s}.`])
+      shapes.push([name, adv, action.past, 'the', `${action.objP}.`])
     }
     if (difficulty >= 4) {
-      shapes.push([name, adv.word, verb.past, articleFor(adj.word), adj.word, `${n1.s}.`])
+      shapes.push([name, adv, action.past, articleFor(adj), adj, `${action.objS}.`])
     }
 
     const words = rng.pick(shapes)
-    // Repeated words would make two different taps look identical.
+    // Repeated words would make two different tokens look identical.
     if (new Set(words.map((w) => w.toLowerCase())).size !== words.length) {
-      return order(rng, 'Put the words in order to make a sentence', [name, verb.past, 'the', `${n1.s}.`], {
-        explanation: `${name} ${verb.past} the ${n1.s}.`,
+      return order(rng, 'Put the words in order to make a sentence', [name, action.past, 'the', `${action.objS}.`], {
+        explanation: `${name} ${action.past} the ${action.objS}.`,
       })
     }
 
@@ -378,18 +377,17 @@ const joining: SkillDef = {
       // A generated "and" join: the wrong options are broken sentences, never
       // rival conjunctions, so only one option can be defended.
       const name = someone(rng)
-      const [v1, v2] = rng.sample(graded(SAFE_SENTENCE_VERBS, difficulty), 2)
-      const [n1, n2] = rng.sample(graded(SAFE_SENTENCE_NOUNS, difficulty), 2)
-      const a = `${name} ${v1.past} the ${n1.s}.`
-      const b = `${name} ${v2.past} the ${n2.s}.`
+      const [x, y] = rng.sample(graded(ACTIONS, difficulty), 2)
+      const a = `${name} ${x.past} the ${x.objP}.`
+      const b = `${name} ${y.past} the ${y.objP}.`
       return mc(
         rng,
         `Join these into one sentence.\n${a} ${b}`,
-        `${name} ${v1.past} the ${n1.s} and ${v2.past} the ${n2.s}.`,
+        `${name} ${x.past} the ${x.objP} and ${y.past} the ${y.objP}.`,
         [
-          `${name} ${v1.past} the ${n1.s} and ${name} ${v2.past} the ${n2.s} and.`,
-          `And ${name} ${v1.past} the ${n1.s} ${v2.past} the ${n2.s}.`,
-          `${name} and ${v1.past} the ${n1.s} ${v2.past} the ${n2.s}.`,
+          `${name} ${x.past} the ${x.objP} and ${name} ${y.past} the ${y.objP} and.`,
+          `And ${name} ${x.past} the ${x.objP} ${y.past} the ${y.objP}.`,
+          `${name} and ${x.past} the ${x.objP} ${y.past} the ${y.objP}.`,
         ],
         {
           speak: `Join these into one sentence. ${a} ${b}`,

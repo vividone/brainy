@@ -21,7 +21,9 @@ const tally: SkillDef = {
   hint: 'Every gate of five is four lines with one across them.',
   helpAtHome: 'Tally cars passing the house for two minutes, then count them up.',
   generate: ({ rng, difficulty }): Item => {
-    const count = rng.int(3, [8, 12, 18, 25, 30][difficulty - 1])
+    // Wider ranges per level: a narrow band meant the same tally pictures
+    // came round every few sessions.
+    const count = rng.int(3, [12, 20, 32, 48, 60][difficulty - 1])
     if (rng.chance(0.6)) {
       return entry('How many does this tally show?', count, {
         visual: { kind: 'tally', count },

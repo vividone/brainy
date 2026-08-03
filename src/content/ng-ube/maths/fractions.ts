@@ -59,7 +59,9 @@ const halvesQuarters: SkillDef = {
   hint: 'Count how many equal parts there are altogether, then how many are shaded.',
   helpAtHome: 'Cut fruit or bread into halves and quarters and name each piece.',
   generate: ({ rng, difficulty }): Item => {
-    const den = difficulty <= 1 ? 2 : rng.pick([2, 4])
+    // Halves and quarters are the point, but eighths and thirds of the same
+    // shapes keep the pictures from becoming familiar within a week.
+    const den = difficulty <= 1 ? 2 : rng.pick([[2], [2, 4], [2, 3, 4], [2, 3, 4, 6], [2, 3, 4, 6, 8]][difficulty - 1])
     const num = rng.int(1, den - 1)
     const visual: Visual = { kind: 'fraction', shape: shape(rng), parts: den, shaded: num }
 
@@ -179,20 +181,35 @@ const equivalent: SkillDef = {
   hint: 'Look at how much is shaded, not how many pieces there are.',
   helpAtHome: 'Show that two quarters of a bar covers exactly the same as one half.',
   generate: ({ rng, difficulty }): Item => {
-    const pairs: [string, string][] = [
-      ['1/2', '2/4'],
-      ['1/2', '3/6'],
-      ['1/2', '4/8'],
-      ['1/3', '2/6'],
-      ['1/4', '2/8'],
-      ['2/3', '4/6'],
-      ['3/4', '6/8'],
-      ['2/4', '4/8'],
-    ]
-    const usable = difficulty <= 2 ? pairs.slice(0, 3) : pairs
-    const [a, b] = rng.pick(usable)
-    const [an, ad] = a.split('/').map(Number)
-    const [bn, bd] = b.split('/').map(Number)
+    /*
+     * Generated rather than listed. A fixed table of eight pairs meant a
+     * child had seen every equivalence in the skill within a few sessions;
+     * building them from a base fraction and a multiplier gives far more,
+     * and lets difficulty control how big the numbers get.
+     */
+    const maxDen = [4, 6, 8, 10, 12][difficulty - 1]
+    const bases: [number, number][] = [
+      [1, 2],
+      [1, 3],
+      [2, 3],
+      [1, 4],
+      [3, 4],
+      [1, 5],
+      [2, 5],
+      [3, 5],
+      [4, 5],
+      [1, 6],
+      [5, 6],
+    ].filter(([, d]) => d * 2 <= maxDen) as [number, number][]
+
+    const [baseN, baseD] = bases.length ? rng.pick(bases) : [1, 2]
+    const factor = rng.int(2, Math.max(2, Math.floor(maxDen / baseD)))
+    const a = `${baseN}/${baseD}`
+    const b = `${baseN * factor}/${baseD * factor}`
+    const an = baseN
+    const ad = baseD
+    const bn = baseN * factor
+    const bd = baseD * factor
 
     if (rng.chance(0.5)) {
       return mc(rng, `Which fraction is the same as ${a}?`, b, fractionDistractors(bn, bd), {

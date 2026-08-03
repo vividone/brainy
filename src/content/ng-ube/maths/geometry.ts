@@ -205,7 +205,21 @@ const lines: SkillDef = {
       slanting: 'A slanting line leans over, like a ladder against a wall.',
     }
 
-    if (rng.chance(0.5)) {
+    /*
+     * There are only four kinds of line, so the pictures alone give a tiny
+     * question space. Real-world examples are what make this skill deep —
+     * and they are the point of the topic anyway.
+     */
+    const EXAMPLES: Record<string, string[]> = {
+      horizontal: ['the top of a table', 'the floor of a room', 'the horizon at the beach', 'a bench seat', 'the line of a closed book', 'a zebra crossing stripe'],
+      vertical: ['a door frame', 'a flagpole', 'the trunk of a palm tree', 'a lamp post', 'the side of a fridge', 'a goal post'],
+      curved: ['a rainbow', 'the letter S', 'the edge of a plate', 'a bicycle tyre', 'a banana', 'the rim of a cup'],
+      slanting: ['a ladder against a wall', 'a roof edge', 'a slide in the playground', 'the letter Z stroke', 'a ramp', 'a kite string in the wind'],
+    }
+
+    const variant = rng.int(1, 3)
+
+    if (variant === 1) {
       return mc(
         rng,
         'What kind of line is this?',
@@ -215,11 +229,22 @@ const lines: SkillDef = {
       )
     }
 
+    if (variant === 2) {
+      return mc(
+        rng,
+        `Which one is a ${target} line?`,
+        { visual: { kind: 'lineType', variant: target } },
+        kinds.filter((k) => k !== target).map((k) => ({ visual: { kind: 'lineType' as const, variant: k } })),
+        { explanation: describe[target] },
+      )
+    }
+
+    const example = rng.pick(EXAMPLES[target])
     return mc(
       rng,
-      `Which one is a ${target} line?`,
-      { visual: { kind: 'lineType', variant: target } },
-      kinds.filter((k) => k !== target).map((k) => ({ visual: { kind: 'lineType' as const, variant: k } })),
+      `What kind of line is ${example}?`,
+      label(target),
+      kinds.filter((k) => k !== target).map(label),
       { explanation: describe[target] },
     )
   },
@@ -234,11 +259,14 @@ const rightAngles: SkillDef = {
   hint: 'A right angle is a perfect corner, like the corner of this page.',
   helpAtHome: 'Use the corner of a book to test whether corners around the house are right angles.',
   generate: ({ rng, difficulty }): Item => {
-    const variant = rng.int(1, difficulty >= 3 ? 3 : 2)
+    // Sampled from the range rather than a fixed handful, so the drawings
+    // themselves stop repeating.
+    const notRight = () => (rng.chance(0.5) ? rng.int(15, 82) : rng.int(98, 168))
+    const variant = rng.int(1, difficulty >= 3 ? 4 : 2)
 
     if (variant === 1) {
       const isRight = rng.chance(0.5)
-      const degrees = isRight ? 90 : rng.pick([30, 45, 60, 120, 135, 150])
+      const degrees = isRight ? 90 : notRight()
       return tf('Is this a right angle?', isRight, {
         visual: { kind: 'angle', degrees },
         trueLabel: 'Yes',
@@ -250,25 +278,62 @@ const rightAngles: SkillDef = {
     }
 
     if (variant === 2) {
-      const shape = rng.pick(['square', 'rectangle'] as const)
-      return entry(`How many right angles does a ${shape} have?`, 4, {
+      const shapes: [Shape2D, number][] = [
+        ['square', 4],
+        ['rectangle', 4],
+        ['triangle', 0],
+        ['circle', 0],
+        ['pentagon', 0],
+        ['hexagon', 0],
+      ]
+      const [shape, count] = rng.pick(shapes)
+      return entry(`How many right angles does a ${shape} have?`, count, {
         visual: { kind: 'shape2d', name: shape },
         maxDigits: 1,
-        explanation: `Every corner of a ${shape} is a right angle, so there are 4.`,
+        explanation:
+          count > 0
+            ? `Every corner of a ${shape} is a square corner, so there are ${count}.`
+            : `A ${shape} has no square corners at all.`,
       })
     }
 
-    const degrees = rng.pick([30, 45, 60, 120, 135, 150])
-    return mc(
-      rng,
-      'Is this angle bigger or smaller than a right angle?',
-      degrees < 90 ? 'Smaller' : 'Bigger',
-      [degrees < 90 ? 'Bigger' : 'Smaller'],
-      {
-        visual: { kind: 'angle', degrees },
-        explanation: `A right angle is a square corner. This one is ${degrees < 90 ? 'narrower' : 'wider'}.`,
-      },
-    )
+    if (variant === 3) {
+      const degrees = notRight()
+      return mc(
+        rng,
+        'Is this angle bigger or smaller than a right angle?',
+        degrees < 90 ? 'Smaller' : 'Bigger',
+        [degrees < 90 ? 'Bigger' : 'Smaller'],
+        {
+          visual: { kind: 'angle', degrees },
+          explanation: `A right angle is a square corner. This one is ${degrees < 90 ? 'narrower' : 'wider'}.`,
+        },
+      )
+    }
+
+    // Real-world corners — the point of the topic, and a deep question space.
+    const CORNERS: [string, boolean][] = [
+      ['the corner of a exercise book', true],
+      ['the corner of a door', true],
+      ['the corner of a window frame', true],
+      ['the corner of a chessboard square', true],
+      ['the corner of a room where two walls meet', true],
+      ['the corner of a table', true],
+      ['the point of a slice of cake', false],
+      ['the point of a pencil tip', false],
+      ['the corner of a triangular road sign', false],
+      ['the opening of a pair of scissors', false],
+      ['the tip of an arrow head', false],
+      ['the spread of an open fan', false],
+    ]
+    const [thing, isRight] = rng.pick(CORNERS)
+    return tf(`Is ${thing} a right angle?`, isRight, {
+      trueLabel: 'Yes',
+      falseLabel: 'No',
+      explanation: isRight
+        ? 'Yes — it is a square corner, like the corner of this page.'
+        : 'No — it is not a square corner.',
+    })
   },
 }
 
@@ -290,7 +355,21 @@ const symmetry: SkillDef = {
       oval: { v: true, h: true, diagonal: false },
     }
 
-    if (rng.chance(0.55)) {
+    /*
+     * Capital letters are the classic symmetry exercise and a much bigger
+     * pool than the handful of shapes — 26 letters × three question forms,
+     * versus five shapes × three axes.
+     */
+    const LETTER_LINES: Record<string, number> = {
+      A: 1, B: 1, C: 1, D: 1, E: 1, F: 0, G: 0, H: 2, I: 2, J: 0, K: 1, L: 0,
+      M: 1, N: 0, O: 2, P: 0, Q: 0, R: 0, S: 0, T: 1, U: 1, V: 1, W: 1, X: 2,
+      Y: 1, Z: 0,
+    }
+    const letters = Object.keys(LETTER_LINES)
+
+    const variant = rng.int(1, 4)
+
+    if (variant === 1) {
       const shape = rng.pick(Object.keys(isSymmetry) as Shape2D[])
       const axis = rng.pick(['v', 'h', 'diagonal'] as const)
       const correct = isSymmetry[shape][axis]
@@ -302,6 +381,31 @@ const symmetry: SkillDef = {
           ? 'Yes — fold along the line and both halves match exactly.'
           : 'No — if you folded along that line the halves would not match.',
       })
+    }
+
+    if (variant === 2) {
+      const letter = rng.pick(letters)
+      const symmetric = LETTER_LINES[letter] > 0
+      return tf(`Can the letter ${letter} be folded so both halves match exactly?`, symmetric, {
+        visual: { kind: 'text', text: letter },
+        trueLabel: 'Yes',
+        falseLabel: 'No',
+        explanation: symmetric
+          ? `Yes — ${letter} has ${LETTER_LINES[letter]} line${LETTER_LINES[letter] === 1 ? '' : 's'} of symmetry.`
+          : `No — ${letter} cannot be folded onto itself.`,
+      })
+    }
+
+    if (variant === 3) {
+      const symmetric = letters.filter((l) => LETTER_LINES[l] > 0)
+      const asymmetric = letters.filter((l) => LETTER_LINES[l] === 0)
+      const options = rng.shuffle([...rng.sample(symmetric, 3), ...rng.sample(asymmetric, 3)])
+      return tapMany(
+        rng,
+        'Tap every letter that has a line of symmetry',
+        options.map((l) => ({ value: l, correct: LETTER_LINES[l] > 0 })),
+        { explanation: 'A letter is symmetrical if you can fold it so both halves match.' },
+      )
     }
 
     const shape = rng.pick(['square', 'rectangle', 'circle', 'triangle', 'hexagon', 'oval'] as Shape2D[])

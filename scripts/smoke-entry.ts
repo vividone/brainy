@@ -213,10 +213,20 @@ console.log(`\nChecked ${itemCount} generated items across ${skillCount} skills.
  * ratio drops well below 1.0 are the ones a child will start recognising.
  */
 {
+  const draws = 5 * SAMPLES_PER_DIFFICULTY
   const saturated = depth.filter((d) => d.distinct === d.draws).length
-  const thin = [...depth].sort((a, b) => a.distinct - b.distinct).slice(0, 8)
+  const thin = [...depth].sort((a, b) => a.distinct - b.distinct).slice(0, 20)
+
+  const buckets: [string, number][] = [
+    ['< 25   (repeats within a week)', depth.filter((d) => d.distinct < 25).length],
+    ['25-59  (repeats within a month)', depth.filter((d) => d.distinct >= 25 && d.distinct < 60).length],
+    ['60-119', depth.filter((d) => d.distinct >= 60 && d.distinct < 120).length],
+    ['120+  (deep)', depth.filter((d) => d.distinct >= 120).length],
+  ]
+
   console.log('Content depth')
-  console.log(`  ${saturated}/${depth.length} skills never repeated in ${5 * SAMPLES_PER_DIFFICULTY} draws`)
+  console.log(`  ${saturated}/${depth.length} skills never repeated in ${draws} draws`)
+  for (const [label, n] of buckets) console.log(`  ${label.padEnd(34)} ${n} skills`)
   console.log('  thinnest skills:')
   for (const d of thin) {
     // A child meeting this skill ~6 times a session sees a repeat once the

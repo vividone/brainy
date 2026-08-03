@@ -178,31 +178,48 @@ const timeQuarters: SkillDef = {
   helpAtHome: 'Say times out loud as "quarter past seven" instead of "seven fifteen".',
   generate: ({ rng, difficulty }): Item => {
     const hour = rng.int(1, 12)
-    const options = difficulty <= 2 ? [15, 30] : difficulty <= 4 ? [15, 30, 45] : [0, 15, 30, 45]
-    const minute = rng.pick(options)
     const nextHour = (hour % 12) + 1
-    const label =
-      minute === 0
-        ? `${hour} o'clock`
-        : minute === 15
-          ? `Quarter past ${hour}`
-          : minute === 30
-            ? `Half past ${hour}`
-            : `Quarter to ${nextHour}`
 
-    const all = [
-      `${hour} o'clock`,
-      `Quarter past ${hour}`,
-      `Half past ${hour}`,
-      `Quarter to ${nextHour}`,
-    ].filter((l) => l !== label)
+    /*
+     * Past level 3 the long hand can sit on any five-minute mark. That is
+     * both the real skill and a far larger question space than the four
+     * quarter positions — but it means the naming has to be done properly
+     * rather than assuming anything past the half is "quarter to".
+     */
+    const options =
+      difficulty <= 2
+        ? [15, 30]
+        : difficulty === 3
+          ? [0, 15, 30, 45]
+          : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+    const minute = rng.pick(options)
 
-    return mc(rng, 'What time is it?', label, all, {
+    const nameTime = (h: number, m: number): string => {
+      const next = (h % 12) + 1
+      if (m === 0) return `${h} o'clock`
+      if (m === 15) return `Quarter past ${h}`
+      if (m === 30) return `Half past ${h}`
+      if (m === 45) return `Quarter to ${next}`
+      return m < 30 ? `${m} minutes past ${h}` : `${60 - m} minutes to ${next}`
+    }
+
+    const label = nameTime(hour, minute)
+    const wrongMinutes = rng
+      .shuffle(options.filter((m) => m !== minute))
+      .slice(0, 2)
+      .map((m) => nameTime(hour, m))
+    // A same-minute, wrong-hour option catches reading the short hand badly.
+    const wrongHour = nameTime(nextHour, minute)
+    const distractors = [...new Set([...wrongMinutes, wrongHour])].filter((l) => l !== label)
+
+    return mc(rng, 'What time is it?', label, distractors, {
       visual: { kind: 'clock', hour, minute },
       explanation:
-        minute === 45
-          ? `The long hand is on 9, which is 15 minutes before ${nextHour} o'clock.`
-          : `The long hand is on ${minute / 5}, which means ${minute} minutes past.`,
+        minute === 0
+          ? `Both hands point straight up the hour — it is ${hour} o'clock.`
+          : minute > 30
+            ? `The long hand is on ${minute / 5}, which is ${60 - minute} minutes before ${nextHour} o'clock.`
+            : `The long hand is on ${minute / 5}, which means ${minute} minutes past ${hour}.`,
     })
   },
 }
@@ -299,17 +316,35 @@ const orderEvents: SkillDef = {
   concepts: ['ordering-time'],
   hint: 'Think about what happens first in a normal day.',
   helpAtHome: 'Talk through the order of the school day at bedtime.',
-  generate: ({ rng }): Item => {
-    if (rng.chance(0.5)) {
-      const start = rng.int(0, 8)
-      const picked = [0, 1, 2, 3].map((i) => MONTHS[(start + i) % 12])
-      return order(rng, 'Put these months in the right order', picked, {
-        explanation: `They follow each other: ${picked.join(', ')}.`,
+  generate: ({ rng, difficulty }): Item => {
+    /*
+     * Consecutive runs from a fixed start gave only a dozen questions.
+     * Varying the run length, the step, and allowing non-consecutive picks
+     * multiplies it out while still testing the same ordering idea.
+     */
+    const count = difficulty <= 2 ? 3 : difficulty <= 4 ? 4 : 5
+    const useMonths = rng.chance(0.5)
+
+    if (useMonths) {
+      const picked = rng.chance(0.5)
+        ? // A consecutive run, from anywhere in the year.
+          Array.from({ length: count }, (_, i) => MONTHS[(rng.int(0, 11) + i) % 12])
+        : // Or any months at all, which is the harder skill.
+          rng
+            .sample(MONTHS.map((m, i) => ({ m, i })), count)
+            .sort((a, b) => a.i - b.i)
+            .map((x) => x.m)
+      const unique = [...new Set(picked)]
+      if (unique.length < 2) return order(rng, 'Put these months in the right order', MONTHS.slice(0, 3))
+      const ordered = [...unique].sort((a, b) => MONTHS.indexOf(a) - MONTHS.indexOf(b))
+      return order(rng, 'Put these months in the right order', ordered, {
+        explanation: `In the year they run: ${ordered.join(', ')}.`,
       })
     }
+
     const start = rng.int(0, 6)
-    const picked = [0, 1, 2, 3].map((i) => DAYS[(start + i) % 7])
-    return order(rng, 'Put these days in the right order', picked, {
+    const picked = Array.from({ length: Math.min(count, 5) }, (_, i) => DAYS[(start + i) % 7])
+    return order(rng, `Put these days in the right order, starting from ${picked[0]}`, picked, {
       explanation: `Starting from ${picked[0]}: ${picked.join(', ')}.`,
     })
   },

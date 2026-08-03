@@ -385,12 +385,60 @@ const angleTypes: SkillDef = {
   hint: 'Smaller than a square corner is acute. Bigger is obtuse.',
   helpAtHome: 'Open a door slowly and name the angle as it changes.',
   generate: ({ rng }): Item => {
-    const degrees = rng.pick([20, 35, 45, 60, 80, 90, 100, 120, 135, 150, 170])
-    const label = degrees < 90 ? 'Acute' : degrees === 90 ? 'Right angle' : 'Obtuse'
-    return mc(rng, 'What kind of angle is this?', label, ['Acute', 'Right angle', 'Obtuse'].filter((l) => l !== label), {
-      visual: { kind: 'angle', degrees },
-      explanation: `It measures about ${degrees}°, so it is ${label.toLowerCase()}.`,
-    })
+    /*
+     * Drawn from the full range rather than a handful of fixed angles.
+     * A short list of preset degrees meant a child saw the same eleven
+     * pictures over and over; sampling the range gives roughly 150 distinct
+     * drawings before the question forms even multiply it.
+     */
+    const kind = rng.int(1, 3)
+    const acute = () => rng.int(12, 84)
+    const obtuse = () => rng.int(96, 172)
+    const anyAngle = () => (rng.chance(0.15) ? 90 : rng.chance(0.5) ? acute() : obtuse())
+    const nameOf = (d: number) => (d < 90 ? 'Acute' : d === 90 ? 'Right angle' : 'Obtuse')
+
+    if (kind === 1) {
+      const degrees = anyAngle()
+      const label = nameOf(degrees)
+      return mc(
+        rng,
+        'What kind of angle is this?',
+        label,
+        ['Acute', 'Right angle', 'Obtuse'].filter((l) => l !== label),
+        {
+          visual: { kind: 'angle', degrees },
+          explanation: `It measures about ${degrees}°, so it is ${label.toLowerCase()}.`,
+        },
+      )
+    }
+
+    if (kind === 2) {
+      // Pick the named angle out of three drawings.
+      const want = rng.pick(['Acute', 'Right angle', 'Obtuse'] as const)
+      const correct = want === 'Acute' ? acute() : want === 'Obtuse' ? obtuse() : 90
+      const others = (['Acute', 'Right angle', 'Obtuse'] as const)
+        .filter((l) => l !== want)
+        .map((l) => (l === 'Acute' ? acute() : l === 'Obtuse' ? obtuse() : 90))
+      return mc(
+        rng,
+        `Which one is ${want === 'Right angle' ? 'a right angle' : `an ${want.toLowerCase()} angle`}?`,
+        { visual: { kind: 'angle', degrees: correct } },
+        others.map((d) => ({ visual: { kind: 'angle' as const, degrees: d } })),
+        { explanation: `${want} means ${want === 'Acute' ? 'smaller than' : want === 'Obtuse' ? 'bigger than' : 'exactly'} a square corner.` },
+      )
+    }
+
+    const degrees = anyAngle()
+    const bigger = degrees > 90
+    return tapMany(
+      rng,
+      `Tap every angle that is ${bigger ? 'BIGGER' : 'SMALLER'} than a right angle`,
+      rng.shuffle([acute(), acute(), obtuse(), obtuse(), 90]).map((d) => ({
+        value: `${d}°`,
+        correct: bigger ? d > 90 : d < 90,
+      })),
+      { explanation: 'A right angle is exactly 90°.' },
+    )
   },
 }
 

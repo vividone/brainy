@@ -200,8 +200,10 @@ export function pluralWrongs(word: NounWord): string[] {
     out.push(w)
   }
   for (const w of word.wrong ?? []) add(w)
-  add(`${word.s}s`)
-  add(`${word.s}es`)
+  // Skip the forms that would come out as "glasss" or "treees" — a child never
+  // writes those, so they are noise rather than a real confusion.
+  if (!/s$/.test(word.s)) add(`${word.s}s`)
+  if (!/e$/.test(word.s)) add(`${word.s}es`)
   add(`${word.s}'s`)
   add(word.s)
   return out
@@ -800,6 +802,82 @@ export const SAFE_SENTENCE_ADVERBS: { word: string; tier: Tier }[] = [
 ]
 
 /* ------------------------------------------------------------------ *
+ * Sentence ingredients that also have to make sense
+ *
+ * Tagging every word correctly is not enough. "The hot window pushed a lorry"
+ * is perfectly taggable and completely absurd, so subjects, actions, objects
+ * and places are drawn from banks that fit each other.
+ * ------------------------------------------------------------------ */
+
+/** Nouns that can be the subject of an action. */
+export const PEOPLE_NOUNS: NounWord[] = [
+  n('boy', 'boys', 1), n('girl', 'girls', 1), n('teacher', 'teachers', 1),
+  n('farmer', 'farmers', 1), n('pupil', 'pupils', 2), n('driver', 'drivers', 2),
+  n('doctor', 'doctors', 2), n('tailor', 'tailors', 2), n('hunter', 'hunters', 2),
+  n('trader', 'traders', 2), n('cousin', 'cousins', 2), n('visitor', 'visitors', 2),
+  n('carpenter', 'carpenters', 3), n('neighbour', 'neighbours', 3),
+  n('passenger', 'passengers', 3), n('mechanic', 'mechanics', 3),
+]
+
+/** A past-tense verb bolted to something it can sensibly be done to. */
+export interface Action { past: string; objS: string; objP: string; tier: Tier }
+
+const act = (past: string, objS: string, objP: string, tier: Tier): Action => ({ past, objS, objP, tier })
+
+export const ACTIONS: Action[] = [
+  act('washed', 'plate', 'plates', 1), act('carried', 'basket', 'baskets', 1),
+  act('opened', 'gate', 'gates', 1), act('closed', 'window', 'windows', 1),
+  act('swept', 'floor', 'floors', 1), act('cooked', 'yam', 'yams', 1),
+  act('mended', 'shirt', 'shirts', 2), act('painted', 'wall', 'walls', 1),
+  act('collected', 'book', 'books', 2), act('arranged', 'chair', 'chairs', 2),
+  act('delivered', 'letter', 'letters', 3), act('borrowed', 'pencil', 'pencils', 2),
+  act('filled', 'bucket', 'buckets', 1), act('climbed', 'ladder', 'ladders', 2),
+  act('folded', 'blanket', 'blankets', 2), act('wrapped', 'parcel', 'parcels', 2),
+  act('pushed', 'bicycle', 'bicycles', 1), act('counted', 'coin', 'coins', 1),
+  act('cleaned', 'classroom', 'classrooms', 1), act('locked', 'cupboard', 'cupboards', 2),
+  act('watered', 'garden', 'gardens', 2), act('decorated', 'classroom', 'classrooms', 3),
+  act('drew', 'picture', 'pictures', 2), act('wrote', 'letter', 'letters', 2),
+  act('sold', 'mango', 'mangoes', 2), act('bought', 'sandal', 'sandals', 2),
+  act('built', 'house', 'houses', 2), act('broke', 'plate', 'plates', 2),
+  act('found', 'key', 'keys', 2), act('kept', 'torch', 'torches', 2),
+  act('brought', 'broom', 'brooms', 2), act('took', 'bucket', 'buckets', 1),
+  act('held', 'torch', 'torches', 2), act('ate', 'mango', 'mangoes', 1),
+  act('sent', 'parcel', 'parcels', 3), act('caught', 'ball', 'balls', 2),
+  act('threw', 'ball', 'balls', 2), act('wore', 'uniform', 'uniforms', 2),
+]
+
+/** Places a "near the …" phrase can point at without sounding strange. */
+export const PLACE_NOUNS: { word: string; tier: Tier }[] = [
+  { word: 'kitchen', tier: 1 }, { word: 'garden', tier: 1 }, { word: 'market', tier: 1 },
+  { word: 'river', tier: 1 }, { word: 'village', tier: 2 }, { word: 'classroom', tier: 1 },
+  { word: 'road', tier: 1 }, { word: 'house', tier: 1 }, { word: 'school', tier: 1 },
+  { word: 'table', tier: 1 }, { word: 'cupboard', tier: 2 }, { word: 'gate', tier: 1 },
+  { word: 'wall', tier: 1 }, { word: 'bench', tier: 2 }, { word: 'door', tier: 1 },
+  { word: 'tree', tier: 1 }, { word: 'window', tier: 1 }, { word: 'stadium', tier: 3 },
+]
+
+/** Prepositions that work with any of the places above. */
+export const PLACE_PREPOSITIONS = ['near', 'beside', 'behind']
+
+/** Adjectives that describe people, and adjectives that describe objects. */
+export const PERSON_ADJECTIVES: { word: string; tier: Tier }[] = [
+  { word: 'tall', tier: 1 }, { word: 'young', tier: 1 }, { word: 'old', tier: 1 },
+  { word: 'kind', tier: 1 }, { word: 'happy', tier: 1 }, { word: 'tired', tier: 1 },
+  { word: 'hungry', tier: 1 }, { word: 'brave', tier: 2 }, { word: 'friendly', tier: 3 },
+  { word: 'lazy', tier: 2 }, { word: 'clever', tier: 2 }, { word: 'thirsty', tier: 2 },
+  { word: 'careful', tier: 2 }, { word: 'cheerful', tier: 3 }, { word: 'polite', tier: 2 },
+]
+
+export const THING_ADJECTIVES: { word: string; tier: Tier }[] = [
+  { word: 'big', tier: 1 }, { word: 'small', tier: 1 }, { word: 'heavy', tier: 1 },
+  { word: 'dirty', tier: 1 }, { word: 'empty', tier: 2 }, { word: 'broken', tier: 2 },
+  { word: 'wooden', tier: 2 }, { word: 'colourful', tier: 2 }, { word: 'sharp', tier: 2 },
+  { word: 'wide', tier: 2 }, { word: 'bright', tier: 2 }, { word: 'expensive', tier: 3 },
+  { word: 'beautiful', tier: 2 }, { word: 'muddy', tier: 2 }, { word: 'dusty', tier: 3 },
+  { word: 'narrow', tier: 3 }, { word: 'sweet', tier: 1 }, { word: 'hot', tier: 1 },
+]
+
+/* ------------------------------------------------------------------ *
  * Tagged sentence builder
  *
  * Several skills need a sentence where the part of speech of every word is
@@ -826,74 +904,72 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
  * a caller asking "which word is the adverb?" always gets one.
  */
 export function taggedSentence(rng: Rng, difficulty: number, need?: Pos): TaggedSentence {
-  const nouns = graded(SAFE_SENTENCE_NOUNS, difficulty)
-  const verbs = graded(SAFE_SENTENCE_VERBS, difficulty)
-  const adjs = graded(SAFE_SENTENCE_ADJECTIVES, difficulty)
-  const advs = graded(SAFE_SENTENCE_ADVERBS, difficulty)
-
   const name = rng.pick([...GIRLS, ...BOYS])
-  const verb = rng.pick(verbs).past
-  const adj = rng.pick(adjs).word
-  const adv = rng.pick(advs).word
-  const prep = rng.pick(SAFE_PREPOSITIONS)
-  const [n1, n2] = rng.sample(nouns, 2)
-  const second = n2 ?? n1
+  const person = rng.pick(graded(PEOPLE_NOUNS, difficulty))
+  const action = rng.pick(graded(ACTIONS, difficulty))
+  const adv = rng.pick(graded(SAFE_SENTENCE_ADVERBS, difficulty)).word
+  const personAdj = rng.pick(graded(PERSON_ADJECTIVES, difficulty)).word
+  const thingAdj = rng.pick(graded(THING_ADJECTIVES, difficulty)).word
+  // "watered the gardens beside the garden" reads like a mistake, so the place
+  // is never the same word as the thing being acted on.
+  const place = rng.pick(graded(PLACE_NOUNS, difficulty).filter((p) => p.word !== action.objS)).word
+  const prep = rng.pick(PLACE_PREPOSITIONS)
 
   const templates: (() => TaggedWord[])[] = [
     // Ada washed the dirty plates.
     () => [
       { w: name, pos: 'proper' },
-      { w: verb, pos: 'verb' },
+      { w: action.past, pos: 'verb' },
       { w: 'the', pos: 'article' },
-      { w: adj, pos: 'adjective' },
-      { w: n1.p, pos: 'noun' },
+      { w: thingAdj, pos: 'adjective' },
+      { w: action.objP, pos: 'noun' },
     ],
-    // The small boy carried a basket.
+    // The old teacher carried the baskets.
     () => [
       { w: 'The', pos: 'article' },
-      { w: adj, pos: 'adjective' },
-      { w: n1.s, pos: 'noun' },
-      { w: verb, pos: 'verb' },
-      { w: articleFor(second.s), pos: 'article' },
-      { w: second.s, pos: 'noun' },
+      { w: personAdj, pos: 'adjective' },
+      { w: person.s, pos: 'noun' },
+      { w: action.past, pos: 'verb' },
+      { w: 'the', pos: 'article' },
+      { w: action.objP, pos: 'noun' },
     ],
-    // Musa quietly opened the door.
+    // Musa quietly opened the gate.
     () => [
       { w: name, pos: 'proper' },
       { w: adv, pos: 'adverb' },
-      { w: verb, pos: 'verb' },
+      { w: action.past, pos: 'verb' },
       { w: 'the', pos: 'article' },
-      { w: n1.s, pos: 'noun' },
+      { w: action.objS, pos: 'noun' },
     ],
-    // The girls washed the plates near the river.
+    // The traders counted the coins beside the market.
     () => [
       { w: 'The', pos: 'article' },
-      { w: n1.p, pos: 'noun' },
-      { w: verb, pos: 'verb' },
-      { w: adv, pos: 'adverb' },
+      { w: person.p, pos: 'noun' },
+      { w: action.past, pos: 'verb' },
+      { w: 'the', pos: 'article' },
+      { w: action.objP, pos: 'noun' },
       { w: prep, pos: 'preposition' },
       { w: 'the', pos: 'article' },
-      { w: second.s, pos: 'noun' },
+      { w: place, pos: 'noun' },
     ],
-    // She carried a heavy bucket into the kitchen.
+    // She carefully wrapped a small parcel.
     () => [
       { w: rng.pick(['She', 'He', 'They', 'We']), pos: 'pronoun' },
-      { w: verb, pos: 'verb' },
-      { w: articleFor(adj), pos: 'article' },
-      { w: adj, pos: 'adjective' },
-      { w: n1.s, pos: 'noun' },
-      { w: prep, pos: 'preposition' },
-      { w: 'the', pos: 'article' },
-      { w: second.s, pos: 'noun' },
+      { w: adv, pos: 'adverb' },
+      { w: action.past, pos: 'verb' },
+      { w: articleFor(thingAdj), pos: 'article' },
+      { w: thingAdj, pos: 'adjective' },
+      { w: action.objS, pos: 'noun' },
     ],
-    // Ada carefully wrapped the sweet cake.
+    // Ada washed the plates behind the house.
     () => [
       { w: name, pos: 'proper' },
-      { w: adv, pos: 'adverb' },
-      { w: verb, pos: 'verb' },
+      { w: action.past, pos: 'verb' },
       { w: 'the', pos: 'article' },
-      { w: adj, pos: 'adjective' },
-      { w: n1.s, pos: 'noun' },
+      { w: action.objP, pos: 'noun' },
+      { w: prep, pos: 'preposition' },
+      { w: 'the', pos: 'article' },
+      { w: place, pos: 'noun' },
     ],
   ]
 
