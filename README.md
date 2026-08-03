@@ -1,10 +1,12 @@
-# Kolo
+# Brainy
 
-A gamified curriculum-practice app for lower-primary children. Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
+A gamified curriculum-practice app for primary-school children, by Fortbridge Technologies Ltd.
+
+Live at **brainy.accurify.co** — marketing site at the root, app at `/app/`. See [DEPLOY.md](DEPLOY.md). Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
 
 **What is built:** the full structure for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age.
 
-**What is authored:** Nigerian Mathematics across Basic 1–6 (76 skills), plus compact British and American maths packs. The other six subjects — Quantitative Reasoning, Verbal Reasoning, English Grammar, Science, Basic Technology and Social Studies — are declared with their topic lists visible in the app, but the questions are not written yet. Adding them is content work against an unchanged engine.
+**What is authored:** **180 skills** across Basic 1–6 — Nigerian Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar, plus compact British and American maths packs. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
 
 Full product spec and architecture: [prd.md](prd.md).
 
@@ -21,16 +23,14 @@ npm run dev      # http://localhost:5173
 |---|---|
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Type-check and produce `dist/` |
-| `npm run preview` | Serve the production build locally |
+| `npm run serve` | Serve `dist/` exactly as the host will — site at `/`, app at `/app/` |
 | `npm run typecheck` | Types only |
 | `npm run smoke` | **Exercise every question generator** — see below |
 | `npm run icons` | Regenerate the PWA icons |
 
 ### Deploying
 
-It is a static site with no backend. `npm run build` then upload `dist/` to Netlify, Vercel, Cloudflare Pages or any static host. The free tier of any of them is more than enough.
-
-On a phone or tablet, open the site and use "Add to home screen" — it installs as a PWA and works fully offline after the first load.
+Static site, no backend. See **[DEPLOY.md](DEPLOY.md)** for the full runbook, including DNS, cache headers and the post-deploy checklist.
 
 ---
 
@@ -51,15 +51,16 @@ src/
   engine/     curriculum-agnostic core — types, seeded RNG, registry,
               session builder, mastery model, scoring, answer checking
   content/
-    ng-ube/   Nigerian pack: locale + 42 maths skills across 7 strands
-    uk-nc/    British pack (small, proves the switch)
+    ng-ube/   Nigerian pack: locale, maths, quantitative, verbal, english
+    uk-nc/    British pack (compact, proves the curriculum switch)
+    us-ccss/  American pack (compact)
     shared/   authoring helpers used by packs, never by the engine
   state/      zustand store persisted to localStorage, selectors, and the
               parent-report analytics
   screens/    onboarding, home, subject, island, session, results, shop, room, parent
   components/ question renderers, SVG visual renderer, mascot, UI primitives
   lib/        speech, synthesised sound, date helpers
-  game/       cosmetics, badges, island theming
+  game/       characters, pets, cosmetics, badges, island theming
 ```
 
 **The one architectural rule:** `engine/` never imports from `content/`. Packs register themselves through `engine/registry`. That is what makes a second curriculum cheap.
@@ -120,6 +121,8 @@ These are the ones most likely to look like bugs if you don't know they were del
 - **Difficulty adapts silently.** Three wrong in a row quietly drops the level. The child is never told.
 - **Earlier year bands stay in the mix.** Choosing Basic 3 includes Basic 2 content as revision.
 - **No leaderboards or comparison with other children.** He competes with himself.
+- **Several children per device.** Progress, coins, streaks and settings are per-child; only sound, reduced motion and the grown-up code are shared. A "Who's playing?" picker appears on launch when more than one exists.
+- **Moving devices is an export and a restore.** Restoring merges by child, so a sibling already on the target device is not wiped. There is no cloud sync, deliberately.
 
 ## Privacy
 

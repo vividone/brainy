@@ -8,6 +8,8 @@
  */
 
 export const APP_NAME = 'Brainy'
+/** Shown in the shareable usage summary so we know which build a report came from. */
+export const APP_VERSION = 'v1.0'
 
 export type HairStyle =
   | 'short'

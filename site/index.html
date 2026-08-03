@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Brainy — daily practice that Nigerian children actually want to do</title>
+    <meta
+      name="description"
+      content="Short daily maths, reasoning and English practice for Basic 1–6, matched to the Nigerian, British or American curriculum. Works offline. No ads, no accounts, nothing leaves the device."
+    />
+    <link rel="icon" type="image/svg+xml" href="/app/favicon.svg" />
+    <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />
+    <meta name="theme-color" content="#7c3aed" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Brainy — daily practice children want to do" />
+    <meta
+      property="og:description"
+      content="Curriculum-matched practice for Basic 1–6 in maths, reasoning and English. Five minutes a day. Works offline. Nothing leaves the device."
+    />
+    <meta property="og:image" content="/img/home.png" />
+
+    <style>
+      :root {
+        --violet-50: #f5f3ff;
+        --violet-100: #ede9fe;
+        --violet-200: #ddd6fe;
+        --violet-400: #a78bfa;
+        --violet-500: #8b5cf6;
+        --violet-600: #7c3aed;
+        --violet-700: #6d28d9;
+        --violet-900: #4c1d95;
+        --ink: #1e1b4b;
+        --muted: #5b5580;
+        --amber: #f59e0b;
+        --radius: 20px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        font-family: 'Nunito', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+        background: #fff;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      img {
+        max-width: 100%;
+        display: block;
+      }
+      a {
+        color: var(--violet-700);
+      }
+      .wrap {
+        width: min(1120px, 100% - 2.5rem);
+        margin-inline: auto;
+      }
+
+      /* ---- nav ---- */
+      header.nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--violet-100);
+      }
+      .nav-inner {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 900;
+        font-size: 1.35rem;
+        color: var(--violet-800, #5b21b6);
+        text-decoration: none;
+        letter-spacing: -0.02em;
+      }
+      .brand svg {
+        width: 38px;
+        height: 38px;
+        flex: none;
+      }
+      .nav-links {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+      }
+      .nav-links a {
+        font-weight: 700;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .nav-links a:hover {
+        color: var(--violet-700);
+      }
+      @media (max-width: 720px) {
+        .nav-links a:not(.btn) {
+          display: none;
+        }
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-weight: 800;
+        text-decoration: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 999px;
+        background: var(--violet-600);
+        color: #fff !important;
+        border: 2px solid var(--violet-700);
+        box-shadow: 0 4px 0 var(--violet-700);
+        transition: transform 0.12s ease;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+      .btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 var(--violet-700);
+      }
+      .btn.ghost {
+        background: #fff;
+        color: var(--violet-700) !important;
+        border-color: var(--violet-200);
+        box-shadow: 0 4px 0 var(--violet-100);
+      }
+      .btn.gold {
+        background: var(--amber);
+        color: #4a2c00 !important;
+        border-color: #b45309;
+        box-shadow: 0 4px 0 #b45309;
+      }
+
+      /* ---- hero ---- */
+      .hero {
+        background:
+          radial-gradient(1000px 500px at 80% -10%, var(--violet-100), transparent),
+          linear-gradient(180deg, var(--violet-50), #fff);
+        padding: clamp(2.5rem, 7vw, 5rem) 0 3rem;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: clamp(1.5rem, 4vw, 3.5rem);
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .eyebrow {
+        display: inline-block;
+        font-weight: 800;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--violet-700);
+        background: #fff;
+        border: 2px solid var(--violet-200);
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+      }
+      h1 {
+        font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        margin: 1rem 0 0.75rem;
+        font-weight: 900;
+      }
+      .lede {
+        font-size: clamp(1.05rem, 2vw, 1.25rem);
+        color: var(--muted);
+        max-width: 34rem;
+        font-weight: 600;
+      }
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.75rem;
+      }
+      .cta-note {
+        margin-top: 0.9rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .shot {
+        border-radius: 26px;
+        border: 3px solid var(--violet-200);
+        box-shadow: 0 24px 60px -20px rgba(76, 29, 149, 0.35);
+        overflow: hidden;
+        background: #fff;
+      }
+
+      /* ---- generic sections ---- */
+      section {
+        padding: clamp(3rem, 7vw, 5rem) 0;
+      }
+      section.tint {
+        background: var(--violet-50);
+      }
+      h2 {
+        font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.6rem;
+        font-weight: 900;
+      }
+      .sub {
+        color: var(--muted);
+        font-weight: 600;
+        max-width: 44rem;
+        margin: 0 0 2rem;
+      }
+      .center {
+        text-align: center;
+      }
+      .center .sub {
+        margin-inline: auto;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        background: #fff;
+        border: 2px solid var(--violet-100);
+        border-radius: var(--radius);
+        padding: 1.4rem;
+      }
+      .card .ico {
+        font-size: 2rem;
+        line-height: 1;
+      }
+      .card h3 {
+        margin: 0.7rem 0 0.35rem;
+        font-size: 1.1rem;
+        font-weight: 900;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.96rem;
+        font-weight: 600;
+      }
+
+      .subjects {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+      }
+      .subject {
+        background: #fff;
+        border: 2px solid var(--violet-100);
+        border-radius: 16px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        font-weight: 800;
+        font-size: 0.95rem;
+      }
+      .subject span.e {
+        font-size: 1.5rem;
+      }
+      .subject small {
+        display: block;
+        font-weight: 700;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(1.5rem, 4vw, 3.5rem);
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+      }
+      .ticks {
+        list-style: none;
+        padding: 0;
+        margin: 1.25rem 0 0;
+        display: grid;
+        gap: 0.7rem;
+      }
+      .ticks li {
+        display: flex;
+        gap: 0.65rem;
+        font-weight: 650;
+        color: var(--muted);
+      }
+      .ticks li b {
+        color: var(--ink);
+      }
+      .ticks li::before {
+        content: '✓';
+        color: #059669;
+        font-weight: 900;
+        flex: none;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        counter-reset: step;
+      }
+      .step {
+        background: #fff;
+        border: 2px solid var(--violet-100);
+        border-radius: var(--radius);
+        padding: 1.4rem;
+      }
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        place-items: center;
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 999px;
+        background: var(--violet-600);
+        color: #fff;
+        font-weight: 900;
+        margin-bottom: 0.8rem;
+      }
+      .step h3 {
+        margin: 0 0 0.3rem;
+        font-size: 1.05rem;
+        font-weight: 900;
+      }
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .privacy {
+        background: linear-gradient(135deg, var(--violet-900), var(--violet-700));
+        color: #fff;
+        border-radius: 28px;
+        padding: clamp(1.75rem, 4vw, 3rem);
+      }
+      .privacy h2 {
+        color: #fff;
+      }
+      .privacy .sub {
+        color: var(--violet-200);
+      }
+      .privacy .ticks li {
+        color: var(--violet-100);
+      }
+      .privacy .ticks li b {
+        color: #fff;
+      }
+      .privacy .ticks li::before {
+        color: #6ee7b7;
+      }
+
+      .offer {
+        border: 3px dashed var(--amber);
+        background: #fffbeb;
+        border-radius: 24px;
+        padding: clamp(1.5rem, 4vw, 2.5rem);
+        text-align: center;
+      }
+      .offer h2 {
+        margin-bottom: 0.5rem;
+      }
+      .price {
+        font-size: clamp(2rem, 5vw, 2.75rem);
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        margin: 0.4rem 0;
+      }
+      .price s {
+        color: #b45309;
+        opacity: 0.6;
+        font-size: 0.55em;
+        margin-right: 0.4rem;
+      }
+
+      footer {
+        border-top: 1px solid var(--violet-100);
+        padding: 2.5rem 0 3rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+      .foot-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        align-items: center;
+      }
+      .foot-grid nav {
+        margin-left: auto;
+        display: flex;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+      }
+      .powered {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--violet-100);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        justify-content: space-between;
+      }
+      .powered strong {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="/">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#8b5cf6" />
+                <stop offset="1" stop-color="#5b21b6" />
+              </linearGradient>
+            </defs>
+            <rect width="100" height="100" rx="24" fill="url(#g)" />
+            <circle cx="38" cy="43" r="11" fill="#fff" />
+            <circle cx="62" cy="43" r="11" fill="#fff" />
+            <circle cx="38" cy="43" r="5" fill="#3b2464" />
+            <circle cx="62" cy="43" r="5" fill="#3b2464" />
+            <path d="M36 66 q14 12 28 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" />
+          </svg>
+          Brainy
+        </a>
+        <nav class="nav-links">
+          <a href="#how">How it works</a>
+          <a href="#subjects">Subjects</a>
+          <a href="#parents">For parents</a>
+          <a href="#privacy">Privacy</a>
+          <a class="btn" href="/app/">Open Brainy</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow">Basic 1 – Basic 6 · Nigerian, British &amp; American</span>
+          <h1>Five minutes a day, and they ask to do it again.</h1>
+          <p class="lede">
+            Brainy turns curriculum practice into a short daily game. Maths, Quantitative and Verbal
+            Reasoning and English Grammar — matched to your child's class, adapting as they improve.
+          </p>
+          <div class="cta-row">
+            <a class="btn" href="/app/">Open Brainy — it's free</a>
+            <a class="btn ghost" href="#how">See how it works</a>
+          </div>
+          <p class="cta-note">
+            Nothing to install. No account, no email, no ads. Works offline once loaded.
+          </p>
+        </div>
+        <div class="shot">
+          <img src="/img/home.png" alt="The Brainy home screen showing the daily quest and subject grid" width="900" height="1200" />
+        </div>
+      </div>
+    </div>
+
+    <section id="how">
+      <div class="wrap center">
+        <h2>How it works</h2>
+        <p class="sub">
+          Set it up once, hand over the tablet, and check the report when you want to.
+        </p>
+      </div>
+      <div class="wrap steps">
+        <div class="step">
+          <h3>You set it up</h3>
+          <p>
+            Enter their first name and age. Brainy works out the class — a 7-year-old is Basic 3 here,
+            Year 3 in Britain, Grade 2 in America — and you can change it.
+          </p>
+        </div>
+        <div class="step">
+          <h3>They play</h3>
+          <p>
+            Ten questions, about five minutes. They earn coins, keep a streak, and collect characters
+            and pets. There are no lives to lose and no way to fail.
+          </p>
+        </div>
+        <div class="step">
+          <h3>You see what to help with</h3>
+          <p>
+            The grown-up area shows what is going well, what is not, the actual questions they got
+            wrong, and one practical thing to try away from the screen.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tint" id="subjects">
+      <div class="wrap center">
+        <h2>Built on the Nigerian curriculum</h2>
+        <p class="sub">
+          Naira and kobo, Roman numerals, common-entrance reasoning puzzles — the things international
+          apps leave out. British and American curricula are built in too, and switching keeps both
+          children's progress.
+        </p>
+      </div>
+      <div class="wrap subjects">
+        <div class="subject"><span class="e">🔢</span><span>Mathematics<small>Basic 1–6 · ready</small></span></div>
+        <div class="subject"><span class="e">🧮</span><span>Quantitative Reasoning<small>Basic 1–6 · ready</small></span></div>
+        <div class="subject"><span class="e">🔤</span><span>Verbal Reasoning<small>Basic 1–6 · ready</small></span></div>
+        <div class="subject"><span class="e">📖</span><span>English Grammar<small>Basic 1–6 · ready</small></span></div>
+        <div class="subject"><span class="e">🔬</span><span>Science &amp; Technology<small>coming soon</small></span></div>
+        <div class="subject"><span class="e">🌍</span><span>Social Studies<small>coming soon</small></span></div>
+        <div class="subject"><span class="e">🏛️</span><span>History<small>coming soon</small></span></div>
+        <div class="subject"><span class="e">💻</span><span>Computer Studies<small>coming soon</small></span></div>
+      </div>
+    </section>
+
+    <section id="parents">
+      <div class="wrap split">
+        <div class="shot">
+          <img src="/img/report.png" alt="The grown-up progress report showing class readiness and topics to help with" width="900" height="1200" />
+        </div>
+        <div>
+          <h2>A report that tells you what to do</h2>
+          <p class="sub">
+            Not a wall of numbers. The three things worth acting on, in under a minute.
+          </p>
+          <ul class="ticks">
+            <li><b>Class readiness.</b> How much of their own year they have actually mastered.</li>
+            <li><b>What is slipping.</b> Skills they had, then stopped practising.</li>
+            <li><b>The real questions they missed</b>, with what they answered.</li>
+            <li><b>One thing to try at home</b> for each weak topic — away from the screen.</li>
+            <li><b>Retention</b>, measured properly: did it stick when it came back a week later?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="tint">
+      <div class="wrap center">
+        <h2>Designed for how children actually behave</h2>
+        <p class="sub">Every one of these is a deliberate decision, not an oversight.</p>
+      </div>
+      <div class="wrap cards">
+        <div class="card">
+          <div class="ico">💚</div>
+          <h3>No way to fail</h3>
+          <p>
+            No lives, no lock-outs. A wrong answer shows the right one, explains it in a sentence, and
+            asks again later. Every quest pays coins, however it went.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ico">🎯</div>
+          <h3>It adapts quietly</h3>
+          <p>
+            Questions get harder as they improve and easier when they struggle — without ever telling
+            the child that happened. You can pin the level yourself if you prefer.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ico">🔊</div>
+          <h3>Read aloud</h3>
+          <p>
+            Long questions are read out automatically. A child who can do the maths shouldn't be marked
+            down for not yet reading "altogether".
+          </p>
+        </div>
+        <div class="card">
+          <div class="ico">⏱️</div>
+          <h3>No timer by default</h3>
+          <p>
+            Timing a child who is still building fluency mostly measures anxiety. There is a race mode
+            if they want one — you turn it on, and you set the length.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ico">👧🏾</div>
+          <h3>Someone who looks like them</h3>
+          <p>
+            Characters across the full range of skin tones, free from the first screen, plus pets to
+            collect with earned coins.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ico">👨‍👩‍👧‍👦</div>
+          <h3>Brothers and sisters</h3>
+          <p>
+            Several children on one tablet, each with their own progress, coins and report. Moving to a
+            new device is an export and a restore.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="wrap">
+        <div class="privacy">
+          <h2>Your child's data never leaves the device</h2>
+          <p class="sub">
+            This is a children's app, so the safest position is to hold no data at all — and that is
+            exactly what Brainy does.
+          </p>
+          <ul class="ticks">
+            <li><b>No account and no email.</b> There is nothing to sign up for.</li>
+            <li><b>No tracking and no analytics.</b> No third-party scripts of any kind, and the app
+              makes no network requests at all once loaded.</li>
+            <li><b>No advertising</b>, in any version, ever.</li>
+            <li><b>Nothing is uploaded.</b> Progress lives in the browser on your device.</li>
+            <li><b>No chat and no contact</b> with other children. There is nobody else in the app.</li>
+          </ul>
+          <p style="margin-top: 1.25rem; color: var(--violet-100); font-weight: 600">
+            So how do we improve it? You tell us. The grown-up area can build a short summary — which
+            topics are going badly, and nothing else — and copy it to your clipboard. You read it, and
+            you decide whether to send it. Nothing is ever transmitted on its own.
+          </p>
+          <p style="margin-top: 1.5rem">
+            <a class="btn ghost" href="/privacy.html">Read the full privacy notice</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="offer">
+          <h2>Free for the first 20 families</h2>
+          <p class="sub" style="margin-inline: auto">
+            Brainy is early, and the families who try it now are the ones shaping it. The first 20 keep
+            it free permanently for one child.
+          </p>
+          <p class="price"><s>₦5,000/yr</s> Free forever</p>
+          <p style="font-weight: 700; color: var(--muted); margin-top: 0">
+            One child per family. Additional children will be a small paid add-on later.
+          </p>
+          <p style="margin-top: 1.5rem">
+            <a class="btn gold" href="/app/">Start now — no sign-up</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <div class="foot-grid">
+          <a class="brand" href="/" style="font-size: 1.15rem">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect width="100" height="100" rx="24" fill="#7c3aed" />
+              <circle cx="38" cy="43" r="11" fill="#fff" />
+              <circle cx="62" cy="43" r="11" fill="#fff" />
+              <circle cx="38" cy="43" r="5" fill="#3b2464" />
+              <circle cx="62" cy="43" r="5" fill="#3b2464" />
+              <path d="M36 66 q14 12 28 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" />
+            </svg>
+            Brainy
+          </a>
+          <nav>
+            <a href="/app/">Open the app</a>
+            <a href="#how">How it works</a>
+            <a href="/privacy.html">Privacy</a>
+          </nav>
+        </div>
+        <div class="powered">
+          <span>Powered by <strong>Fortbridge Technologies Ltd</strong></span>
+          <span>&copy; <span id="yr">2026</span> Fortbridge Technologies Ltd. All rights reserved.</span>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById('yr').textContent = String(new Date().getFullYear())
+    </script>
+  </body>
+</html>

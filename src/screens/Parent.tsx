@@ -17,11 +17,11 @@ import {
 import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
 import { Mascot } from '../components/Mascot'
-import { CHARACTERS } from '../game/characters'
+import { APP_VERSION, CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
-import { buildAnalytics } from '../state/analytics'
+import { buildAnalytics, buildSharableSummary, type Analytics } from '../state/analytics'
 import { setSpeechRate, speak } from '../lib/speech'
 
 /* ------------------------------------------------------------------ *
@@ -579,7 +579,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
 
       {/* ---- Settings ---- */}
       {tab === 'children' && <ChildrenTab />}
-      {tab === 'settings' && <SettingsTab autoHint={autoHint} />}
+      {tab === 'settings' && <SettingsTab autoHint={autoHint} stats={stats} />}
     </Screen>
   )
 
@@ -760,7 +760,7 @@ function ChildrenTab() {
   )
 }
 
-function SettingsTab({ autoHint }: { autoHint: string }) {
+function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }) {
   const store = useStore()
   const profile = useProfile()
   const settings = useSettings()
@@ -768,6 +768,16 @@ function SettingsTab({ autoHint }: { autoHint: string }) {
   const updateSettings = store.updateSettings
   const [confirmReset, setConfirmReset] = useState(false)
   const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [showSummary, setShowSummary] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const { totals } = useLearnerData()
+  const summaryText = buildSharableSummary(
+    curriculum.id,
+    profile.yearBand,
+    stats,
+    totals,
+    APP_VERSION,
+  )
   const fileRef = useRef<HTMLInputElement>(null)
   const [pinDraft, setPinDraft] = useState(settings.parentPin)
 
@@ -1011,6 +1021,49 @@ function SettingsTab({ autoHint }: { autoHint: string }) {
             Save
           </Btn>
         </div>
+      </Card>
+
+      {/*
+        Helping us improve without breaking the promise.
+
+        The app still makes no network requests. This builds a de-identified
+        summary, shows the parent exactly what it says, and copies it to the
+        clipboard — they decide whether to send it and to whom.
+      */}
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Help improve Brainy</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          There is no tracking in Brainy, so the only way we learn what is working is if you tell us.
+          This builds a short summary with no name, no dates and nothing your child typed — just which
+          topics are going badly, which is how we find questions that are wrong or badly pitched. Read
+          it before you send it.
+        </p>
+        <Btn variant="secondary" size="md" onClick={() => setShowSummary((v) => !v)}>
+          {showSummary ? 'Hide summary' : '📋 Build a summary to share'}
+        </Btn>
+        {showSummary && (
+          <div className="mt-3">
+            <pre className="max-h-64 overflow-auto rounded-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100 whitespace-pre-wrap">
+              {summaryText}
+            </pre>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Btn
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(summaryText)
+                    setCopied('Copied. Paste it wherever you like.')
+                  } catch {
+                    setCopied('Could not copy — select the text above instead.')
+                  }
+                }}
+              >
+                Copy to clipboard
+              </Btn>
+              {copied && <span className="self-center text-sm font-bold text-emerald-700">{copied}</span>}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-5 border-slate-200">

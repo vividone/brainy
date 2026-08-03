@@ -224,3 +224,75 @@ export function buildAnalytics(
 }
 
 export const todayKey = () => dayKey()
+
+/* ------------------------------------------------------------------ *
+ * Sharable summary
+ * ------------------------------------------------------------------ */
+
+/**
+ * A de-identified summary a parent can choose to send us.
+ *
+ * The app makes no network requests, and this does not change that: the text
+ * is copied to the clipboard and the parent decides whether to send it, to
+ * whom, and after reading it. That is the only honest way to square "nothing
+ * leaves the device" with needing to know whether the app works.
+ *
+ * What is deliberately absent, and why:
+ *
+ * - **No name, no id, no timestamps.** A persistent install id plus a
+ *   fine-grained history is a behavioural fingerprint of one child. Under
+ *   NDPR and GDPR that is pseudonymised data, not anonymous data, and it
+ *   would carry every obligation we are trying to avoid.
+ * - **No question text and nothing the child typed.** Only skill ids, which
+ *   are our own identifiers for content we wrote.
+ * - **Counts are bucketed**, so a single family is not distinguishable by an
+ *   unusual exact number.
+ *
+ * What it does carry is the thing that actually improves the app: which
+ * *skills* children get wrong. A skill sitting at 30% across many families is
+ * a badly pitched or broken question, not a struggling child.
+ */
+export function buildSharableSummary(
+  curriculumId: string,
+  yearBand: string,
+  stats: Analytics,
+  totals: { questions: number; correct: number },
+  appVersion: string,
+): string {
+  const bucket = (n: number): string => {
+    if (n === 0) return '0'
+    if (n < 10) return '1-9'
+    if (n < 25) return '10-24'
+    if (n < 50) return '25-49'
+    if (n < 100) return '50-99'
+    if (n < 250) return '100-249'
+    if (n < 500) return '250-499'
+    return '500+'
+  }
+  const pct = (x: number) => `${Math.round(x * 100)}%`
+  const accuracy = totals.questions ? totals.correct / totals.questions : 0
+
+  const lines: string[] = [
+    `Brainy usage summary (${appVersion})`,
+    `curriculum: ${curriculumId} · class: ${yearBand}`,
+    `questions answered: ${bucket(totals.questions)}`,
+    `first-try accuracy: ${pct(accuracy)}`,
+    `active days in last 30: ${stats.daysPlayedLast30}`,
+    `class readiness: ${pct(stats.classReadiness)}`,
+    stats.retention.rate === null
+      ? 'retention: not enough data'
+      : `retention on review: ${pct(stats.retention.rate)} of ${bucket(stats.retention.answered)}`,
+    '',
+    'by subject:',
+    ...stats.subjects
+      .filter((s) => s.questions > 0)
+      .map((s) => `  ${s.id}: ${pct(s.questions ? s.correct / s.questions : 0)} over ${bucket(s.questions)}`),
+    '',
+    'skills with the lowest accuracy (these are the ones worth checking):',
+    ...stats.weakest
+      .filter((s) => s.attempts >= 3)
+      .map((s) => `  ${s.id}: ${pct(s.correct / Math.max(1, s.attempts))} over ${bucket(s.attempts)}`),
+  ]
+
+  return lines.join('\n')
+}
