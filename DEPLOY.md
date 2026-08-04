@@ -148,3 +148,17 @@ The link is all they need — no store, no install, no account. Something like:
    Because there is no identifier, you cannot tell one family's reports from another's, or follow a family over time. That is deliberate — an id plus a history would make it personal data again. It still answers the question that matters, which is *which content is broken*.
 
 3. **The feedback form.** Same screen. Categories first ("a question looks wrong", "something confused my child"), because an open text box gets nothing while a named category gets the report that fixes content.
+
+## Two things that are easy to break
+
+**Do not turn on `cleanUrls` in `vercel.json`.** It canonicalises `/play/` to
+`/play`, and `/play` sits outside the service worker's `/play/` scope. Chrome
+then finds no controlling worker and silently stops offering to install the
+app — no error, the "Install" option just never appears. `/admin` and
+`/privacy` are served by explicit rewrites instead, which do the same job
+without touching `/play/`.
+
+**`DATABASE_URL` must be the pooled connection string.** An unpooled one
+exhausts Postgres connections under serverless cold starts. If `/admin` cannot
+load, it now prints the actual database error and what to do about it, rather
+than a blank failure.

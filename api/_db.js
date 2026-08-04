@@ -39,7 +39,14 @@ export function db() {
 export async function ensureSchema() {
   const p = db()
   if (!p) return false
-  ready ??= p.query(`
+  /*
+   * Caching the promise is what makes this cheap on warm invocations, but a
+   * cached *rejected* promise would poison every later request in the same
+   * container — one transient connection blip and the endpoint stays broken
+   * until the next deploy. Clear it on failure so the next call retries.
+   */
+  ready ??= p
+    .query(`
     create table if not exists installs (
       id           text primary key,
       first_seen   date not null default current_date,
@@ -84,8 +91,36 @@ export async function ensureSchema() {
       created_at  timestamptz not null default now()
     );
   `)
+    .catch((err) => {
+      ready = undefined
+      throw err
+    })
   await ready
   return true
+}
+
+/**
+ * Why the database is unreachable, in words a human can act on.
+ *
+ * Postgres errors are terse and the useful part is usually the code, so this
+ * maps the handful we actually hit onto the fix.
+ */
+export function explain(err) {
+  const code = err?.code
+  const msg = err?.message ?? String(err)
+  if (!process.env.DATABASE_URL) return 'DATABASE_URL is not set on this deployment.'
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return `Cannot resolve the database host — check DATABASE_URL. (${msg})`
+  }
+  if (code === 'ECONNREFUSED') return `The database refused the connection. (${msg})`
+  if (code === 'ETIMEDOUT' || /timeout/i.test(msg)) {
+    return `Timed out connecting. Use the POOLED connection string, not the direct one. (${msg})`
+  }
+  if (code === '28P01') return 'Password authentication failed — DATABASE_URL has the wrong credentials.'
+  if (code === '3D000') return 'That database does not exist — check the name in DATABASE_URL.'
+  if (code === '42501') return 'The database user is not allowed to create tables.'
+  if (/self.signed|certificate/i.test(msg)) return `TLS problem reaching the database. (${msg})`
+  return msg
 }
 
 /** Small helper so routes do not each repeat the null-pool dance. */

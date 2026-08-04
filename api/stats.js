@@ -6,7 +6,7 @@
  * else's business, and an open endpoint invites scraping.
  */
 
-import { query } from './_db.js'
+import { explain, query } from './_db.js'
 
 const DAYS = 30
 
@@ -109,7 +109,17 @@ export default async function handler(req, res) {
       feedback: recentFeedback.rows,
     })
   } catch (err) {
-    console.error('[brainy:stats]', err instanceof Error ? err.message : err)
-    return res.status(500).json({ ok: false, error: 'query failed' })
+    /*
+     * The caller has already proved they hold the admin token, so telling
+     * them what actually went wrong is far more useful than a generic
+     * failure — this is the difference between a five-minute fix and an
+     * afternoon in the logs. Message only, never the stack.
+     */
+    console.error('[brainy:stats]', err)
+    return res.status(500).json({
+      ok: false,
+      error: explain(err),
+      hint: 'Check DATABASE_URL is the pooled connection string, then redeploy.',
+    })
   }
 }

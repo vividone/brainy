@@ -691,6 +691,21 @@ export const useStore = create<Store>()(
 
         exportSave: () => {
           const s = get()
+          /*
+           * Everything about the children, but none of the analytics
+           * plumbing. A backup is a file a parent may well email to
+           * themselves, and the install id is the one pseudonymous
+           * identifier we hold — it has no business travelling in it, and
+           * consent belongs to the device it was given on.
+           */
+          const {
+            installId: _id,
+            shareUsage: _share,
+            lastSharedWeek: _week,
+            lastOpenPing: _ping,
+            activationSent: _sent,
+            ...device
+          } = s.device
           return JSON.stringify(
             {
               kolo: true,
@@ -698,7 +713,7 @@ export const useStore = create<Store>()(
               exportedAt: new Date().toISOString(),
               learners: s.learners,
               data: s.data,
-              device: s.device,
+              device,
             },
             null,
             2,
@@ -724,7 +739,7 @@ export const useStore = create<Store>()(
             kolo: boolean
             learners: Profile[]
             data: Record<string, LearnerData>
-            device: DeviceSettings
+            device: Partial<DeviceSettings>
           }>
           if (!incoming || !Array.isArray(incoming.learners) || typeof incoming.data !== 'object') {
             return { ok: false, message: 'That does not look like a Brainy backup.' }
@@ -742,12 +757,49 @@ export const useStore = create<Store>()(
             mergedData[id] = { ...emptyLearnerData(), ...d, settings: { ...defaultLearnerSettings(), ...d.settings } }
           }
 
-          const learners = [...byId.values()]
+          /*
+           * Restoring from the welcome screen happens before any child has
+           * been named, so the blank placeholder setup created is still in
+           * the list. Left in, it makes `learners.length` 2 and the parent
+           * lands on "Who's playing?" next to an empty card instead of going
+           * straight into the restored child. Only ever drops a learner that
+           * has no name and no history, so a real child cannot be caught.
+           */
+          const incomingIds = new Set(incoming.learners.map((l) => l?.id))
+          const learners = [...byId.values()].filter((l) => {
+            if (incomingIds.has(l.id)) return true
+            if (l.name.trim()) return true
+            return (mergedData[l.id]?.history?.length ?? 0) > 0
+          })
+          for (const id of Object.keys(mergedData)) {
+            if (!learners.some((l) => l.id === id)) delete mergedData[id]
+          }
           const restored = incoming.learners.length
+
+          /*
+           * Carry the parent's own preferences across, but deliberately not
+           * the sharing consent or the install id.
+           *
+           * The PIN matters: without it a restored tablet quietly falls back
+           * to the default 1234, which the child can guess, so moving device
+           * would silently unlock the grown-up area. The install id is the
+           * opposite case — copying it would make two tablets report as one
+           * install and would move a consent given on one device onto
+           * another, which is not what was agreed to. So consent starts off
+           * again here and has to be given on this device.
+           */
+          const device: DeviceSettings = {
+            ...s.device,
+            parentPin: incoming.device?.parentPin ?? s.device.parentPin,
+            sound: incoming.device?.sound ?? s.device.sound,
+            reduceMotion: incoming.device?.reduceMotion ?? s.device.reduceMotion,
+          }
+
           set({
             onboarded: true,
             learners,
             data: mergedData,
+            device,
             activeLearnerId: incoming.learners[0]?.id ?? s.activeLearnerId,
           })
           return {

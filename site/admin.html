@@ -62,6 +62,7 @@
       }
       .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; font-weight: 700; margin-top: 0.35rem; }
       .empty { color: var(--muted); font-weight: 600; padding: 1.5rem 0; text-align: center; }
+      code { background:#f1f5f9; padding:0.1rem 0.35rem; border-radius:6px; font-size:0.85em; }
       .err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.8rem 1rem; border-radius: 12px; font-weight: 700; }
       .note { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-top: 0.6rem; }
     </style>
@@ -78,7 +79,7 @@
       function gate(message) {
         root.innerHTML = ''
         const box = $(`<div class="gate">
-          <h1>Brainy usage</h1>
+          <h1>Brainy Admin</h1>
           <p class="sub">Enter the admin token.</p>
           ${message ? `<p class="err" style="margin-bottom:1rem">${message}</p>` : ''}
           <input id="tok" type="password" placeholder="Admin token" autocomplete="off" />
@@ -95,6 +96,33 @@
         box.querySelector('#go').onclick = submit
         input.onkeydown = (e) => { if (e.key === 'Enter') submit() }
         input.focus()
+      }
+
+      function problem(message, hint) {
+        root.innerHTML = ''
+        root.append(
+          $(`<div style="max-width:640px;margin:12vh auto">
+            <h1>Cannot load the numbers</h1>
+            <p class="sub">The token was accepted, but the server could not answer.</p>
+            <p class="err">${message}</p>
+            ${hint ? `<p class="note">${hint}</p>` : ''}
+            <p class="note">
+              Set <code>DATABASE_URL</code> (the <b>pooled</b> connection string) and
+              <code>ADMIN_TOKEN</code> in the Vercel project, then redeploy. Until a database is
+              connected the app itself is unaffected — usage pings are written to the function log
+              instead.
+            </p>
+            <p style="margin-top:1rem">
+              <button id="retry">Try again</button>
+              <button class="ghost" id="out2" style="margin-left:0.5rem">Sign out</button>
+            </p>
+          </div>`),
+        )
+        root.querySelector('#retry').onclick = () => load(sessionStorage.getItem('brainy.admin'))
+        root.querySelector('#out2').onclick = () => {
+          sessionStorage.removeItem('brainy.admin')
+          gate()
+        }
       }
 
       function chart(rows, key, label) {
@@ -117,8 +145,14 @@
           const res = await fetch('/api/stats', { headers: { 'x-admin-token': token } })
           data = await res.json()
           if (!res.ok || !data.ok) {
-            sessionStorage.removeItem('brainy.admin')
-            return gate(data.error === 'bad token' ? 'That token was not accepted.' : data.error || 'Could not load.')
+            // Only a bad token should send them back to the gate. A database
+            // problem is not something re-typing the token will fix, and
+            // bouncing them hides the message that says what to do.
+            if (res.status === 401) {
+              sessionStorage.removeItem('brainy.admin')
+              return gate('That token was not accepted.')
+            }
+            return problem(data.error || `Server returned ${res.status}.`, data.hint)
           }
         } catch {
           return gate('Could not reach the server.')

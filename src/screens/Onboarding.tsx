@@ -8,7 +8,7 @@
  * the last step hands the device over explicitly.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ageOptions, bandForAge, listCurricula } from '../engine/registry'
 import { APP_NAME, CHARACTERS, PETS } from '../game/characters'
 import { Character } from '../components/Character'
@@ -28,6 +28,9 @@ const STEPS = [
 
 export function Onboarding() {
   const completeOnboarding = useStore((s) => s.completeOnboarding)
+  const importSave = useStore((s) => s.importSave)
+  const restoreRef = useRef<HTMLInputElement>(null)
+  const [restoreNote, setRestoreNote] = useState<string | null>(null)
   const curricula = listCurricula()
 
   const [step, setStep] = useState(0)
@@ -123,6 +126,47 @@ export function Onboarding() {
               ))}
             </ul>
             <p className="text-sm font-semibold text-brand-400">Setting up takes about a minute.</p>
+
+            {/*
+              Moving from another device.
+
+              Restoring used to mean creating a throwaway child first, because
+              the grown-up area is only reachable after setup — which is
+              exactly backwards for the one person who already has a backup.
+            */}
+            <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
+              <p className="font-black text-brand-900">Already using Brainy on another device?</p>
+              <p className="text-sm font-semibold text-brand-500 mt-0.5">
+                Export a backup there (grown-up area → Settings), then restore it here. Everything
+                comes across: progress, coins, streaks and the report.
+              </p>
+              <Btn
+                variant="secondary"
+                size="md"
+                className="mt-3"
+                onClick={() => restoreRef.current?.click()}
+              >
+                ⬆ Restore a backup
+              </Btn>
+              <input
+                ref={restoreRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  const result = importSave(await file.text())
+                  setRestoreNote(result.message)
+                }}
+              />
+              {restoreNote && (
+                <p className="mt-2 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">
+                  {restoreNote}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
