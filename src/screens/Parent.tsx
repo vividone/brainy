@@ -3,7 +3,8 @@
  * is he learning, what should I help with, and how much is he playing.
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { sendForget } from '@/lib/usage'
 import { BAND_LABEL, BAND_STYLE, band, currentMastery, difficultyFor } from '../engine/mastery'
 import {
   ageOptions,
@@ -25,6 +26,16 @@ import { useBands, useCurriculum, useProgress } from '../state/selectors'
 import { buildAnalytics, buildSharableSummary, type Analytics } from '../state/analytics'
 import { setSpeechRate, speak } from '../lib/speech'
 import { sendReport } from '../lib/report'
+import {
+  activate,
+  checkout,
+  formatMoney,
+  prices,
+  revalidate,
+  signUp,
+  type Prices,
+} from '../lib/licence'
+import { useEntitlement } from '../state/entitlement'
 import { isoWeek } from '../state/weekly'
 import { FeedbackCard } from './Feedback'
 
@@ -36,7 +47,7 @@ import { FeedbackCard } from './Feedback'
  * Report
  * ------------------------------------------------------------------ */
 
-type Tab = 'progress' | 'help' | 'children' | 'settings'
+type Tab = 'progress' | 'help' | 'children' | 'access' | 'settings'
 
 /** Parent-facing difficulty options. `null` hands the choice back to the engine. */
 const DIFFICULTY_CHOICES: { value: Difficulty | null; label: string }[] = [
@@ -150,19 +161,22 @@ export function Parent({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
-      <div className="mt-4 flex gap-2">
+      {/* A grid rather than a flex row: five tabs sharing the width equally
+          left each one too narrow to read on a phone. */}
+      <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
         {(
           [
             ['progress', '📊 Progress'],
             ['help', '💡 How to help'],
             ['children', '👧 Children'],
+            ['access', '🔑 Access'],
             ['settings', '⚙️ Settings'],
           ] as [Tab, string][]
         ).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex-1 min-h-12 rounded-2xl border-2 font-black transition
+            className={`min-h-12 px-2 rounded-2xl border-2 font-black text-sm sm:text-base transition
               ${tab === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
           >
             {label}
@@ -508,12 +522,10 @@ export function Parent({ onBack }: { onBack: () => void }) {
 
       {/* ---- Settings ---- */}
       {tab === 'children' && <ChildrenTab />}
+      {tab === 'access' && <AccessTab />}
       {tab === 'settings' && <SettingsTab autoHint={autoHint} stats={stats} />}
     </Screen>
   )
-
-  /** Add, switch, rename and remove the children who share this device. */
-
 }
 
 /** Add, switch, rename and remove the children who share this device. */
@@ -570,14 +582,12 @@ function ChildrenTab() {
                 </Btn>
               )}
             </div>
-            {learners.length > 1 && (
-              <button
-                onClick={() => setConfirmRemove(l.id)}
-                className="mt-2 text-sm font-bold text-rose-600 hover:underline"
-              >
-                Remove {l.name}
-              </button>
-            )}
+            <button
+              onClick={() => setConfirmRemove(l.id)}
+              className="mt-2 text-sm font-bold text-rose-600 hover:underline"
+            >
+              Remove {l.name}
+            </button>
           </Card>
         )
       })}
@@ -668,6 +678,12 @@ function ChildrenTab() {
           This permanently deletes {learners.find((l) => l.id === confirmRemove)?.name}'s progress,
           coins and report on this device. Export a backup first if you might want it back.
         </p>
+        {learners.length === 1 && (
+          <p className="mt-3 rounded-xl bg-amber-50 p-3 font-bold text-amber-900">
+            This is your only child, so Brainy will go back to the setup screen. Your grown-up code
+            and settings are kept.
+          </p>
+        )}
         <div className="mt-5 flex gap-3">
           <Btn variant="secondary" size="lg" full onClick={() => setConfirmRemove(null)}>
             Cancel
@@ -689,6 +705,344 @@ function ChildrenTab() {
   )
 }
 
+/* ------------------------------------------------------------------ *
+ * Access
+ * ------------------------------------------------------------------ */
+
+/**
+ * What this family can open, and the three ways to change it: a code, a
+ * payment, or leaving an email address and being sent one.
+ *
+ * The whole screen is written on the assumption that a parent arrived here
+ * confused — because most of them will have, after a child asked why a subject
+ * is shut. So it leads with what they have, says plainly what is free for ever,
+ * and only then offers to sell anything.
+ */
+function AccessTab() {
+  const { full, licence } = useEntitlement()
+  const setLicence = useStore((s) => s.setLicence)
+  const installId = useStore((s) => s.device.installId)
+
+  const [offer, setOffer] = useState<Prices | null>(null)
+  const [email, setEmail] = useState(licence?.email ?? '')
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ good: boolean; text: string } | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void prices().then((p) => {
+      if (!cancelled) setOffer(p)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const run = async (label: string, work: () => Promise<{ good: boolean; text: string }>) => {
+    setBusy(label)
+    setMessage(null)
+    try {
+      setMessage(await work())
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const redeem = () =>
+    run('redeem', async () => {
+      const result = await activate({ code, email: email.trim() || undefined, installId })
+      if (result.ok && result.licence) {
+        setLicence(result.licence)
+        setCode('')
+        return {
+          good: true,
+          text: result.emailed
+            ? 'Done — everything is open, and we have emailed your code to you.'
+            : 'Done — everything is open. Your family code is at the top of this screen.',
+        }
+      }
+      return {
+        good: false,
+        text: result.needsEmail ? 'Add your email address above, then try the code again.' : (result.error ?? 'That did not work.'),
+      }
+    })
+
+  const recheck = () =>
+    run('recheck', async () => {
+      if (!licence) return { good: false, text: 'Nothing to check yet.' }
+      const result = await revalidate(licence.code, installId)
+      if (result.ok && result.licence) {
+        setLicence(result.licence)
+        return { good: true, text: 'Checked — this is up to date.' }
+      }
+      /*
+       * `gone` is the one answer that removes anything: the server positively
+       * does not know this code. Every other failure leaves the licence alone,
+       * because a flat signal must never cost a family their access.
+       */
+      if (result.gone) {
+        setLicence(null)
+        return { good: false, text: 'That code no longer exists. Get in touch and we will sort it out.' }
+      }
+      return { good: false, text: result.error ?? 'Could not check just now.' }
+    })
+
+  const buy = (plan: 'annual' | 'lifetime') =>
+    run(plan, async () => {
+      const result = await checkout({ email: email.trim(), plan, installId })
+      if (result.ok && result.url) {
+        window.location.assign(result.url)
+        return { good: true, text: 'Taking you to the payment page…' }
+      }
+      return { good: false, text: result.error ?? 'Could not start the payment.' }
+    })
+
+  const keepPosted = () =>
+    run('signup', async () => {
+      const result = await signUp({ email: email.trim(), installId })
+      if (result.ok && result.licence) {
+        /* Only store it if it actually grants something — a pending row is a
+           record on our side, not a licence, and pretending otherwise would put
+           "pending" in front of a parent as though it were a state they must
+           fix. */
+        if (result.licence.status === 'active') setLicence(result.licence)
+        const base = result.licence.status === 'active'
+          ? 'You have a free place — everything is open.'
+          : 'Thank you — we have your address and will be in touch.'
+        return {
+          good: true,
+          text: result.note ?? (result.emailed ? `${base} Check your email for a copy.` : base),
+        }
+      }
+      return { good: false, text: result.error ?? 'Could not save that address.' }
+    })
+
+  const emailValid = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(email.trim())
+
+  const expiryLine = () => {
+    if (!licence) return null
+    if (!licence.expiresAt) return 'It never expires.'
+    const d = Math.ceil((new Date(licence.expiresAt).getTime() - Date.now()) / 86_400_000)
+    const on = new Date(licence.expiresAt).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    if (d < 0) return `Ran out on ${on}.`
+    return `Runs until ${on} — ${d} day${d === 1 ? '' : 's'} to go.`
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      {/* ---- What they have ---- */}
+      <Card className={`p-5 ${full ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200'}`}>
+        <h2 className="font-black text-slate-900 mb-1">
+          {full ? 'Everything is open' : 'Maths is open — the rest is not'}
+        </h2>
+        <p className="text-sm font-semibold text-slate-600">
+          {full
+            ? `${licence?.planLabel ?? 'Full access'}. ${expiryLine() ?? ''}`
+            : licence
+              ? `${licence.planLabel ?? 'Your plan'} — ${expiryLine()}`
+              : 'Your child’s class in maths, and every earlier class of it, is free permanently. The other subjects need a code or a licence.'}
+        </p>
+
+        {licence && (
+          <div className="mt-4 rounded-2xl bg-white border-2 border-slate-200 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">Your family code</p>
+            <p className="mt-0.5 text-xl font-black tracking-wider text-slate-900">{licence.code}</p>
+            {licence.email && (
+              <p className="mt-1 text-xs font-semibold text-slate-400">Attached to {licence.email}</p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Btn
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(licence.code)
+                    setCopied(true)
+                  } catch {
+                    setCopied(false)
+                  }
+                }}
+              >
+                {copied ? '✓ Copied' : '📋 Copy'}
+              </Btn>
+              <Btn variant="secondary" size="sm" disabled={busy === 'recheck'} onClick={recheck}>
+                {busy === 'recheck' ? 'Checking…' : '↻ Check again'}
+              </Btn>
+              <Btn variant="secondary" size="sm" onClick={() => setConfirmRemove(true)}>
+                Remove from this device
+              </Btn>
+            </div>
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              Use this code to open Brainy on another tablet. It works offline once activated, and is
+              checked with us about once a week — never in the middle of a quest.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* ---- Email, shared by everything below ---- */}
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Your email address</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          The only personal detail Brainy ever stores, and it is yours, not your child’s. It exists so
+          your access can be restored on a new tablet and so we can reach you about it — never for
+          marketing, and never passed on.
+        </p>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value.slice(0, 160))}
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          className="w-full h-14 rounded-2xl border-2 border-slate-300 px-4 font-bold text-slate-900
+            placeholder:text-slate-300 outline-none focus:border-slate-900"
+        />
+        {!licence && (
+          <Btn
+            variant="secondary"
+            size="md"
+            className="mt-3"
+            disabled={!emailValid || busy === 'signup'}
+            onClick={keepPosted}
+          >
+            {busy === 'signup' ? 'Saving…' : 'Keep me posted'}
+          </Btn>
+        )}
+      </Card>
+
+      {/* ---- A code ---- */}
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Have a code?</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          Whether it is a free-family code we sent you or your own family code from another tablet, it
+          goes here.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 40))}
+            placeholder="FAMILY-7K3M"
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="h-14 flex-1 min-w-[12rem] rounded-2xl border-2 border-slate-300 px-4 font-black
+              tracking-wider text-slate-900 placeholder:text-slate-300 outline-none focus:border-slate-900"
+          />
+          <Btn size="md" disabled={code.trim().length < 4 || busy === 'redeem'} onClick={redeem}>
+            {busy === 'redeem' ? 'Checking…' : 'Use code'}
+          </Btn>
+        </div>
+      </Card>
+
+      {/* ---- Paying ---- */}
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">
+          {full ? 'Renew or extend' : 'Open everything else'}
+        </h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          One licence covers one child, every subject and every class in their curriculum. No
+          advertising in any version, and nothing a child can buy from inside the app.
+        </p>
+
+        {offer?.enabled && offer.plans.length > 0 ? (
+          <>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {offer.plans.map((plan) => (
+                <Btn
+                  key={plan.id}
+                  size="md"
+                  variant={plan.id === 'annual' ? 'primary' : 'secondary'}
+                  disabled={!emailValid || busy === plan.id}
+                  onClick={() => buy(plan.id)}
+                >
+                  {busy === plan.id
+                    ? 'Opening…'
+                    : `${plan.label} · ${formatMoney(plan.amount, offer.currency)}`}
+                </Btn>
+              ))}
+            </div>
+            {!emailValid && (
+              <p className="mt-2 text-xs font-bold text-slate-400">
+                Add your email address above first — the receipt goes there.
+              </p>
+            )}
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              Payment is handled by Paystack, who hold the card details and the receipt. Brainy never
+              sees a card number.
+            </p>
+          </>
+        ) : (
+          <p className="rounded-2xl bg-slate-50 p-3 font-bold text-slate-600">
+            Payments are not switched on yet. Leave your email above and we will send you a code — the
+            first twenty families keep everything free permanently.
+          </p>
+        )}
+      </Card>
+
+      {message && (
+        <p
+          className={`rounded-2xl p-4 font-bold ${message.good ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}
+        >
+          {message.text}
+        </p>
+      )}
+
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-2">What is free, for everyone</h2>
+        <ul className="space-y-2 text-sm font-semibold text-slate-600">
+          <li>
+            <b className="text-slate-900">Maths, permanently</b> — your child’s class and every earlier
+            class as revision. No time limit, no trial, no card.
+          </li>
+          <li>
+            <b className="text-slate-900">Everything already earned</b> — stars, coins, characters and
+            streaks are never taken away, whatever your plan does.
+          </li>
+          <li>
+            <b className="text-slate-900">A quest already started always finishes.</b> Nothing here ever
+            interrupts your child mid-question.
+          </li>
+        </ul>
+      </Card>
+
+      <Modal
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        title="Remove the licence from this tablet?"
+      >
+        <p className="font-bold text-slate-600">
+          The other subjects will close on this device. Nothing is cancelled and nothing is refunded —
+          your code keeps working, and typing it back in reopens everything. Progress is untouched.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Btn variant="secondary" size="lg" full onClick={() => setConfirmRemove(false)}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="danger"
+            size="lg"
+            full
+            onClick={() => {
+              setLicence(null)
+              setConfirmRemove(false)
+              setMessage({ good: true, text: 'Removed from this device.' })
+            }}
+          >
+            Remove
+          </Btn>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }) {
   const store = useStore()
   const profile = useProfile()
@@ -696,7 +1050,12 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
   const curriculum = useCurriculum()
   const updateSettings = store.updateSettings
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteUnderstood, setDeleteUnderstood] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [forgetNote, setForgetNote] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [lockNote, setLockNote] = useState(useStore.getState().device.lockNote)
   const [copied, setCopied] = useState<string | null>(null)
@@ -1014,14 +1373,36 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
               Off unless you turn it on. When it is on, Brainy sends how often it is opened, how many
               questions were answered, and which topics score worst — plus a random code so the same
               tablet is not counted twice. Never your child&apos;s name, age, or anything they typed.
-              Turning it off deletes the code.
+              Turning it off deletes the code and asks us to delete what was already sent.
             </p>
           </div>
           <button
             role="switch"
             aria-checked={settings.shareUsage}
             aria-label="Share anonymous usage data"
-            onClick={() => store.setShareUsage(!settings.shareUsage)}
+            onClick={async () => {
+              if (!settings.shareUsage) {
+                setForgetNote(null)
+                store.setShareUsage(true)
+                return
+              }
+              /*
+               * Turning off used to stop collection but strand the rows
+               * already sent, because destroying the id removed the only way
+               * to find them. Grab it first, flip the switch straight away so
+               * the toggle stays responsive, then ask the server to erase
+               * them using the copy we kept.
+               */
+              const { installId } = useStore.getState().device
+              store.setShareUsage(false)
+              if (!installId) return
+              setForgetNote('Deleting what we already had…')
+              setForgetNote(
+                (await sendForget(installId))
+                  ? 'Sharing is off, and the records we already had have been deleted.'
+                  : 'Sharing is off, so nothing more will be sent. We could not reach our server to delete the records already sent — they carry no name, and the code that linked them to this tablet is now gone.',
+              )
+            }}
             className={`mt-1 h-9 w-16 shrink-0 rounded-full border-2 transition ${settings.shareUsage ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
           >
             <span
@@ -1029,6 +1410,10 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
             />
           </button>
         </div>
+
+        {forgetNote && (
+          <p className="mb-3 rounded-xl bg-slate-100 p-3 text-sm font-bold text-slate-700">{forgetNote}</p>
+        )}
 
         <Btn variant="secondary" size="md" onClick={() => setShowSummary((v) => !v)}>
           {showSummary ? 'Hide summary' : '📋 See what would be sent'}
@@ -1124,6 +1509,31 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         </p>
       </Card>
 
+      {/*
+        Kept in its own card rather than beside "Reset progress". The two read
+        alike at a glance but one keeps the children and the other does not,
+        and a mis-tap here cannot be undone.
+      */}
+      <Card className="p-5 border-rose-200 bg-rose-50/40">
+        <h2 className="font-black text-rose-900 mb-1">Delete everything</h2>
+        <p className="text-sm font-semibold text-rose-800/70 mb-3">
+          Removes every child, all their progress and coins, your grown-up code and every setting,
+          and takes Brainy back to how it was before you first opened it. There is no account to
+          recover it from, so export a backup first if there is any chance you will want it.
+        </p>
+        <Btn
+          variant="danger"
+          size="md"
+          onClick={() => {
+            setDeleteUnderstood(false)
+            setDeleteError(null)
+            setConfirmDelete(true)
+          }}
+        >
+          Delete everything
+        </Btn>
+      </Card>
+
       <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Reset all progress?">
         <p className="font-bold text-slate-600">
           This clears mastery, stars, streaks and history for every curriculum. Coins and the wardrobe are
@@ -1145,6 +1555,93 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
             Reset
           </Btn>
         </div>
+      </Modal>
+
+      <Modal
+        open={confirmDelete}
+        onClose={() => (deleting ? undefined : setConfirmDelete(false))}
+        title="Delete everything?"
+      >
+        <p className="font-bold text-slate-600">This removes, permanently and on this device:</p>
+        <ul className="mt-2 space-y-1 font-bold text-slate-600">
+          <li>· Every child and their whole history</li>
+          <li>· All coins, characters and pets</li>
+          <li>· Your grown-up code and every setting</li>
+        </ul>
+        {settings.licence && (
+          <p className="mt-3 rounded-xl bg-amber-50 p-3 font-bold text-amber-900">
+            Your access code <b>{settings.licence.code}</b> is removed from this device too. The
+            licence itself is not cancelled — write the code down and you can enter it again here or
+            on another device.
+          </p>
+        )}
+        {settings.shareUsage && (
+          <p className="mt-3 rounded-xl bg-slate-100 p-3 font-bold text-slate-700">
+            You are sharing anonymous usage. We will ask our server to delete those records too
+            before wiping this device — after that the link to them is gone for good.
+          </p>
+        )}
+
+        <label className="mt-4 flex items-start gap-3 rounded-2xl border-2 border-slate-200 bg-white p-3">
+          <input
+            type="checkbox"
+            checked={deleteUnderstood}
+            onChange={(e) => setDeleteUnderstood(e.target.checked)}
+            className="mt-1 h-5 w-5 shrink-0 accent-rose-600"
+          />
+          <span className="font-bold text-slate-700">
+            I understand this cannot be undone and no backup can be recovered afterwards.
+          </span>
+        </label>
+
+        {deleteError && (
+          <p className="mt-3 rounded-xl bg-amber-50 p-3 font-bold text-amber-900">{deleteError}</p>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Btn
+            variant="secondary"
+            size="lg"
+            full
+            disabled={deleting}
+            onClick={() => setConfirmDelete(false)}
+          >
+            Cancel
+          </Btn>
+          <Btn variant="secondary" size="lg" full disabled={deleting} onClick={download}>
+            ⬇ Back up
+          </Btn>
+        </div>
+        <Btn
+          variant="danger"
+          size="lg"
+          full
+          className="mt-3"
+          disabled={!deleteUnderstood || deleting}
+          onClick={async () => {
+            setDeleting(true)
+            setDeleteError(null)
+            /*
+             * Server first, device second. The install id is the only handle
+             * on those rows, so wiping it before the call would leave them
+             * permanently unreachable — the opposite of what was asked for.
+             * If the call fails the device is left untouched and the parent
+             * is told, rather than being assured of a deletion that did not
+             * happen.
+             */
+            const { installId, shareUsage } = useStore.getState().device
+            if (shareUsage && installId && !(await sendForget(installId))) {
+              setDeleting(false)
+              setDeleteError(
+                'Could not reach our server to delete the shared usage records, so nothing has been deleted yet. Check your connection and try again, or turn off "Help improve Brainy" first to delete just this device.',
+              )
+              return
+            }
+            store.resetEverything()
+          }}
+        >
+          {deleting ? 'Deleting…' : 'Delete everything'}
+        </Btn>
       </Modal>
     </div>
   )

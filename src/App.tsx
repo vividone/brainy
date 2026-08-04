@@ -13,6 +13,7 @@ import { Shop } from './screens/Shop'
 import { Subject } from './screens/Subject'
 import { WhoIsPlaying } from './screens/WhoIsPlaying'
 import { Locked } from './screens/Locked'
+import { Unlocked } from './screens/Unlocked'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
@@ -22,6 +23,11 @@ import { buildWeeklySummaries, isoWeek } from './state/weekly'
 import { sendEvent } from './lib/usage'
 import { dayKey } from './lib/dates'
 import { APP_VERSION } from './game/characters'
+import { claim, daysSinceCheck, revalidate, type StoredLicence } from './lib/licence'
+import { subjectOpen, useEntitlement } from './state/entitlement'
+
+/** How often a stored licence is checked against the server. */
+const LICENCE_RECHECK_DAYS = 7
 
 type Route =
   | { name: 'home' }
@@ -53,6 +59,12 @@ export default function App() {
    * about how many children currently exist.
    */
   const [needsPicker, setNeedsPicker] = useState(() => useStore.getState().learners.length > 1)
+
+  const entitlement = useEntitlement()
+  const setLicence = useStore((s) => s.setLicence)
+  /** Set only when a parent has just come back from paying. */
+  const [justUnlocked, setJustUnlocked] = useState<StoredLicence | null>(null)
+  const [payProblem, setPayProblem] = useState<string | null>(null)
 
   const [route, setRoute] = useState<Route>({ name: 'home' })
   /** Remembered so "Play again" can rebuild the same kind of session. */
@@ -133,6 +145,63 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [device.shareUsage, device.installId, device.activationSent, device.lastOpenPing, device.lastSharedWeek, markPinged, markShared])
 
+  /*
+   * Coming back from a payment.
+   *
+   * Paystack returns the parent to /play/?ref=…, so this is where a completed
+   * checkout turns into a licence on the device that started it. It runs once
+   * and strips the reference immediately: a reload should not repeat it, and a
+   * payment reference has no business sitting in the address bar of a tablet
+   * that gets handed to a child.
+   */
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get('ref')
+    if (!reference) return
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('ref')
+    window.history.replaceState({}, '', url.toString())
+
+    let cancelled = false
+    void claim(reference, useStore.getState().device.installId).then((result) => {
+      if (cancelled) return
+      if (result.ok && result.licence) {
+        setLicence(result.licence)
+        setJustUnlocked(result.licence)
+      } else {
+        setPayProblem(
+          result.error ??
+            'We could not confirm that payment. Nothing is lost — check the grown-up area in a minute.',
+        )
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [setLicence])
+
+  /*
+   * Re-check the licence occasionally.
+   *
+   * Weekly rather than on every launch, delayed so it never competes with the
+   * app starting, and — the important part — it can only ever *grant* or
+   * confirm. A licence is dropped in exactly one case: the server positively
+   * says it does not know that code. Anything else, including no answer at all,
+   * leaves the family exactly as they were. See src/lib/licence.ts.
+   */
+  const licence = entitlement.licence
+  useEffect(() => {
+    if (!licence || daysSinceCheck(licence) < LICENCE_RECHECK_DAYS) return
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+
+    const timer = window.setTimeout(async () => {
+      const result = await revalidate(licence.code, useStore.getState().device.installId)
+      if (result.ok && result.licence) setLicence(result.licence)
+      else if (result.gone) setLicence(null)
+    }, 8000)
+    return () => window.clearTimeout(timer)
+  }, [licence, setLicence])
+
   /* Back button and Escape both go up one level rather than leaving the app. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -156,12 +225,17 @@ export default function App() {
    */
   const dailySubjectId = useMemo(() => {
     const playable = subjectsForBand(curriculum.id, yearBand).filter(
-      (s) => s.available && s.strands.some((strand) => strand.skills.length > 0),
+      (s) =>
+        s.available &&
+        s.strands.some((strand) => strand.skills.length > 0) &&
+        /* A daily quest that rotates into a locked subject would put the one
+           screen a child taps without thinking behind a paywall. */
+        subjectOpen(s.id, entitlement.full),
     )
     if (playable.length === 0) return 'maths'
     const dayIndex = Math.floor(new Date().setHours(0, 0, 0, 0) / 86_400_000)
     return playable[dayIndex % playable.length].id
-  }, [curriculum.id, yearBand])
+  }, [curriculum.id, yearBand, entitlement.full])
 
   const startDaily = useCallback(() => {
     const plan = buildSession({
@@ -181,6 +255,9 @@ export default function App() {
 
   const startLevel = useCallback(
     (level: Level) => {
+      /* Belt and braces: the subject screen already refuses to open a locked
+         subject, but nothing that starts a session should assume that. */
+      if (!subjectOpen(level.subjectId, entitlement.full)) return
       const plan = buildSession({
         curriculumId: curriculum.id,
         subjectId: level.subjectId,
@@ -198,7 +275,15 @@ export default function App() {
       setLastLaunch({ kind: 'level', level })
       setRoute({ name: 'session', plan })
     },
-    [bands, curriculum.id, progress, seenItems, settings.sessionLength, settings.difficultyOverride],
+    [
+      bands,
+      curriculum.id,
+      progress,
+      seenItems,
+      settings.sessionLength,
+      settings.difficultyOverride,
+      entitlement.full,
+    ],
   )
 
   const handleFinish = useCallback(
@@ -236,6 +321,23 @@ export default function App() {
    * quest finishes.
    */
   if (locked) return <Locked />
+
+  /*
+   * Just back from paying. Above the child picker on purpose — the grown-up is
+   * the one holding the tablet at this moment, and they need to see the code.
+   */
+  if (justUnlocked || payProblem) {
+    return (
+      <Unlocked
+        licence={justUnlocked}
+        problem={payProblem}
+        onDone={() => {
+          setJustUnlocked(null)
+          setPayProblem(null)
+        }}
+      />
+    )
+  }
   if (needsPicker) {
     return (
       <WhoIsPlaying
@@ -280,6 +382,7 @@ export default function App() {
           subjectId={route.subjectId}
           onBack={() => setRoute({ name: 'home' })}
           onOpenIsland={(strandId) => setRoute({ name: 'island', strandId, subjectId: route.subjectId })}
+          onOpenParent={() => setRoute({ name: 'parent' })}
         />
       )
 

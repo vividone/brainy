@@ -24,23 +24,17 @@
  */
 
 import { query } from './_db.js'
+import { clip as clipOrNull, readJson } from './_http.js'
 
 const MAX_BODY = 64 * 1024
 
-/** @param {import('http').IncomingMessage & {body?: unknown}} req */
-async function readJson(req) {
-  if (req.body && typeof req.body === 'object') return req.body
-  const chunks = []
-  let size = 0
-  for await (const chunk of req) {
-    size += chunk.length
-    if (size > MAX_BODY) throw new Error('too large')
-    chunks.push(chunk)
-  }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
-}
-
-const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : undefined)
+/*
+ * The shared helper returns null for a missing field; this route has always
+ * used undefined, which is what `JSON.stringify` drops from the forwarded
+ * payload. Keeping that behaviour means a webhook consumer sees an absent key
+ * rather than a null one.
+ */
+const clip = (value, max) => clipOrNull(value, max) ?? undefined
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
@@ -54,7 +48,7 @@ export default async function handler(req, res) {
 
   let body
   try {
-    body = await readJson(req)
+    body = await readJson(req, MAX_BODY)
   } catch {
     return res.status(400).json({ ok: false, error: 'bad body' })
   }

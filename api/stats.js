@@ -1,21 +1,22 @@
 /**
- * Read side of the dashboard.
+ * Usage numbers for the dashboard — the anonymous half.
  *
- * Behind a shared token in ADMIN_TOKEN. That is deliberately modest security
- * — there is nothing identifying behind it — but the numbers are nobody
- * else's business, and an open endpoint invites scraping.
+ * Nothing here can be tied to a person: an install is a browser profile, and
+ * only for families who opted in. The accounts and money half lives in
+ * api/admin/, and the two are kept apart on purpose — this endpoint knows
+ * nothing about who anybody is, and it should stay that way.
+ *
+ * Authentication moved to the shared admin guard, so a signed-in dashboard
+ * session works and the token remains available for curl and cron.
  */
 
 import { explain, query } from './_db.js'
+import { requireAdmin } from './_auth.js'
 
 const DAYS = 30
 
 export default async function handler(req, res) {
-  const token = process.env.ADMIN_TOKEN
-  const given = req.headers['x-admin-token'] || new URL(req.url, 'http://x').searchParams.get('token')
-
-  if (!token) return res.status(503).json({ ok: false, error: 'ADMIN_TOKEN is not set' })
-  if (given !== token) return res.status(401).json({ ok: false, error: 'bad token' })
+  if (!requireAdmin(req, res)) return
 
   try {
     const installs = await query(`

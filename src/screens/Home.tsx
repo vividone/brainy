@@ -21,6 +21,7 @@ import {
   useProgress,
 } from '../state/selectors'
 import { subjectsForBand } from '../engine/registry'
+import { subjectOpen, useEntitlement } from '../state/entitlement'
 import { sfx } from '../lib/sound'
 
 interface Props {
@@ -38,6 +39,7 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
   const levelStars = useLevelStars()
   const profile = useProfile()
   const { economy, streak } = useLearnerData()
+  const { full } = useEntitlement()
 
   const level = levelProgress(economy.xp)
   const stars = totalStarsEarned(levelStars)
@@ -137,7 +139,15 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
         {subjects.map((s) => {
           const style = subjectStyle(s.subject.color)
           const pct = s.starsPossible ? (s.starsEarned / s.starsPossible) * 100 : 0
-          const ready = s.subject.available && s.skillCount > 0
+          const authored = s.subject.available && s.skillCount > 0
+          /*
+           * Two different kinds of locked, and a child should be able to tell
+           * them apart: not written yet, and not paid for. Both stay tappable —
+           * the card explains itself on the next screen, which is a better
+           * answer to a curious seven-year-old than a card that ignores them.
+           */
+          const open = subjectOpen(s.subject.id, full)
+          const ready = authored && open
 
           return (
             <Card
@@ -153,7 +163,10 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
                   {s.subject.icon}
                 </span>
                 {!ready && (
-                  <span className="absolute top-2 right-2 text-lg" title="Coming soon">
+                  <span
+                    className="absolute top-2 right-2 text-lg"
+                    title={authored ? 'Ask a grown-up' : 'Coming soon'}
+                  >
                     🔒
                   </span>
                 )}
@@ -182,7 +195,9 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
                     </p>
                   </>
                 ) : (
-                  <p className="mt-1.5 text-xs font-bold text-brand-400">Coming soon — tap to see</p>
+                  <p className="mt-1.5 text-xs font-bold text-brand-400">
+                    {authored ? 'Ask a grown-up to open this' : 'Coming soon — tap to see'}
+                  </p>
                 )}
               </div>
             </Card>

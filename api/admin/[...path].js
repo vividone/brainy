@@ -1,0 +1,584 @@
+/**
+ * The admin API — accounts, licences, coupons and money.
+ *
+ * One function with an internal router rather than a file per endpoint. Two
+ * reasons: every one of these needs the same three lines of authentication, and
+ * a hosting plan has a serverless-function budget that a dozen one-line files
+ * spends for nothing.
+ *
+ * Reads are lists a person looks at. Writes are the four things that actually
+ * change what a family can do — grant, extend, revoke, restore — plus coupons,
+ * and every one of them lands in `admin_audit` with who did it. When a parent
+ * says "I paid and it says my access ran out", that table is the answer.
+ *
+ * Deliberately absent: anything that reads a child's work. There is nothing
+ * here to read — it never left the tablet.
+ */
+
+import { NoDatabase, all, audit, explain, one, query } from '../_db.js'
+import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from '../_http.js'
+import {
+  clearSession,
+  issueSession,
+  loginBlocked,
+  noteFailedLogin,
+  readSession,
+  requireAdmin,
+  seedAdmin,
+  sessionSecret,
+  verifyPassword,
+} from '../_auth.js'
+import {
+  PLANS,
+  CURRENCY,
+  ensureSubscription,
+  expireIfDue,
+  findOrCreateParent,
+  grant,
+  isPlan,
+  licencePayload,
+  normaliseCode,
+  randomCoupon,
+} from '../_licence.js'
+import { emailConfigured, sendLicence } from '../_email.js'
+
+const LIST_LIMIT = 500
+
+/* ------------------------------------------------------------------ *
+ * Sessions
+ * ------------------------------------------------------------------ */
+
+async function login(req, res) {
+  if (!sessionSecret()) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Set ADMIN_SESSION_SECRET (or ADMIN_TOKEN) on the deployment before signing in.',
+    })
+  }
+
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const address = parseEmail(body?.email)
+  const password = typeof body?.password === 'string' ? body.password : ''
+
+  if (await loginBlocked(req)) {
+    return res.status(429).json({ ok: false, error: 'Too many attempts. Try again in a few minutes.' })
+  }
+
+  const seed = await seedAdmin()
+  const anyAdmin = await one(`select count(*)::int as n from admin_users`)
+  if ((anyAdmin?.n ?? 0) === 0) {
+    return res.status(503).json({
+      ok: false,
+      error: `No admin account exists yet — ${seed.reason ?? 'set ADMIN_EMAIL and ADMIN_PASSWORD'}.`,
+    })
+  }
+
+  const user = address ? await one(`select * from admin_users where email = $1`, [address]) : null
+  if (!user || !(await verifyPassword(password, user.pw_hash))) {
+    await noteFailedLogin(req)
+    // One message for both cases: a different one for "no such account" tells a
+    // stranger which addresses are worth guessing a password for.
+    return res.status(401).json({ ok: false, error: 'That email and password do not match.' })
+  }
+
+  await query(`update admin_users set last_login = now() where id = $1`, [user.id])
+  issueSession(res, user)
+  await audit(user.email, 'admin.login', null, null)
+  return res.status(200).json({ ok: true, admin: { email: user.email, name: user.name ?? null } })
+}
+
+function logout(req, res) {
+  clearSession(res)
+  return res.status(200).json({ ok: true })
+}
+
+function me(req, res) {
+  const session = readSession(req)
+  if (!session) return res.status(401).json({ ok: false, error: 'Not signed in.' })
+  return res.status(200).json({ ok: true, admin: session })
+}
+
+/* ------------------------------------------------------------------ *
+ * Reads
+ * ------------------------------------------------------------------ */
+
+/**
+ * The numbers on the front page.
+ *
+ * Sign-ups, what each family is on, and what has actually been paid — the three
+ * questions the old usage dashboard could not answer because it had no idea who
+ * anybody was.
+ */
+async function overview(req, res) {
+  /*
+   * Windows are computed here rather than as `now() - interval '7 days'`. Two
+   * reasons: the boundaries then match the ones every other route reasons
+   * about instead of depending on the database's clock and time zone, and
+   * intervals are among the things the in-memory Postgres in the smoke test
+   * does not implement — so this stays a query that is actually tested.
+   */
+  const ago = (n) => new Date(Date.now() - n * 86_400_000).toISOString()
+  const ahead = (n) => new Date(Date.now() + n * 86_400_000).toISOString()
+
+  const parents = await one(
+    `select count(*)::int                             as total,
+            count(*) filter (where created_at >= $1)::int as new_7d,
+            count(*) filter (where created_at >= $2)::int as new_30d,
+            coalesce(sum(children), 0)::int           as children
+     from parents`,
+    [ago(7), ago(30)],
+  )
+
+  const subs = await all(`
+    select plan, status, count(*)::int as n
+    from subscriptions
+    group by plan, status
+    order by n desc
+  `)
+
+  const expiring = await all(
+    `select code, plan, expires_at
+     from subscriptions
+     where status = 'active' and expires_at is not null and expires_at <= $1
+     order by expires_at
+     limit 20`,
+    [ahead(30)],
+  )
+
+  const money = await one(
+    `select coalesce(sum(amount), 0)::bigint as total,
+            count(*)::int                    as payments,
+            coalesce(sum(amount) filter (where paid_at >= $1), 0)::bigint as last_30d
+     from payments
+     where status = 'success'`,
+    [ago(30)],
+  )
+
+  const coupons = await all(`
+    select code, plan, months, max_uses, uses, active, expires_at, note
+    from coupons
+    order by created_at desc
+    limit 50
+  `)
+
+  const recent = await all(`
+    select p.email, p.name, p.created_at, s.code, s.plan, s.status, s.source, s.expires_at
+    from parents p
+    left join subscriptions s on s.parent_id = p.id
+    order by p.created_at desc
+    limit 10
+  `)
+
+  return res.status(200).json({
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    currency: CURRENCY(),
+    /*
+     * Surfaced because a missing key is silent otherwise: codes would still be
+     * shown on screen, families would still be created, and nobody would notice
+     * that not one of them was ever emailed.
+     */
+    email: {
+      configured: emailConfigured(),
+      from: emailConfigured() ? (process.env.EMAIL_FROM ?? null) : null,
+      operator: Boolean(process.env.OPERATOR_EMAIL),
+      reminders: Boolean(process.env.CRON_SECRET),
+    },
+    paystack: { configured: Boolean(process.env.PAYSTACK_SECRET_KEY) },
+    prices: Object.fromEntries(
+      Object.entries(PLANS).map(([id, plan]) => [
+        id,
+        { label: plan.label, amount: plan.amount, months: plan.months, sellable: plan.sellable },
+      ]),
+    ),
+    parents,
+    subscriptions: subs,
+    expiring,
+    money,
+    coupons,
+    recent,
+  })
+}
+
+/**
+ * Every family, with what they are on and how far it has spread.
+ *
+ * Three queries stitched together rather than one with correlated subqueries:
+ * the counts are per-code and per-parent aggregates, and doing them separately
+ * keeps each query something the in-memory Postgres in the smoke test can
+ * actually run — which is the difference between this being tested and not.
+ */
+async function families(req, res) {
+  const params = searchParams(req)
+  const q = clip(params.get('q'), 80)
+  const limit = Math.min(num(params.get('limit'), LIST_LIMIT, 200) || 200, LIST_LIMIT)
+
+  const rows = q
+    ? await all(
+        `select p.id, p.email, p.name, p.phone, p.country, p.children, p.source, p.note, p.created_at,
+                s.code, s.plan, s.status, s.source as granted_by, s.coupon_code,
+                s.started_at, s.expires_at, s.note as licence_note
+         from parents p
+         left join subscriptions s on s.parent_id = p.id
+         where lower(p.email) like $1 or lower(coalesce(p.name, '')) like $1 or upper(coalesce(s.code, '')) like $2
+         order by p.created_at desc
+         limit $3`,
+        [`%${q.toLowerCase()}%`, `%${q.toUpperCase()}%`, limit],
+      )
+    : await all(
+        `select p.id, p.email, p.name, p.phone, p.country, p.children, p.source, p.note, p.created_at,
+                s.code, s.plan, s.status, s.source as granted_by, s.coupon_code,
+                s.started_at, s.expires_at, s.note as licence_note
+         from parents p
+         left join subscriptions s on s.parent_id = p.id
+         order by p.created_at desc
+         limit $1`,
+        [limit],
+      )
+
+  const devices = await all(
+    `select code, count(*)::int as devices, max(last_seen) as last_seen
+     from licence_devices group by code`,
+  )
+  const paid = await all(
+    `select parent_id, coalesce(sum(amount), 0)::bigint as paid, count(*)::int as payments
+     from payments where status = 'success' group by parent_id`,
+  )
+
+  const byCode = new Map(devices.map((d) => [d.code, d]))
+  const byParent = new Map(paid.map((p) => [String(p.parent_id), p]))
+
+  return res.status(200).json({
+    ok: true,
+    currency: CURRENCY(),
+    families: rows.map((r) => ({
+      ...r,
+      devices: byCode.get(r.code)?.devices ?? 0,
+      lastDevice: byCode.get(r.code)?.last_seen ?? null,
+      paid: Number(byParent.get(String(r.id))?.paid ?? 0),
+      payments: byParent.get(String(r.id))?.payments ?? 0,
+    })),
+  })
+}
+
+async function coupons(req, res) {
+  const rows = await all(`
+    select c.code, c.plan, c.months, c.max_uses, c.uses, c.active, c.note,
+           c.expires_at, c.created_by, c.created_at
+    from coupons c
+    order by c.active desc, c.created_at desc
+    limit 200
+  `)
+  const claims = await all(
+    `select coupon_code, count(*)::int as claims from redemptions group by coupon_code`,
+  )
+  const byCode = new Map(claims.map((c) => [c.coupon_code, c.claims]))
+  return res.status(200).json({
+    ok: true,
+    coupons: rows.map((r) => ({ ...r, claims: byCode.get(r.code) ?? 0 })),
+  })
+}
+
+async function payments(req, res) {
+  const rows = await all(`
+    select y.reference, y.plan, y.amount, y.currency, y.status, y.channel, y.paid_at, y.created_at,
+           p.email
+    from payments y
+    left join parents p on p.id = y.parent_id
+    order by y.created_at desc
+    limit 200
+  `)
+  return res.status(200).json({ ok: true, currency: CURRENCY(), payments: rows })
+}
+
+async function auditLog(req, res) {
+  const rows = await all(
+    `select actor, action, target, detail, created_at from admin_audit order by id desc limit 200`,
+  )
+  return res.status(200).json({ ok: true, audit: rows })
+}
+
+/* ------------------------------------------------------------------ *
+ * Writes
+ * ------------------------------------------------------------------ */
+
+/** Months for a plan, allowing an explicit override for an odd case. */
+function monthsFor(plan, given) {
+  if (given === null) return null
+  if (given !== undefined && given !== '') {
+    const n = num(given, 240, 0)
+    return n > 0 ? n : null
+  }
+  return PLANS[plan]?.months ?? null
+}
+
+async function createCoupon(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const plan = clip(body?.plan, 24) ?? 'free-forever'
+  if (!isPlan(plan)) return res.status(400).json({ ok: false, error: 'Unknown plan.' })
+
+  const code = normaliseCode(body?.code) ?? randomCoupon(plan)
+  const months = monthsFor(plan, body?.months)
+  const maxUses = Math.max(1, num(body?.maxUses, 10_000, 1))
+  const expiresAt = body?.expiresAt ? new Date(body.expiresAt) : null
+  if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+    return res.status(400).json({ ok: false, error: 'That expiry date is not a date.' })
+  }
+
+  const existing = await one(`select code from coupons where code = $1`, [code])
+  if (existing) return res.status(409).json({ ok: false, error: 'That code already exists.' })
+
+  const row = await one(
+    `insert into coupons (code, plan, months, max_uses, note, expires_at, created_by)
+     values ($1, $2, $3, $4, $5, $6, $7)
+     returning *`,
+    [code, plan, months, maxUses, clip(body?.note, 200), expiresAt, admin.email],
+  )
+  await audit(admin.email, 'coupon.created', code, `${plan} · ${maxUses} use(s)`)
+  return res.status(200).json({ ok: true, coupon: row })
+}
+
+async function setCouponActive(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const code = normaliseCode(body?.code)
+  const active = Boolean(body?.active)
+  if (!code) return res.status(400).json({ ok: false, error: 'Which code?' })
+
+  const row = await one(`update coupons set active = $2 where code = $1 returning *`, [code, active])
+  if (!row) return res.status(404).json({ ok: false, error: 'No such code.' })
+  await audit(admin.email, active ? 'coupon.enabled' : 'coupon.disabled', code, null)
+  return res.status(200).json({ ok: true, coupon: row })
+}
+
+/**
+ * Give a family access directly.
+ *
+ * The manual path matters more than it looks: somebody pays by bank transfer,
+ * somebody's card fails three times and you have had enough, somebody is the
+ * twenty-first family and you decide they count. Without this the answer to all
+ * three is "write some SQL", and that is how mistakes get made at the point
+ * money is involved.
+ */
+async function grantAccess(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const address = parseEmail(body?.email)
+  if (!address) return res.status(400).json({ ok: false, error: 'An email address is needed.' })
+
+  const plan = clip(body?.plan, 24) ?? 'free-forever'
+  if (!isPlan(plan)) return res.status(400).json({ ok: false, error: 'Unknown plan.' })
+
+  const parent = await findOrCreateParent({
+    email: address,
+    name: clip(body?.name, 80),
+    phone: clip(body?.phone, 32),
+    children: num(body?.children, 20, 1),
+    source: 'admin',
+    note: clip(body?.note, 400),
+  })
+  const subscription = await ensureSubscription(parent.id)
+  const months = monthsFor(plan, body?.months)
+
+  const updated = await grant({
+    subscription,
+    plan,
+    months,
+    source: 'admin',
+    note: clip(body?.note, 200),
+  })
+  await audit(admin.email, 'licence.granted', address, `${plan} · ${months ?? 'no'} months`)
+
+  const licence = licencePayload(updated, parent)
+  /*
+   * Send them the code unless told not to.
+   *
+   * A grant made by hand is usually the end of a conversation — a bank transfer,
+   * an apology, a family you decided counts — and the code is the point of it, so
+   * emailing it is the default. `notify: false` covers the case where you are
+   * already replying to them yourself and a second email would be noise.
+   */
+  const sent = body?.notify === false ? { skipped: true } : await sendLicence(licence, {
+    reason: plan === 'free-forever' ? 'free-place' : undefined,
+  })
+
+  return res.status(200).json({ ok: true, licence, emailed: Boolean(sent?.ok) })
+}
+
+async function extend(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const code = normaliseCode(body?.code)
+  const months = Math.max(1, num(body?.months, 240, 12))
+  if (!code) return res.status(400).json({ ok: false, error: 'Which code?' })
+
+  const sub = await one(`select * from subscriptions where code = $1`, [code])
+  if (!sub) return res.status(404).json({ ok: false, error: 'No such code.' })
+  if (sub.expires_at === null && sub.status === 'active') {
+    return res.status(409).json({ ok: false, error: 'That licence never expires — there is nothing to extend.' })
+  }
+
+  const updated = await grant({
+    subscription: sub,
+    plan: sub.plan === 'none' ? 'annual' : sub.plan,
+    months,
+    source: 'admin',
+  })
+  await audit(admin.email, 'licence.extended', code, `+${months} months`)
+
+  const parent = await one(`select * from parents where id = $1`, [sub.parent_id])
+  const licence = licencePayload(updated, parent)
+  /* Worth telling them: an extension they do not know about is one they may pay
+     for again. Reuses the licence email, whose body already states the new run. */
+  if (body?.notify !== false) await sendLicence(licence)
+
+  /* Extending clears any renewal warning, so the next one can be sent in time. */
+  await query(`delete from reminders where code = $1 and kind = 'expiring'`, [code])
+
+  return res.status(200).json({ ok: true, licence })
+}
+
+async function setStatus(req, admin, res, status) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const code = normaliseCode(body?.code)
+  if (!code) return res.status(400).json({ ok: false, error: 'Which code?' })
+
+  const sub = await one(`select * from subscriptions where code = $1`, [code])
+  if (!sub) return res.status(404).json({ ok: false, error: 'No such code.' })
+
+  /*
+   * Restoring re-derives the status from the dates rather than assuming
+   * `active`: un-revoking a licence whose year ran out last month should leave
+   * it expired, not hand back five weeks nobody paid for.
+   */
+  const resolved =
+    status === 'active' && sub.expires_at && new Date(sub.expires_at).getTime() <= Date.now()
+      ? 'expired'
+      : status
+
+  const updated = await one(
+    `update subscriptions set status = $2, updated_at = now() where id = $1 returning *`,
+    [sub.id, resolved],
+  )
+  await audit(admin.email, `licence.${status === 'revoked' ? 'revoked' : 'restored'}`, code, resolved)
+  return res.status(200).json({ ok: true, licence: licencePayload(updated, null) })
+}
+
+/**
+ * Send a family their code again.
+ *
+ * The commonest support request there will ever be — "I have a new tablet and I
+ * cannot find the code" — and without this the answer is copying it out of a
+ * table and into a mail client by hand, which is how a code reaches the wrong
+ * person.
+ */
+async function emailLicence(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const code = normaliseCode(body?.code)
+  if (!code) return res.status(400).json({ ok: false, error: 'Which code?' })
+
+  const sub = await expireIfDue(await one(`select * from subscriptions where code = $1`, [code]))
+  if (!sub) return res.status(404).json({ ok: false, error: 'No such code.' })
+  const parent = await one(`select * from parents where id = $1`, [sub.parent_id])
+  if (!parent?.email) return res.status(409).json({ ok: false, error: 'That family has no email address.' })
+
+  const licence = licencePayload(sub, parent)
+  if (!licence.full) {
+    /* Sending "here is your code, everything is open" to a family whose licence
+       has lapsed or been revoked would be a lie in writing. */
+    return res.status(409).json({
+      ok: false,
+      error: `That licence is ${licence.status}, so there is nothing to send. Grant or restore it first.`,
+    })
+  }
+
+  const sent = await sendLicence(licence)
+  await audit(admin.email, 'licence.emailed', parent.email, sent.ok ? 'sent' : (sent.error ?? 'failed'))
+  if (!sent.ok) {
+    return res.status(502).json({
+      ok: false,
+      error: sent.skipped ? 'Email is not configured on this deployment.' : `Could not send: ${sent.error}`,
+    })
+  }
+  return res.status(200).json({ ok: true, to: parent.email })
+}
+
+/**
+ * A family's own licence, looked up by code — the "what does this parent
+ * actually see?" question, answered from the same function the app calls.
+ */
+async function lookup(req, res) {
+  const code = normaliseCode(searchParams(req).get('code'))
+  if (!code) return res.status(400).json({ ok: false, error: 'No code given.' })
+  const sub = await expireIfDue(await one(`select * from subscriptions where code = $1`, [code]))
+  if (!sub) return res.status(404).json({ ok: false, error: 'No such code.' })
+  const parent = await one(`select * from parents where id = $1`, [sub.parent_id])
+  const devices = await all(
+    `select install_id, first_seen, last_seen from licence_devices where code = $1 order by last_seen desc limit 50`,
+    [code],
+  )
+  return res.status(200).json({ ok: true, licence: licencePayload(sub, parent), devices })
+}
+
+/* ------------------------------------------------------------------ *
+ * Router
+ * ------------------------------------------------------------------ */
+
+export default async function handler(req, res) {
+  const parts = pathParts(req, 'admin/')
+  const route = `${req.method} ${parts.join('/')}`
+
+  try {
+    /* The only two that do not need a session. */
+    if (route === 'POST login') return await login(req, res)
+    if (route === 'POST logout') return logout(req, res)
+    if (route === 'GET me') return me(req, res)
+
+    const admin = requireAdmin(req, res)
+    if (!admin) return
+
+    switch (route) {
+      case 'GET overview':
+        return await overview(req, res)
+      case 'GET families':
+        return await families(req, res)
+      case 'GET coupons':
+        return await coupons(req, res)
+      case 'GET payments':
+        return await payments(req, res)
+      case 'GET audit':
+        return await auditLog(req, res)
+      case 'GET licence':
+        return await lookup(req, res)
+
+      case 'POST coupons':
+        return await createCoupon(req, admin, res)
+      case 'POST coupons/active':
+        return await setCouponActive(req, admin, res)
+      case 'POST licence/grant':
+        return await grantAccess(req, admin, res)
+      case 'POST licence/extend':
+        return await extend(req, admin, res)
+      case 'POST licence/email':
+        return await emailLicence(req, admin, res)
+      case 'POST licence/revoke':
+        return await setStatus(req, admin, res, 'revoked')
+      case 'POST licence/restore':
+        return await setStatus(req, admin, res, 'active')
+
+      default:
+        return res.status(404).json({ ok: false, error: `No admin route for ${route}.` })
+    }
+  } catch (err) {
+    if (err instanceof NoDatabase) {
+      return res.status(503).json({
+        ok: false,
+        error: 'DATABASE_URL is not set on this deployment.',
+        hint: 'Set the pooled connection string, then redeploy.',
+      })
+    }
+    console.error('[brainy:admin]', err)
+    return res.status(500).json({
+      ok: false,
+      error: explain(err),
+      hint: 'Check DATABASE_URL is the pooled connection string, then redeploy.',
+    })
+  }
+}

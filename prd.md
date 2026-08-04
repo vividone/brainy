@@ -1,20 +1,28 @@
-# Kolo — Product Requirements & Architecture
+# Brainy — Product Requirements & Architecture
 
-> **Working title:** *Kolo* (Yoruba/Nigerian Pidgin for a child's savings box). The learner earns coins that drop into their kolo and spends them on their mascot and world. The name is warm and locally rooted, short, and travels fine internationally. Placeholder — easy to change, it lives in one config constant.
+> **Name:** *Brainy*, powered by **Fortbridge Technologies Ltd**, at **brainy.fortbridge.app**.
+> The app was built as *Kolo* (Yoruba/Nigerian Pidgin for a child's savings box) and renamed once it
+> was going to be handed to other families: *Kolo* is warm but needs explaining to anyone outside
+> Nigeria, and the first thing a stranger's product has to do is be understood. The coin-box idea
+> survives in the shop; the owl mascot did not survive at all (§6.4).
+>
+> One piece of the old name is deliberately still in the code: the localStorage key is
+> `kolo.save.v1` and **must never be changed**. It is the address of every child's progress on every
+> tablet already out there, and renaming it for tidiness would orphan all of them silently.
 
 | | |
 |---|---|
 | **Author** | Victor Olaitan |
-| **Date** | 2 August 2026 |
-| **Status** | Living document — phase 1 shipped, phase 2 in progress |
+| **Date** | 4 August 2026 |
+| **Status** | Living document — phases 1, 5 and 6 shipped; phase 2 in progress |
 | **Primary learner** | 7-year-old, finishing Basic 2, entering Basic 3 |
-| **v1 scope** | Structure for Basic 1–6 × 7 subjects × 3 curricula. Mathematics authored end to end; other subjects structured, not yet written. Tablet-first web app, no accounts. |
+| **Scope now** | Basic 1–6 × 11 subjects × 3 curricula, structured. Mathematics authored end to end across all three curricula; QR, VR and English Grammar authored and being deepened; the fact-heavy subjects structured but not yet written. Tablet-first installable web app. No child accounts, ever. |
 
 ---
 
 ## 1. Summary
 
-Kolo is a gamified practice app for lower-primary children. It turns curriculum-aligned drilling into a short daily game: 5–10 minute sessions, immediate feedback, coins, streaks, a mascot to dress up, and a world map that opens up as skills are mastered.
+Brainy is a gamified practice app for primary children. It turns curriculum-aligned drilling into a short daily game: 5–10 minute sessions, immediate feedback, coins, streaks, a character and pet the child picks and adds to, and a world map that opens up as skills are mastered.
 
 It spans the whole of primary — **Basic 1 to Basic 6** — with British and American equivalents of each class.
 
@@ -74,7 +82,14 @@ Wants three things, in this order: *is my child actually learning?*, *what shoul
 
 ### 2.3 Tertiary user — other parents (future)
 
-The product must be shareable as a link with no setup ritual: open it, pick a curriculum and year, type a first name, start playing. Every step between the link and the first question loses people.
+The product must be shareable as a link with no setup ritual: open it, answer a few questions, start playing. Every step between the link and the first question loses people.
+
+**Revised: setup is parent-led, not child-led.** The original design put the child straight into a
+name-and-colour flow. That was wrong on two counts — a 7-year-old cannot pick their own year band,
+and the parent is the person who needs to understand what the app is before handing over the tablet.
+Setup now addresses the grown-up throughout, ends by setting the parent code, and hands over
+explicitly ("Give the tablet to Jaymin"). It costs perhaps twenty seconds and it means the first
+adult to open Brainy has seen what it does, what it collects, and where the grown-up area is.
 
 ---
 
@@ -93,12 +108,27 @@ The product must be shareable as a link with no setup ritual: open it, pick a cu
 
 ### 3.2 Non-goals for v1
 
-- No user accounts, login, or cloud sync.
 - No multiplayer, leaderboards, or any child-to-child contact.
 - No chat, no user-generated content, no AI tutor in-app.
 - No video lessons. This is a practice app, not a teaching app. (Short hint cards, yes; lessons, no.)
-- No payments in phase 1 (see §14 for the model, phase 5 for delivery).
 - Subjects beyond Mathematics are structured but not authored in phase 1 — the engine, navigation and data model already accommodate them, so adding each is content work rather than engineering work.
+
+**Revised: "no accounts, no backend" split in two.** The original non-goal was a single line — *no
+user accounts, login, or cloud sync* — and it has been separated into a part that hardened and a part
+that gave way.
+
+- **Hardened, and now a principle rather than a non-goal: children never have accounts.** No
+  credentials, no row in any table, no name or answer leaving the device. Nothing in the licensing
+  or analytics work touched this, and §12 exists to keep it that way.
+- **Gave way: adults can have one.** A parent who claims a free place, redeems a code or pays needs
+  somewhere for that to live, and "the licence is on this tablet only" fails the first time a tablet
+  is replaced — which is exactly when a family most needs it to work. So there is a small backend
+  holding parents, licences and payments (§14.1), and a parent-held access code that carries a
+  licence to a new device.
+- **Still deferred: cloud sync of a child's progress.** Moving between devices is done with an
+  export file (§10.4), not a server. Sync is phase 7 precisely because it is the step that would put
+  a child's data somewhere other than their own tablet, and it needs the design work in §12 rather
+  than an incremental slide into it.
 
 ---
 
@@ -110,7 +140,7 @@ The product must be shareable as a link with no setup ritual: open it, pick a cu
 4. **Short by default.** The default session is 10 questions. Playing more is a choice the child makes, never a requirement.
 5. **The child never sees a setting.** Difficulty, curriculum, sound, and time limits are all parent-side.
 6. **Every question is readable aloud.** Tap the speaker, hear the question. Non-negotiable at this age.
-7. **Nothing leaves the device.** No analytics beacons, no third-party scripts, no fonts from a CDN. This is a children's app; the safest data policy is having no data.
+7. **Nothing about the child leaves the device.** No analytics beacons, no third-party scripts, no fonts from a CDN, and no name, age, answer or score ever transmitted. This is a children's app; the safest data policy is having no data. The only things that ever go anywhere are a grown-up's own decisions — opt-in usage counts, and the email address behind a licence (§12, §14.1).
 8. **Offline-first.** The tablet in the back of a car with no signal is a real use case.
 
 ---
@@ -148,6 +178,27 @@ So **questions are generated**, from parameterised templates with a seeded rando
 Seeding matters for two reasons: a session can be reproduced exactly for debugging, and the parent zone can show the actual questions a child got wrong.
 
 Authored items remain supported for cases generation handles badly — naming a 3D shape from a picture, science facts, a specific verbal-reasoning idiom. The engine treats both uniformly.
+
+**Revised: "hundreds of thousands of combinations" is not the same as variety.** The count above is
+true and was still the wrong measure. A child reported seeing repeated questions in Quantitative
+Reasoning, Verbal Reasoning and English Grammar while the arithmetic combinatorics said that was
+nearly impossible — because what a child recognises is not the numbers, it is the *shape* of the
+question. Twenty templates each producing thousands of variants still reads as twenty questions.
+
+Three things came out of that, and they apply to every pack:
+
+- **Signatures.** Every generated question carries a signature, recorded per skill, and the session
+  builder will not serve one that has been seen recently. Generation retries until it finds a new
+  one.
+- **Shape, measured.** Variety is now measured as distinct *forms* — the question text with digits
+  normalised to `#` and quoted words to `W` — not distinct strings. This is the number that
+  corresponds to what a child perceives, and it is reported per skill by the smoke test.
+- **Breadth over depth when authoring.** A skill with four templates and huge numeric range is worse
+  than one with twelve templates and a modest range. Content review now asks for the second.
+
+The word-heavy subjects are the hard case: verbal reasoning and grammar have far less room to vary
+than arithmetic, because the vocabulary must stay age-appropriate. Their answer is bigger authored
+pools rather than cleverer generation.
 
 ### 5.3 Mastery and adaptivity
 
@@ -211,12 +262,12 @@ The next focus skill is the first skill, in curriculum order, that satisfies: al
 ### 6.1 The loop
 
 ```
-Open app → see mascot, streak, and the map
-         → tap a glowing island (a strand)
+Open app → see your character and pet, streak, and the subject grid
+         → tap a subject, then a glowing island (a strand)
          → tap a level (a session of 10 questions)
          → answer, get instant feedback, watch progress bar fill
          → results: stars, coins, XP, "new best" moments
-         → coins drop into the kolo → shop → dress the mascot
+         → coins drop into the coin box → shop → new characters, pets and outfits
          → tomorrow's streak flame is visible on the way out
 ```
 
@@ -229,7 +280,7 @@ Open app → see mascot, streak, and the map
 | **Coins** | Spending | 1 per correct answer, +5 completion, +5 for 3 stars, +10 daily first-session bonus |
 | **Stars** | Per-session quality | 1 star ≥ 50% first-try accuracy, 2 ≥ 75%, 3 ≥ 90% |
 | **Streak** | Habit | Consecutive days with ≥1 completed session. One "streak freeze" auto-granted per week |
-| **Badges** | Milestones | "First Mango" (first session), "Sharp Sharp" (10 in a row correct), "Kolo Full" (500 coins), one per strand mastered, streak badges at 3/7/14/30 |
+| **Badges** | Milestones | "First Mango" (first session), "Sharp Sharp" (10 in a row correct), "Coin Box Full" (500 coins), one per strand mastered, streak badges at 3/7/14/30 |
 
 Deliberately **no** in-app leaderboards or comparisons with other children. At seven, that teaches the wrong lesson and the child in question is competing with himself.
 
@@ -237,11 +288,25 @@ Deliberately **no** in-app leaderboards or comparisons with other children. At s
 
 The map is a small island world. Each **strand** is an island; each island holds 5–8 **levels** (sessions). Completing an island unlocks the bridge to the next and awards a trophy displayed in the child's room. Islands are themed to the maths: Number Island (a market), Operation Falls, Fraction Grove (mango orchard — halves and quarters of real things), Measure Bay, Shape City, Data Beach.
 
-### 6.4 The mascot
+### 6.4 The character and pet
 
-An owl called **Kolo**. Reacts to answers (celebrates, encourages, never scolds), delivers hints, and is the thing coins get spent on: hats, glasses, capes, and room decorations. Cosmetic only — nothing bought ever affects learning, and nothing is ever gated behind money.
+**Revised: one fixed mascot became a character the child chooses.** The original design was a single
+owl called Kolo that the child dressed up. Watching a 7-year-old actually use it changed the
+decision: the strongest pull was not decorating a mascot he had been given, it was *having one that
+was his*. Picking is now the first thing that happens after setup, and the child chooses two things —
+a **human character** and a **pet**.
 
-Cosmetics are rendered as **inline SVG driven by config**, not image assets. Adding a hat is a data change, and the whole app stays under a megabyte.
+- **16 characters and 12 pets.** A handful of each are free so the first choice is a real choice and
+  not a single default with fifteen padlocks. The rest cost coins.
+- **Buying more is the main coin sink**, and the reason to come back to the shop. This is the
+  mechanic that visibly increased voluntary play, which is why it was expanded rather than left as
+  hats and capes.
+- **Cosmetic only.** Nothing bought ever affects learning, difficulty or progression, and nothing is
+  purchasable with money — coins are earned by answering questions and by nothing else. A paid
+  licence buys access to the app, never an advantage inside it.
+
+Characters, pets and cosmetics are rendered as **inline SVG driven by config**, not image assets.
+Adding one is a data change, and the whole app stays small enough to install over a slow connection.
 
 ### 6.5 What we deliberately avoid
 
@@ -253,14 +318,29 @@ Cosmetics are rendered as **inline SVG driven by config**, not image assets. Add
 
 | Screen | Purpose | Notes |
 |---|---|---|
-| **First run** | Pick curriculum + year, enter first name, choose mascot colour, set parent PIN | Under 30 seconds. No email, no account. |
-| **Home / Map** | The island world, streak, level, coin balance | The default landing screen |
+| **First run** | Parent-led: child's **age** (class is derived), curriculum, first name, sharing choice, parent code | Addressed to the grown-up throughout, then hands over explicitly. Also the way in for **Restore a backup** — see below. |
+| **Pick your buddy** | Choose a human character and a pet | The first thing the child does. Free options only until they earn coins. |
+| **Home** | Subject **grid**, streak, level, coin balance, character and pet | The default landing screen |
+| **Subject** | One subject's strands, mastery, and what it covers by class | See the note below on why this exists |
 | **Level select** | Levels within an island, stars earned on each | Locked levels visibly locked but never scolding |
 | **Session** | One question at a time, progress bar, speaker button, hint button | The core screen; see §7.1 |
 | **Results** | Stars, coins earned, XP bar, badges unlocked, "play again" / "back to map" | Celebration is generous but under 5 seconds to skip |
-| **Kolo (shop)** | Spend coins on mascot cosmetics and room items | |
-| **My Room** | The mascot, trophies, badges | Pure reward, no function. Kids love it. |
-| **Parent zone** | PIN-gated. Progress, weak skills, time on task, settings | See §7.2 |
+| **Shop** | Spend coins on characters, pets and cosmetics | The main coin sink; see §6.4 |
+| **My Room** | Character, pet, trophies, badges, collections | Pure reward, no function. Kids love it. |
+| **Who is playing?** | Pick a child, when a device has more than one | Only appears when there is more than one; never in the way of a single-child family |
+| **Taking a break** | The whole app, paused by a grown-up, with an optional note | Warm rather than punitive; "I am a grown-up" leads to the code pad |
+| **Parent zone** | Code-gated. Progress, analysis, children, access, settings | See §7.2 |
+
+**Revised: the subject row became a grid, and subjects got their own screen.** Subjects were
+originally a horizontally scrolling row on the home screen. With three subjects that was fine; with
+eleven it became a carousel a child had to swipe through, and the ones off-screen were effectively
+invisible. Two changes followed from watching that:
+
+- **A grid, not a row.** Everything available is visible at once, without scrolling, which is also
+  how a child discovers a subject they have not tried.
+- **A subject opens its own screen** rather than expanding in place, showing that subject's strands,
+  mastery so far, and what it covers at this class. A parent asking "is this actually teaching him
+  the Basic 3 syllabus?" gets an answer without leaving the child's side of the app.
 
 ### 7.1 Question types
 
@@ -281,16 +361,49 @@ Every type: ≥64 px targets, immediate visual + audio feedback, works with one 
 
 ### 7.2 Parent zone
 
-PIN-gated by a 4-digit code (a simple maths question guards the entrance too — effective at this age). Contains:
+Gated by a 4-digit code (a simple maths question guards the entrance too — effective at this age).
+It grew from one screen into tabs, because a single scrolling page could no longer hold it:
+
+**Progress**
 
 - **This week** — days played, sessions, minutes, questions answered
-- **Mastery by strand** — a bar per strand, colour-coded by band
-- **Needs attention** — the three lowest-mastery skills that have been attempted, each with the actual questions missed and a one-line "how to help at home" tip
-- **Settings** — curriculum, year band, **difficulty (Auto or pinned 1–5)**, session length, Beat the Clock on/off and **seconds per question**, sound, read-aloud on/off and speed, dyslexia-friendly font, reduced motion, parent code, reset progress, export progress as JSON
+- **Class readiness** — how much of the current class's material is mastered, which is the question
+  a parent actually has, phrased the way they ask it
+- **Accuracy trend** — six weeks, so a bad week reads as a bad week rather than as a verdict
+- **Mastery by subject and strand** — a bar each, colour-coded by band
+- **Strongest and needs attention** — deliberately drawn from opposite ends of a single ranking, so
+  the same skill can never appear in both lists
+- **Retention** — accuracy on review items seen after a gap, which is the only honest measure of
+  whether anything stuck, plus what is **going rusty** and due for review
+- **Needs attention** entries carry the actual questions missed and a one-line "how to help at home"
+  tip. This remains the highest-value thing in the app for a parent and the most likely reason one
+  recommends it to another.
 
-  The difficulty control shows what Auto is currently choosing ("Auto is pitching *Adding big numbers* at level 3 of 5") before a parent decides to override it — otherwise the choice is blind.
+**Children** — add a child, rename, switch, and remove. Each child keeps their own progress, coins,
+streak and report; the only shared things are the sound setting and the grown-up code.
 
-The "how to help" tip is the highest-value thing in this screen and the most likely reason a parent recommends the app to another parent.
+**Access** — the family's licence: plan, how many children it covers, and where to enter or change
+an access code (§14.1).
+
+**Settings** — curriculum, year band, **difficulty (Auto or pinned 1–5)**, session length, Beat the
+Clock on/off and **seconds per question**, sound, read-aloud on/off and speed, dyslexia-friendly
+font, reduced motion, grown-up code, **lock the app**, **Help improve Brainy** (the one consent),
+feedback, export and restore a backup, reset progress, and **delete everything**.
+
+  The difficulty control shows what Auto is currently choosing ("Auto is pitching *Adding big
+  numbers* at level 3 of 5") before a parent decides to override it — otherwise the choice is blind.
+
+**Added: a parent can lock the app.** Screen-time arguments are the most common reason a good
+learning app gets deleted, so ending the session is a first-class feature rather than something a
+parent has to do by confiscating the tablet. Locking shows a warm "Taking a break" screen with the
+child's buddy and an optional note from the parent, and unlocking needs the grown-up code.
+
+**Added: a parent can remove a child, or delete everything.** Both matter for a product handed to
+other families — a shared or borrowed tablet needs a way to clear a child off it, and a parent who
+changes their mind is owed a real exit rather than a settings page that only adds. Removing the last
+child returns to setup but keeps the grown-up's own code and preferences; **Delete everything**
+wipes the device back to a fresh install and, when usage sharing was on, erases the server-side
+records first — see §12.
 
 ---
 
@@ -434,7 +547,7 @@ Create `src/content/<id>/`, export a manifest, register it. No engine change, no
 | Layer | Choice | Why |
 |---|---|---|
 | Build | **Vite** | Fast, boring, excellent PWA story |
-| UI | **React 19 + TypeScript** | Types matter a lot for a content model this size |
+| UI | **React 18 + TypeScript** | Types matter a lot for a content model this size |
 | Styling | **Tailwind CSS v4** | Fast iteration; kid-scale sizing enforced by design tokens |
 | Animation | **CSS keyframes** | The "juice" that makes it feel like a game, with no animation library to ship |
 | State | **Zustand + persist** | Small, no boilerplate, localStorage persistence built in |
@@ -443,10 +556,26 @@ Create `src/content/<id>/`, export a manifest, register it. No engine change, no
 | Audio | **Web Audio API, synthesised** | No audio assets to ship or license |
 | Speech | **Web Speech API** | Built into every target browser, free, offline on most |
 | Graphics | **Inline SVG** | Themeable, tiny, scales to any screen, no asset pipeline |
-| Backend | **None** | Deliberately |
-| Hosting | Static — Netlify / Vercel / Cloudflare Pages | Free tier is more than enough |
+| Backend | **A handful of serverless functions + Postgres** | None for the game itself. Opt-in usage data, parent sign-ups, licences and payments only — see §12 and §14.1 |
+| Hosting | **Vercel** | Chosen over Netlify because the same platform serves the static app and the `api/` functions; one deploy, one place for environment variables |
+| Database | **Postgres** (pooled connection) | Chosen over a key-value store because the same database has to carry licences and payments later, and moving money off Redis afterwards is the wrong order |
 
-No third-party fonts, no CDN scripts, no analytics SDK. The app is one static bundle.
+No third-party fonts, no CDN scripts, no analytics SDK. The app is one static bundle, and a whole
+session plays with the network off.
+
+**URL layout.** The marketing site is at the root, the app at **`/play/`**, the dashboard at
+`/admin`. One deployment-shaped decision is worth recording because it is invisible and cost real
+time: **`cleanUrls` must stay off in `vercel.json`.** It canonicalises `/play/` to `/play`, which
+falls outside the service worker's `/play/` scope — Chrome then finds no controlling worker and
+silently stops offering to install the app. There is no error; the Install option simply never
+appears. `/admin` and `/privacy` are served by explicit rewrites instead.
+
+**What the backend is not.** It never holds a child's name, age, answers or progress, and the game
+loop makes no request to it: gameplay, mastery, the parent report and every setting are computed on the
+device from localStorage. It exists for three things a static site genuinely cannot do — receive usage
+data a parent opted into, remember that a family has a licence so it survives a new tablet, and take a
+payment. The functions are plain JavaScript in `api/`, with no build step and no framework, for the
+same reason the game has no backend: fewer moving parts than the problem requires is the goal.
 
 ### 10.2 Module layout
 
@@ -455,12 +584,19 @@ src/
   engine/          curriculum-agnostic. types, seeded RNG, registry,
                    session builder, mastery model, scoring
   content/
-    ng-ube/        Nigerian pack — manifest, locale, maths skills + generators
-    uk-nc/         UK pack — stub proving the switch
-  state/           zustand store, persistence, migrations
-  screens/         map, session, results, shop, room, parent, onboarding
-  components/      question renderers, number pad, mascot, chrome
-  lib/             speech, sound, haptics, formatting
+    ng-ube/        Nigerian pack — manifest, locale, skills + generators
+    uk-nc/         UK pack
+    us-ccss/       US pack
+    shared/        generators reused across packs
+  state/           zustand store, persistence, migrations, analytics
+  screens/         home, subject, island, session, results, shop, room,
+                   parent, onboarding, locked, feedback
+  components/      question renderers, number pad, characters, chrome
+  game/            characters, pets, shop catalogue
+  lib/             speech, sound, haptics, formatting, usage, licence
+api/               plain-JS serverless functions. no build step, no framework
+site/              marketing site, privacy notice, admin dashboard
+scripts/           content and API smoke tests, build helpers
 ```
 
 The dependency rule: `content → engine`, `screens → engine + state`, and **never** `engine → content`. Content packs are discovered through a registry, not imported by the engine.
@@ -493,19 +629,46 @@ interface Item {
 
 ### 10.4 Persistence
 
-One versioned object in localStorage under `kolo.save.v1`:
+One versioned object in localStorage under `kolo.save.v1` — a key that **must never change**, for
+the reason given at the top of this document.
+
+**Revised: the save is keyed by learner.** It began as a single child at the top level. It is now
+split into things that belong to the *device* and things that belong to a *child*, because those
+have genuinely different owners:
 
 ```
-profile      name, mascot config, curriculum, year band, created date
-settings     sound, speech rate, session length, font, timed mode, parent PIN
-progress     per curriculum: { skillId: { mastery, attempts, correct,
-                               lastSeen, reviewBox, reviewDue } }
-economy      xp, level, coins, owned cosmetics, equipped
-history      last 60 sessions: date, skills, accuracy, duration, missed items
-streak       current, longest, lastPlayed, freezesAvailable
+learners[]   id, name, curriculum, year band, age, colour, created
+activeLearnerId
+data         per learner id:
+  settings     speech, rate, session length, timed mode, seconds, difficulty, font
+  progress     per curriculum: { skillId: { mastery, attempts, correct,
+                                 lastSeen, reviewBox, reviewDue } }
+  economy      xp, coins, owned characters/pets/cosmetics, equipped
+  history      last 60 sessions: date, skills, accuracy, duration, missed items
+  streak       current, longest, lastPlayed, freezes
+  seenItems    question signatures, so the same question is not served twice
+device       sound, reduced motion, parent code, locked + note, licence,
+             sharing consent + install id
 ```
 
-A `version` field plus a migration chain means the save survives schema changes — which matters once it's on someone else's tablet and can't be wiped.
+A `version` field plus a migration chain means the save survives schema changes — which matters once
+it is on someone else's tablet and cannot be wiped. The single-child-to-multi-child change was made
+as a real migration, not a version bump: **bumping the version without a `migrate` function silently
+discards every existing save**, which would have wiped a child's whole history on upgrade.
+
+**Moving between devices is a file, not a server.** `localStorage` is per-origin, so a child playing
+on `localhost` and the same child on `brainy.fortbridge.app` are simply different stores and always
+will be. Export writes a backup; restore merges it **by child id**, so restoring onto a tablet that
+already has a sibling adds to it rather than replacing it. Three decisions inside that are worth
+recording:
+
+- **Restore is offered during setup**, not only from the parent zone. Requiring a throwaway child
+  before you can restore is exactly backwards for the one person who already has a backup.
+- **The parent code travels; the sharing consent does not.** Without the code, a restored tablet
+  quietly falls back to the default `1234` — guessable by a child, and it would open the grown-up
+  area. The install id is the opposite case: copying it would make two tablets report as one and
+  would move a consent given on one device onto another, so it is stripped from the backup entirely
+  and consent is asked for again.
 
 ### 10.5 Performance targets
 
@@ -530,9 +693,32 @@ Cold load < 2 s on a mid-range Android tablet over 3G · question transition < 1
 
 This is a children's product, which raises the bar and shapes several decisions above.
 
-**v1 posture — no data collection at all.** No accounts, no email, no analytics, no third-party scripts, no network calls after load. Everything lives in the browser's localStorage on the device. A child's first name is entered locally and never transmitted. This is the strongest possible position under Nigeria's NDPR, GDPR-K, and COPPA simultaneously: obligations largely attach to *collecting* or *processing* personal data, and we do neither.
+**The line that has held throughout: no child data ever leaves the device.** No name, no age, no
+answers, no progress, no free text. A child has no account, no credentials and no row in any table.
+Everything the game does is computed locally from localStorage, and a whole session plays with the
+network off. That is the promise the rest of this section protects.
 
-**When cloud sync arrives, this changes materially** and must be designed properly rather than incrementally:
+**What does leave the device, and only because a grown-up chose it:**
+
+| What | Whose | Consent |
+|---|---|---|
+| Usage counts and the weekly summary (§12 below) | The device, via a random install id | Off by default; an unticked box during setup, reversible any time, and switching it off deletes the id **and** asks the server to erase the rows |
+| A parent's email address, and their name and phone if given | The parent's own | Only by claiming a free place, entering a code or paying — never for maths, which needs no sign-up |
+| Payment amount, currency, reference | The parent's own | Only on a purchase. Card details go to Paystack and never to us |
+
+This is a deliberate narrowing of the original "collect nothing at all" posture, and it is worth being
+precise about what changed. **Nothing about a child** became collectable. What became collectable is
+*an adult's contact detail, because they asked us for something that needs one* — restoring their
+access on a new tablet, or honouring a free place to a person rather than to whoever holds a code.
+Under NDPR and GDPR that email address is personal data and is treated as such: named in the privacy
+notice, never used for marketing, never passed on, and erasable on request.
+
+**Still true:** no third-party scripts, no analytics SDK, no advertising, no tracking pixels, no
+profiling, and no ability to join the two halves of the data — the usage tables know an install id and
+nothing about people, the licence tables know people and nothing about children.
+
+**When cloud sync of a child's progress arrives, this changes materially** and must be designed
+properly rather than incrementally. A licence is *not* that step, and must not be mistaken for it:
 
 - Parent-held accounts only; children never have credentials.
 - Verifiable parental consent before any child data is stored (COPPA if there will be US users).
@@ -551,11 +737,11 @@ Phases 1–3 are content work on an unchanged engine. That is the whole point of
 | Phase | Deliverable | Status |
 |---|---|---|
 | **1** | Engine, game loop, parent zone, PWA. Nigerian Maths Basic 1–6. UK and US maths packs. Age-based placement. Parent-set difficulty and timer. | **Done** |
-| **2** | Quantitative Reasoning, Verbal Reasoning and English Grammar packs, Basic 1–6 | In progress |
+| **2** | Quantitative Reasoning, Verbal Reasoning and English Grammar packs, Basic 1–6 | Authored; being deepened for variety (§5.2) |
 | **3** | Basic Science, Basic Technology and Social Studies packs (needs an SVG illustration library for science) | Planned |
 | **4** | Full UK and US packs across all subjects and years | Planned |
-| **5** | **Licensing and payments** — see §14 | Planned |
-| **6** | **Multi-child profiles** on one device — see §14.3 | Planned |
+| **5** | **Licensing and payments** — parent sign-ups, coupons, Paystack, and an admin dashboard. See §14 | **Done** |
+| **6** | **Multi-child profiles** on one device, parent-led setup, backup/restore between devices, parent lock, characters and pets | **Done** |
 | **7** | Optional cloud sync and cross-device. The point at which §12's second half becomes mandatory work. | Planned |
 | **8** | Distribution: shareable link, then Play Store via TWA if the pull is there | Planned |
 | **9** | School licences — the largest revenue opportunity, but a different product with teacher dashboards and class management | Someday |
@@ -564,26 +750,69 @@ Phases 1–3 are content work on an unchanged engine. That is the whole point of
 
 ## 14. Commercial model
 
-Decided, not yet built. Recorded here so the architecture does not foreclose it.
+**Built.** This section describes what exists rather than what is intended; §14.1 records where the
+built thing departs from the original plan and why.
 
-### 14.1 Licensing mechanism: signed keys, not accounts
+### 14.1 Licensing mechanism: parent-held codes, checked by a small backend
 
-The app has no backend and no accounts, and §12 explains why that is worth protecting. Gating on payment does **not** require giving that up.
+The original plan was offline signed keys — a licence blob verified against a public key bundled in
+the app, so the product could stay a static site with no server at all. That was the right instinct
+and the wrong mechanism, for three reasons that only became obvious once the free-family promise was
+written down:
 
-- Parent pays through Paystack. Paystack — not us — holds their email and card details.
-- They receive a **licence key**, signed with a private key held offline.
-- The app verifies the key against a bundled public key. Verification is local; the app still makes no network calls.
-- The app stays a static site on free hosting. No servers, no database, no child data in transit.
+1. **A parent changing tablet has to be able to get their access back.** With offline keys, a lost key
+   is a lost licence, and the only recovery is a human re-issuing one by hand — from a record we had
+   deliberately not kept.
+2. **Nothing could ever be corrected.** A key granted by mistake, a chargeback, a code forwarded to a
+   class WhatsApp group: an offline key cannot be revoked, so every error is permanent.
+3. **The database already existed.** Usage data (§12) had already put a Postgres behind the app, so
+   "no server" was no longer the state being protected. What is actually worth protecting is *no child
+   data leaving the device*, and that survives intact.
 
-Stripe or Paddle covers international buyers; Paddle acts as merchant of record and handles VAT and sales tax, which is a real administrative saving for a one-person operation.
+So instead:
+
+- A parent gives an **email address** — theirs, never the child's — by claiming a free place, entering
+  a code, or paying. That is the only personal data the system holds.
+- They get a **family access code** (`BRN-XXXX-XXXX`). Typing it into the grown-up area activates the
+  device; typing it into a second tablet activates that one too.
+- The licence is **stored on the device**, so paid subjects work fully offline. It is re-checked about
+  once a week, and **only a definite "this code does not exist" ever withdraws it** — a failed check,
+  a flat signal or a dead server changes nothing. The cost of that rule is that a revoked licence can
+  keep working offline for a while, which is the right way round: the alternative punishes the one
+  family who did nothing wrong.
+- Payment goes through **Paystack**, who hold the card details and the receipt. The amount and the
+  reference are minted server-side, and both the webhook and the app's return-from-checkout path
+  re-verify the transaction against Paystack's own API before granting anything.
+- Children are never rows. No name, no age, no answers, no progress — the link between a paying adult
+  and a playing child is the code, and it stops at the device.
+
+Stripe or Paddle covers international buyers later; Paddle acts as merchant of record and handles VAT
+and sales tax, which is a real administrative saving for a one-person operation.
+
+### 14.1.1 Administration
+
+`/admin` is a real dashboard behind an email-and-password login (`api/admin/*`, session cookie,
+scrypt-hashed passwords seeded from the environment). It shows sign-ups, licences, coupons, payments
+and an audit log, alongside the anonymous usage numbers — and the two halves are deliberately
+unjoinable, so the screen showing people cannot be crossed with the screen showing children's
+activity. Every grant, extension and revocation records who made it: that log is the answer when a
+parent says they paid and the app disagrees.
 
 ### 14.2 What is free
 
 Gating by **content**, never by time. A countdown that locks a child out mid-thought is hostile, and any client-side time limit is trivially bypassed anyway.
 
-- The child's own class in **Mathematics** is free, permanently, for everyone.
-- Other subjects and other classes are part of the paid licence.
-- **No paywall ever interrupts a session.** A started quest always finishes.
+- The child's own class in **Mathematics** is free, permanently, for everyone — **and every earlier
+  class of it**, because bands are cumulative (§9.1) and charging for revision of material the child
+  has already been given free would be a nasty little trap.
+- Other subjects are part of the paid licence.
+- **No paywall ever interrupts a session.** Gating happens where a level is *chosen*, never inside
+  one. As implemented, that is enforced in three places at once: the subject grid, the subject screen,
+  and the function that starts a session.
+- **The daily quest never rotates into a locked subject.** It is the one thing a child taps without
+  reading, so it must always land somewhere they can play.
+- **Nothing already earned is ever taken away.** Stars, coins, characters, streaks and history survive
+  a lapsed licence untouched — what closes is access to new content in the paid subjects.
 - No advertising in any tier, ever.
 
 ### 14.3 Pricing
@@ -608,6 +837,12 @@ The intention is that **half the money funds development and hosting, and half g
 
 Ship free to roughly 20 families on an unlisted link **first**, and find out whether children keep playing. That single question determines whether anything else here is worth building. Payments come only once retention is real — and those first families keep it free permanently.
 
+The machinery for all of it is now built, which does not change the sequencing — it removes the
+excuse. Leaving `PAYSTACK_SECRET_KEY` unset switches checkout off entirely, and the app says so in
+plain words rather than showing a broken button; coupons remain the only way in. `SIGNUP_COUPON`
+points at a twenty-use code, so the promise in §14.3 is honoured by whoever gets there first and stops
+being offered the moment the places run out — with no flag to remember to turn off.
+
 ---
 
 ## 15. Success metrics
@@ -624,8 +859,43 @@ The primary metric for v1 is simply: **does he choose to play it without being a
 
 ## 16. Open questions
 
-1. **Name.** *Kolo* is a placeholder. It's one constant to change.
-2. **Voice.** Web Speech API voices are typically a British or American default. A Nigerian-accented voice would land better but needs either a paid TTS service (breaks the no-network rule) or recorded audio (breaks generation, since generated questions can't be pre-recorded). Recommendation: ship with the system voice, revisit if it grates.
-3. **Year-band handling mid-year.** He's between Basic 2 and Basic 3. v1 mixes both bands with B3 weighted higher; worth watching whether that pitches right in practice.
-4. **Session length.** 10 questions is the default. Adjustable in the parent zone; the real answer comes from watching him play.
-5. **Second-child support.** Deferred to phase 5 — but the save format is keyed by learner from the start so it isn't a migration later.
+1. **Voice.** Web Speech API voices are typically a British or American default. A Nigerian-accented voice would land better but needs either a paid TTS service (breaks the no-network rule) or recorded audio (breaks generation, since generated questions can't be pre-recorded). Recommendation: ship with the system voice, revisit if it grates.
+2. **Year-band handling mid-year.** He's between Basic 2 and Basic 3. v1 mixes both bands with B3 weighted higher; worth watching whether that pitches right in practice.
+3. **Session length.** 10 questions is the default. Adjustable in the parent zone; the real answer comes from watching him play.
+4. **How deep is deep enough?** Question variety is now measured rather than guessed — the smoke
+   test reports distinct questions per skill and the distribution of question *shapes*. A handful of
+   Quantitative Reasoning skills sit just under the threshold and are known work. The open question
+   is what the threshold should actually be: the number that matters is how long before a child sees
+   a repeat they recognise, and that is a question about him, not about the generator.
+5. **Whether the first 20 stay 20.** The free-forever promise is deliberately hard to reverse
+   (§14). If uptake is fast, the question is whether to honour more than twenty rather than close
+   the door on a number chosen before anyone had used it.
+
+**Settled since the first draft:** the name (*Brainy*), second-child support (shipped, phase 6),
+how a child moves between devices (an export file, §10.4), and whether to collect usage data at all
+(yes, opt-in and erasable — §12).
+
+---
+
+## 17. Decisions revised since the first draft
+
+Everything here was a considered decision that later evidence overturned. Recorded so the reasoning
+is not lost and the same ground is not re-argued.
+
+| # | Originally | Now | What changed the decision |
+|---|---|---|---|
+| 1 | Named *Kolo* | Named **Brainy**, by Fortbridge Technologies Ltd | Fine for one family, needs explaining to everyone else. The storage key stays `kolo.save.v1` — renaming it would orphan every existing save |
+| 2 | One owl mascot to dress up | A **character and a pet the child picks**, more buyable with coins | The pull was owning one, not decorating one. This is the change that visibly increased voluntary play |
+| 3 | Child-led setup | **Parent-led setup** | A 7-year-old cannot choose a year band, and the adult should see what the app is before handing it over |
+| 4 | Parent picks the class | Parent picks the **age**; class is derived | Parents know an age with certainty and a class only sometimes — and never for an unfamiliar curriculum |
+| 5 | Subjects in a scrolling row | A **grid**, and a screen per subject | Three subjects fitted a row; eleven made it a carousel where most were invisible |
+| 6 | Quantitative & Verbal Reasoning as one subject | **Two subjects** | Nigerian schools timetable and examine them separately, and a child is usually strong at one and weak at the other. A blended score hides the gap |
+| 7 | Fixed 45-second timer | Parent-set timer, and difficulty per child | 45 seconds is a guess. The parent watching the child is better placed than the default |
+| 8 | Nothing ever leaves the device | **Opt-in, erasable usage data** | With nothing at all, there is no way to learn that a question is wrong or badly pitched. The honest fix is consent, not collection — see 9 |
+| 9 | "Anonymous" usage data | Described as **pseudonymous** | A stable install id is a persistent identifier. Calling it anonymous in a children's product would have been the comfortable word rather than the true one |
+| 10 | Opting out just stops collection | Opting out **also erases what was sent** | Otherwise "delete my data" meant deleting the whole account. Erasure runs *before* the id is destroyed, because the id is the only handle on those rows |
+| 11 | Offline signed licence keys | **Parent-held codes checked by a backend** | See §14.1. A tablet-only licence fails the first time a tablet is replaced |
+| 12 | Static host, any provider | **Vercel**, app at `/play/` | One platform for the site and the functions. And `cleanUrls` must stay off, or the PWA silently stops being installable (§10.1) |
+| 13 | Single child per device | **Multi-child**, with per-child everything | Siblings share tablets. Shipped in phase 6 rather than waiting for cloud sync |
+| 14 | Cloud sync for a new device | **Export and restore a file** | Sync moves a child's data off their tablet, which is the one thing §12 protects. A file does the job now and defers that properly to phase 7 |
+| 15 | No way out | **Remove a child; delete everything** | A product handed to other families needs a real exit, not a settings page that only adds |

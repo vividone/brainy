@@ -52,7 +52,7 @@ The config also sets the cache headers that matter: hashed assets are immutable 
 
 ### Database
 
-The same Postgres carries usage data now and Paystack licences later, which is why it is Postgres
+One Postgres carries usage data, parent sign-ups, licences and payments, which is why it is Postgres
 rather than a key-value store.
 
 1. Vercel → **Storage → Create Database → Postgres** (Neon under the hood). Or bring your own from
@@ -65,28 +65,114 @@ rather than a key-value store.
 
 | Variable | Required | What it does |
 |---|---|---|
-| `DATABASE_URL` | for stats | Pooled Postgres connection string |
-| `ADMIN_TOKEN` | for the dashboard | Any long random string; guards `/api/stats` |
-| `REPORT_WEBHOOK_URL` | optional | Also POST feedback to Slack, Discord, Apps Script or an email relay |
+| `DATABASE_URL` | for everything server-side | Pooled Postgres connection string |
+| `ADMIN_EMAIL` | to sign in to `/admin` | The admin account's address |
+| `ADMIN_PASSWORD` | to sign in to `/admin` | At least 10 characters. **This pair is the password reset** — change it here and the login changes |
+| `ADMIN_SESSION_SECRET` | recommended | Any long random string; signs the admin session cookie. Falls back to a value derived from `ADMIN_TOKEN` |
+| `ADMIN_TOKEN` | optional | Machine credential for `curl`/cron against `/api/admin/*` and `/api/stats` |
+| `PAYSTACK_SECRET_KEY` | to take payments | `sk_live_…` or `sk_test_…`. Unset ⇒ checkout is switched off and the app says so |
+| `PRICE_ANNUAL_MINOR` | optional | Price in **minor units** — ₦5,000 is `500000`. Default `500000` |
+| `PRICE_LIFETIME_MINOR` | optional | Default `1500000` (₦15,000) |
+| `PAYSTACK_CURRENCY` | optional | Default `NGN` |
+| `SIGNUP_COUPON` | optional | A coupon code every sign-up tries automatically — this is how the twenty free places are honoured without a human in the loop |
+| `PUBLIC_BASE_URL` | optional | Overrides the origin used in emails and the Paystack return URL. Derived from the request otherwise |
+| `RESEND_API_KEY` | to send email | `re_…` from Resend. Unset ⇒ nothing is sent and every would-be email is logged instead |
+| `EMAIL_FROM` | with Resend | e.g. `Brainy <brainy@fortbridge.app>`. Must be on a domain verified in Resend |
+| `EMAIL_REPLY_TO` | optional | Where replies go, if not the From address |
+| `OPERATOR_EMAIL` | optional | Emails **you** on every sign-up, redemption and payment |
+| `CRON_SECRET` | for renewal warnings | Any long random string. Vercel sends it as a Bearer token; without it `/api/cron/expiring` refuses to run |
+| `REPORT_WEBHOOK_URL` | optional | Also POST feedback, sign-ups and payments to Slack, Discord or Apps Script |
 
-With none of them set the endpoints still return 200 and write to the function log, so a missing
-variable never breaks the app for a family.
+With none of them set, the app still works: usage pings write to the function log, and maths — which
+is free for everybody — needs no server at all. What breaks without `DATABASE_URL` is sign-ups and
+codes, and those say so plainly rather than pretending to have worked.
 
-### The dashboard
+### The admin dashboard
 
-**`https://brainy.fortbridge.app/admin`** — enter `ADMIN_TOKEN`. It shows activations, children,
-active today and this week, one-week retention, devices and questions per day for 30 days, accuracy
-by subject, the curriculum and class split, and recent feedback.
+**`https://brainy.fortbridge.app/admin`** — sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`. The
+account is created in the database on first sign-in and re-synced from the environment every time, so
+changing the variables is the password reset.
 
-Read it as a **floor, not a total**: it only covers families who opted in. `robots.txt` excludes it
-and the page is `noindex`.
+Seven tabs:
 
-### Later: Paystack
+| Tab | What it answers |
+|---|---|
+| **Overview** | Sign-ups, active licences, free vs paid, money taken, coupon places left, what is expiring |
+| **Families** | Every parent, their code, plan, expiry, how many tablets used it, what they paid — with **grant**, **+1 year**, **revoke**, **restore** |
+| **Coupons** | Make a code for one family or twenty, turn one off, see who claimed it |
+| **Payments** | Every transaction and its reference |
+| **Usage** | The anonymous half: activations, active devices, questions per day, accuracy by subject |
+| **Feedback** | What parents have written in |
+| **Log** | Every grant, extension and revocation, and who made it |
 
-The schema is deliberately ready for it. Payments will want `licences` and `payments` tables
-alongside the existing ones, plus `api/paystack/initialise.js` and `api/paystack/webhook.js`. The
-webhook must verify the `x-paystack-signature` HMAC before trusting anything, and the secret key
-must only ever live in an environment variable on the server — never in the client bundle.
+The two halves are deliberately unjoinable: **Usage** knows install ids and nothing about people,
+**Families** knows people and nothing about children. `robots.txt` excludes `/admin` and the page is
+`noindex`.
+
+### Licensing and Paystack
+
+What is gated, from prd.md §14.2: **mathematics is free permanently for everybody** — the child's own
+class and every earlier class as revision. The other subjects need an active licence. Nothing ever
+interrupts a session that has started.
+
+Three ways a family gets access:
+
+1. **A coupon.** Make one in *Coupons* — `FAMILY-7K3M`, 20 uses, free forever — and hand it out. One
+   family can only consume one use however many times they type it. Set `SIGNUP_COUPON` to that code
+   and the landing-page form claims a place automatically until they run out.
+2. **A payment.** `POST /api/pay/initialise` mints the reference and the amount server-side, sends the
+   parent to Paystack, and Paystack returns them to `/play/?ref=…`, which the app turns into a
+   licence. Both the webhook and that return path go through one function that **re-verifies the
+   transaction against Paystack's API before granting anything** — a signed webhook alone is not
+   trusted, and a reference this server never created grants nothing.
+3. **By hand**, in *Families* → *Give a family access*. Bank transfers, apologies, and the
+   twenty-first family you decide counts anyway.
+
+**Set the webhook up** in the Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL:
+`https://brainy.fortbridge.app/api/pay/webhook`. It verifies `x-paystack-signature` (HMAC-SHA512 over
+the raw body) and returns 401 to anything unsigned. The secret key lives only in the environment and
+is never in the client bundle.
+
+The licence is stored on the device, so paid subjects open in airplane mode. It is re-checked about
+once a week, and **only a definite "this code does not exist" ever removes it** — a failed check, a
+flat signal or a dead server leaves a family exactly as they were.
+
+### Email, via Resend
+
+Four messages, and every one exists because a parent would otherwise be stuck:
+
+| When | Message |
+|---|---|
+| A free place claimed, a coupon redeemed, or a grant made by hand | **Your Brainy access code** — the code, and how to use it |
+| A sign-up that granted nothing | **Thanks for signing up** — says plainly that nothing is unlocked, and points at free maths |
+| A successful payment | **Payment received** — amount, reference, and the code |
+| Seven days before an annual licence lapses | **Your access runs out in 7 days** — and what will *not* be lost |
+
+No newsletter, no drip sequence, no marketing. Each is sent once: a parent who submits the form twice
+or re-types a coupon on a second tablet is not emailed again, because nothing happened.
+
+**Setting it up:**
+
+1. Resend → **Domains → Add domain** → `fortbridge.app` (or a subdomain like `mail.fortbridge.app`,
+   which keeps Brainy's sending reputation separate from any other mail on the root domain).
+2. Add the DNS records Resend shows you — a **DKIM** `TXT`, an **SPF** `TXT` on the sending subdomain,
+   and the `MX` for return-path. Wait for all of them to go green. Until the domain is verified, Resend
+   will only deliver to the address that owns the account, which looks exactly like "email is broken".
+3. Set `RESEND_API_KEY` and `EMAIL_FROM` in Vercel, then redeploy.
+4. Optional but worth it: add a **DMARC** record (`_dmarc.fortbridge.app`, `v=DMARC1; p=none;
+   rua=mailto:you@…`) so you can see what receivers make of your mail before tightening it.
+5. Send yourself one: sign up on the landing page with your own address, and check the code arrives and
+   the link in it opens the app.
+
+With `RESEND_API_KEY` unset nothing sends, every would-be message is logged with its subject and
+recipient, and the rest of the product is unaffected — the code is always shown on screen as well, so
+email is the copy a parent can find again in a month rather than the only copy.
+
+**Renewal warnings** run from Vercel Cron, declared in `vercel.json` (`0 9 * * *`, daily at 09:00 UTC).
+Set `CRON_SECRET` or the endpoint refuses to run — a public endpoint that sends email is a public
+endpoint that sends spam. The job is a courtesy, not a mechanism: expiry is evaluated whenever a
+licence is looked at, so if the cron never fires the only thing lost is the warning. Run it by hand
+with `curl -H "Authorization: Bearer $CRON_SECRET" https://brainy.fortbridge.app/api/cron/expiring`.
 
 ## After deploying, check these
 
@@ -102,8 +188,17 @@ Worth doing on a real phone, not just a laptop.
 - [ ] Setup asks about usage data and the box starts **unticked**
 - [ ] Declining it sends nothing (check the Network tab — there should be no `/api` calls at all)
 - [ ] Accepting it produces `activate` and `open` rows, and finishing a quest produces `session`
-- [ ] `/admin` loads with `ADMIN_TOKEN` and refuses a wrong one
+- [ ] `/admin` signs in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` and refuses a wrong password
 - [ ] The feedback form sends, and its **Copy instead** fallback works with the phone offline
+- [ ] Maths opens with no licence; another subject shows the friendly locked card
+- [ ] The landing-page form accepts an address, and the row appears in *Families*
+- [ ] A coupon made in *Coupons* unlocks everything from grown-up area → **Access**
+- [ ] The same coupon typed twice by the same family consumes only one use
+- [ ] The code arrives by email, and the link in it opens the app
+- [ ] With `PAYSTACK_SECRET_KEY` set, **Access** shows the prices and checkout reaches Paystack
+- [ ] Paying with a test card returns to `/play/?ref=…` and lands on "Everything is unlocked"
+- [ ] *Revoke* in *Families*, then **Check again** in the app, closes the paid subjects
+- [ ] Airplane mode after activating: the paid subjects still open
 
 **iOS note.** Safari does not prompt to install; a parent has to use Share → Add to Home Screen. Worth saying so explicitly when you share the link, or most iPhone users will just use it in the browser and never get the offline behaviour.
 

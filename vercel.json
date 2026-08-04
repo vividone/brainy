@@ -8,6 +8,7 @@
     { "source": "/privacy", "destination": "/privacy.html" }
   ],
   "redirects": [{ "source": "/app/:path*", "destination": "/play/:path*", "permanent": true }],
+  "crons": [{ "path": "/api/cron/expiring", "schedule": "0 9 * * *" }],
   "headers": [
     {
       "source": "/play/assets/(.*)",

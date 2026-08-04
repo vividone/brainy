@@ -53,3 +53,30 @@ export async function sendEvent(event: Omit<UsageEvent, 'day'>): Promise<boolean
     clearTimeout(timer)
   }
 }
+
+/**
+ * Ask the server to erase everything held under this install id.
+ *
+ * Deliberately not fire-and-forget like the pings above: a parent is standing
+ * there having asked for their data to be deleted, and they are owed a true
+ * answer. The caller must therefore await this *before* wiping the device,
+ * because the id is the only handle on those rows and clearing it first would
+ * strand them permanently.
+ */
+export async function sendForget(installId: string): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  try {
+    const res = await fetch('/api/forget', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installId }),
+      signal: controller.signal,
+    })
+    return res.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}

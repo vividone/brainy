@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Brainy — usage</title>
+    <title>Brainy — admin</title>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/play/favicon.svg" />
     <style>
@@ -13,6 +13,8 @@
         --line: #e2e8f0;
         --violet: #7c3aed;
         --green: #059669;
+        --amber: #b45309;
+        --red: #b91c1c;
       }
       * { box-sizing: border-box; }
       body {
@@ -22,142 +24,779 @@
         font-family: 'Nunito', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
         line-height: 1.5;
       }
-      .wrap { width: min(1080px, 100% - 2rem); margin: 0 auto; padding: 2rem 0 4rem; }
-      h1 { font-size: 1.6rem; font-weight: 900; margin: 0; letter-spacing: -0.02em; }
-      .sub { color: var(--muted); font-weight: 600; margin: 0.2rem 0 1.5rem; font-size: 0.9rem; }
+      .wrap { width: min(1180px, 100% - 2rem); margin: 0 auto; padding: 1.75rem 0 4rem; }
+      h1 { font-size: 1.55rem; font-weight: 900; margin: 0; letter-spacing: -0.02em; }
       h2 { font-size: 1.05rem; font-weight: 900; margin: 2rem 0 0.75rem; }
+      h3 { font-size: 0.95rem; font-weight: 900; margin: 0 0 0.6rem; }
+      .sub { color: var(--muted); font-weight: 600; margin: 0.2rem 0 1.25rem; font-size: 0.9rem; }
 
-      .gate { max-width: 380px; margin: 15vh auto; text-align: center; }
-      input, button {
-        font: inherit;
+      input, select, button, textarea { font: inherit; }
+      input, select, textarea {
+        width: 100%; height: 44px; padding: 0 0.8rem; border-radius: 12px;
+        border: 2px solid var(--line); outline: none; font-weight: 700; background: #fff;
+        color: var(--ink);
       }
-      input {
-        width: 100%; height: 46px; padding: 0 0.9rem; border-radius: 12px;
-        border: 2px solid var(--line); outline: none; font-weight: 700;
-      }
-      input:focus { border-color: var(--violet); }
+      input:focus, select:focus, textarea:focus { border-color: var(--violet); }
+      label { display: block; font-size: 0.72rem; font-weight: 900; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.25rem; }
       button {
-        height: 46px; padding: 0 1.4rem; border-radius: 12px; border: 0;
+        height: 44px; padding: 0 1.2rem; border-radius: 12px; border: 0; white-space: nowrap;
         background: var(--violet); color: #fff; font-weight: 800; cursor: pointer;
       }
+      button:disabled { opacity: 0.5; cursor: default; }
       button.ghost { background: #fff; color: var(--ink); border: 2px solid var(--line); }
+      button.danger { background: #fff; color: var(--red); border: 2px solid #fecaca; }
+      button.sm { height: 34px; padding: 0 0.7rem; border-radius: 9px; font-size: 0.8rem; }
+
+      .gate { max-width: 380px; margin: 12vh auto; }
+      .gate h1 { text-align: center; }
+      .gate .sub { text-align: center; }
+      .gate .field { margin-bottom: 0.7rem; }
+
+      .bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+      .bar .who { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin-left: auto; }
+      .tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1.25rem 0 0.5rem; }
+      .tabs button {
+        background: #fff; color: var(--muted); border: 2px solid var(--line);
+        height: 40px; padding: 0 0.9rem; font-size: 0.9rem;
+      }
+      .tabs button[aria-current='true'] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
       .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
-      .tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1rem; }
-      .tile b { display: block; font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; }
-      .tile span { color: var(--muted); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+      .tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 0.9rem 1rem; }
+      .tile b { display: block; font-size: 1.7rem; font-weight: 900; letter-spacing: -0.02em; }
+      .tile span { color: var(--muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 
       .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-      th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--line); }
-      th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+      .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
+      .row > div { flex: 1 1 130px; }
+      .scroll { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+      th, td { text-align: left; padding: 0.5rem 0.45rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
       td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+      td.acts { white-space: nowrap; }
+      tr:last-child td { border-bottom: 0; }
 
-      .chart { display: flex; align-items: flex-end; gap: 3px; height: 140px; }
+      code, .mono {
+        background: #f1f5f9; padding: 0.12rem 0.4rem; border-radius: 6px;
+        font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; font-weight: 700;
+      }
+      .tag {
+        display: inline-block; border-radius: 999px; padding: 0.1rem 0.5rem;
+        font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em;
+      }
+      .tag.active { background: #d1fae5; color: #065f46; }
+      .tag.pending { background: #e2e8f0; color: #475569; }
+      .tag.expired { background: #fef3c7; color: var(--amber); }
+      .tag.revoked { background: #fee2e2; color: var(--red); }
+      .tag.plan { background: #ede9fe; color: #5b21b6; }
+
+      .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; }
       .chart div { flex: 1; background: var(--violet); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
       .chart div:hover::after {
         content: attr(data-label); position: absolute; bottom: 100%; left: 50%;
         transform: translateX(-50%); background: var(--ink); color: #fff;
-        font-size: 0.7rem; padding: 0.2rem 0.45rem; border-radius: 6px; white-space: nowrap;
+        font-size: 0.7rem; padding: 0.2rem 0.45rem; border-radius: 6px; white-space: nowrap; z-index: 2;
       }
       .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; font-weight: 700; margin-top: 0.35rem; }
-      .empty { color: var(--muted); font-weight: 600; padding: 1.5rem 0; text-align: center; }
-      code { background:#f1f5f9; padding:0.1rem 0.35rem; border-radius:6px; font-size:0.85em; }
-      .err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.8rem 1rem; border-radius: 12px; font-weight: 700; }
+
+      .empty { color: var(--muted); font-weight: 600; padding: 1.25rem 0; text-align: center; }
+      .err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.7rem 0.9rem; border-radius: 12px; font-weight: 700; }
+      .ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.7rem 0.9rem; border-radius: 12px; font-weight: 700; }
       .note { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-top: 0.6rem; }
+      .flash { position: fixed; inset-inline: 0; bottom: 1rem; display: flex; justify-content: center; pointer-events: none; }
+      .flash > div { pointer-events: auto; max-width: min(520px, 92vw); box-shadow: 0 8px 28px rgb(15 23 42 / 0.18); }
     </style>
   </head>
   <body>
     <div id="root" class="wrap"></div>
+    <div class="flash" id="flash"></div>
 
     <script>
-      const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild }
+      /*
+       * Brainy admin.
+       *
+       * Plain HTML and one script, no build step, served as a static file next
+       * to the marketing site — the same reasoning as the API routes being
+       * plain JS. It talks to /api/admin/* with a session cookie, so no secret
+       * is ever held in this page or in storage; signing out is one request.
+       *
+       * Everything a parent typed is escaped on the way in. The only untrusted
+       * strings here are their names, notes and feedback, and this page is the
+       * one place they are ever rendered.
+       */
+
       const root = document.getElementById('root')
-      const fmt = (n) => (n ?? 0).toLocaleString('en')
+      const flashHost = document.getElementById('flash')
+
+      const el = (html) => {
+        const t = document.createElement('template')
+        t.innerHTML = html.trim()
+        return t.content.firstElementChild
+      }
+      const esc = (v) =>
+        String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      const fmt = (n) => Number(n ?? 0).toLocaleString('en')
       const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) + '%' : '—')
 
-      function gate(message) {
-        root.innerHTML = ''
-        const box = $(`<div class="gate">
-          <h1>Brainy Admin</h1>
-          <p class="sub">Enter the admin token.</p>
-          ${message ? `<p class="err" style="margin-bottom:1rem">${message}</p>` : ''}
-          <input id="tok" type="password" placeholder="Admin token" autocomplete="off" />
-          <button id="go" style="margin-top:0.75rem;width:100%">View</button>
-        </div>`)
-        root.append(box)
-        const input = box.querySelector('#tok')
-        const submit = () => {
-          const v = input.value.trim()
-          if (!v) return
-          sessionStorage.setItem('brainy.admin', v)
-          load(v)
+      /** Amounts arrive in minor units — kobo — and must never become floats on the way in. */
+      const money = (minor, currency) => {
+        const value = Number(minor ?? 0) / 100
+        try {
+          return value.toLocaleString('en-NG', {
+            style: 'currency',
+            currency: currency || 'NGN',
+            maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+          })
+        } catch {
+          return `${currency || ''} ${value.toLocaleString('en')}`.trim()
         }
-        box.querySelector('#go').onclick = submit
-        input.onkeydown = (e) => { if (e.key === 'Enter') submit() }
-        input.focus()
+      }
+      const date = (v) => (v ? new Date(v).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
+      const when = (v) => (v ? new Date(v).toLocaleString() : '—')
+      const days = (v) => (v ? Math.round((new Date(v) - Date.now()) / 86400000) : null)
+
+      function flash(message, kind = 'ok') {
+        flashHost.innerHTML = ''
+        const box = el(`<div class="${kind}">${esc(message)}</div>`)
+        flashHost.append(box)
+        setTimeout(() => box.remove(), kind === 'ok' ? 3500 : 7000)
       }
 
-      function problem(message, hint) {
+      /* ---------------------------------------------------------------- *
+       * Talking to the API
+       * ---------------------------------------------------------------- */
+
+      class Unauthorised extends Error {}
+
+      async function api(path, { method = 'GET', body } = {}) {
+        const res = await fetch(`/api${path}`, {
+          method,
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+          credentials: 'same-origin',
+        })
+        let data = null
+        try {
+          data = await res.json()
+        } catch {
+          /* fall through to the status-based message */
+        }
+        if (res.status === 401) throw new Unauthorised(data?.error || 'Not signed in.')
+        if (!res.ok || data?.ok === false) {
+          const err = new Error(data?.error || `Server returned ${res.status}.`)
+          err.hint = data?.hint
+          throw err
+        }
+        return data
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Sign in
+       * ---------------------------------------------------------------- */
+
+      function signIn(message) {
+        root.innerHTML = ''
+        const box = el(`<div class="gate">
+          <h1>Brainy admin</h1>
+          <p class="sub">Sign in to see sign-ups, licences and payments.</p>
+          <div id="msg"></div>
+          <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" /></div>
+          <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" /></div>
+          <button id="go" style="width:100%;margin-top:0.4rem">Sign in</button>
+          <p class="note">
+            The account comes from <code>ADMIN_EMAIL</code> and <code>ADMIN_PASSWORD</code> on the
+            deployment. Changing them there changes this login — that is the password reset.
+          </p>
+        </div>`)
+        root.append(box)
+        if (message) box.querySelector('#msg').append(el(`<p class="err" style="margin-bottom:0.8rem">${esc(message)}</p>`))
+
+        const email = box.querySelector('#email')
+        const pw = box.querySelector('#pw')
+        const go = box.querySelector('#go')
+
+        const submit = async () => {
+          go.disabled = true
+          go.textContent = 'Signing in…'
+          try {
+            const data = await api('/admin/login', {
+              method: 'POST',
+              body: { email: email.value.trim(), password: pw.value },
+            })
+            dashboard(data.admin)
+          } catch (err) {
+            go.disabled = false
+            go.textContent = 'Sign in'
+            box.querySelector('#msg').innerHTML = `<p class="err" style="margin-bottom:0.8rem">${esc(err.message)}</p>`
+            pw.select()
+          }
+        }
+        go.onclick = submit
+        for (const input of [email, pw]) input.onkeydown = (e) => { if (e.key === 'Enter') submit() }
+        email.focus()
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Shell
+       * ---------------------------------------------------------------- */
+
+      const TABS = [
+        ['overview', 'Overview'],
+        ['families', 'Families'],
+        ['coupons', 'Coupons'],
+        ['payments', 'Payments'],
+        ['usage', 'Usage'],
+        ['feedback', 'Feedback'],
+        ['audit', 'Log'],
+      ]
+
+      let current = 'overview'
+
+      function dashboard(admin) {
         root.innerHTML = ''
         root.append(
-          $(`<div style="max-width:640px;margin:12vh auto">
-            <h1>Cannot load the numbers</h1>
-            <p class="sub">The token was accepted, but the server could not answer.</p>
-            <p class="err">${message}</p>
-            ${hint ? `<p class="note">${hint}</p>` : ''}
-            <p class="note">
-              Set <code>DATABASE_URL</code> (the <b>pooled</b> connection string) and
-              <code>ADMIN_TOKEN</code> in the Vercel project, then redeploy. Until a database is
-              connected the app itself is unaffected — usage pings are written to the function log
-              instead.
-            </p>
-            <p style="margin-top:1rem">
-              <button id="retry">Try again</button>
-              <button class="ghost" id="out2" style="margin-left:0.5rem">Sign out</button>
-            </p>
+          el(`<div>
+            <div class="bar">
+              <h1>Brainy admin</h1>
+              <span class="who">${esc(admin?.email ?? '')} · <a href="#" id="out">sign out</a></span>
+            </div>
+            <div class="tabs" id="tabs"></div>
+            <div id="view"></div>
           </div>`),
         )
-        root.querySelector('#retry').onclick = () => load(sessionStorage.getItem('brainy.admin'))
-        root.querySelector('#out2').onclick = () => {
-          sessionStorage.removeItem('brainy.admin')
-          gate()
+
+        const tabs = root.querySelector('#tabs')
+        for (const [id, label] of TABS) {
+          const button = el(`<button data-tab="${id}">${label}</button>`)
+          button.onclick = () => show(id)
+          tabs.append(button)
+        }
+        root.querySelector('#out').onclick = async (e) => {
+          e.preventDefault()
+          try {
+            await api('/admin/logout', { method: 'POST' })
+          } catch {
+            /* signing out locally is what matters */
+          }
+          signIn('Signed out.')
+        }
+        show(current)
+      }
+
+      const VIEWS = {}
+
+      async function show(tab) {
+        current = tab
+        for (const button of root.querySelectorAll('[data-tab]')) {
+          button.setAttribute('aria-current', String(button.dataset.tab === tab))
+        }
+        const view = root.querySelector('#view')
+        view.innerHTML = '<p class="sub">Loading…</p>'
+        try {
+          view.innerHTML = ''
+          view.append(await VIEWS[tab]())
+        } catch (err) {
+          if (err instanceof Unauthorised) return signIn('That session has expired. Sign in again.')
+          view.innerHTML = ''
+          view.append(
+            el(`<div class="card">
+              <h3>Could not load this</h3>
+              <p class="err">${esc(err.message)}</p>
+              ${err.hint ? `<p class="note">${esc(err.hint)}</p>` : ''}
+              <p class="note">
+                Accounts and licences need <code>DATABASE_URL</code> (the <b>pooled</b> connection
+                string). Until it is set the app itself is unaffected — a family already holding a
+                licence keeps working offline.
+              </p>
+            </div>`),
+          )
         }
       }
+
+      const reload = () => show(current)
+
+      /** Run an action, report it, and refresh the tab. */
+      async function act(button, label, run) {
+        const original = button.textContent
+        button.disabled = true
+        button.textContent = '…'
+        try {
+          await run()
+          flash(label)
+          await reload()
+        } catch (err) {
+          if (err instanceof Unauthorised) return signIn('That session has expired. Sign in again.')
+          button.disabled = false
+          button.textContent = original
+          flash(err.message, 'err')
+        }
+      }
+
+      const copy = async (text) => {
+        try {
+          await navigator.clipboard.writeText(text)
+          flash(`Copied ${text}`)
+        } catch {
+          flash('Could not copy — select it instead.', 'err')
+        }
+      }
+
+      const statusTag = (status) => `<span class="tag ${esc(status)}">${esc(status)}</span>`
+
+      const planTag = (plan) =>
+        plan && plan !== 'none' ? `<span class="tag plan">${esc(plan.replace(/-/g, ' '))}</span>` : '<span class="tag pending">no plan</span>'
+
+      /** "in 24 days", "12 days ago", or "never" — the useful form of an expiry. */
+      const expiry = (value) => {
+        if (!value) return '<b>never</b>'
+        const d = days(value)
+        const label = d < 0 ? `${Math.abs(d)} days ago` : d === 0 ? 'today' : `in ${d} days`
+        return `${esc(date(value))}<br><span class="note">${esc(label)}</span>`
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Overview
+       * ---------------------------------------------------------------- */
+
+      VIEWS.overview = async () => {
+        const data = await api('/admin/overview')
+        const box = document.createElement('div')
+
+        const byStatus = {}
+        const byPlan = {}
+        for (const row of data.subscriptions) {
+          byStatus[row.status] = (byStatus[row.status] ?? 0) + row.n
+          if (row.status === 'active') byPlan[row.plan] = (byPlan[row.plan] ?? 0) + row.n
+        }
+        const activeCoupons = data.coupons.filter((c) => c.active && c.uses < c.max_uses)
+        const placesLeft = activeCoupons.reduce((a, c) => a + (c.max_uses - c.uses), 0)
+
+        box.append(
+          el(`<div>
+            <p class="sub">Sign-ups, licences and payments · ${esc(when(data.generatedAt))}</p>
+            <div class="tiles">
+              <div class="tile"><b>${fmt(data.parents.total)}</b><span>Parents signed up</span></div>
+              <div class="tile"><b>${fmt(data.parents.new_7d)}</b><span>New this week</span></div>
+              <div class="tile"><b>${fmt(byStatus.active ?? 0)}</b><span>Active licences</span></div>
+              <div class="tile"><b>${fmt(byPlan['free-forever'] ?? 0)}</b><span>Free families</span></div>
+              <div class="tile"><b>${fmt((byPlan.annual ?? 0) + (byPlan.lifetime ?? 0))}</b><span>Paid licences</span></div>
+              <div class="tile"><b>${esc(money(data.money.total, data.currency))}</b><span>Taken, all time</span></div>
+              <div class="tile"><b>${esc(money(data.money.last_30d, data.currency))}</b><span>Last 30 days</span></div>
+              <div class="tile"><b>${fmt(placesLeft)}</b><span>Coupon places left</span></div>
+            </div>
+
+            <h2>Pending and lapsed</h2>
+            <div class="tiles">
+              <div class="tile"><b>${fmt(byStatus.pending ?? 0)}</b><span>Signed up, no access</span></div>
+              <div class="tile"><b>${fmt(byStatus.expired ?? 0)}</b><span>Expired</span></div>
+              <div class="tile"><b>${fmt(byStatus.revoked ?? 0)}</b><span>Revoked</span></div>
+              <div class="tile"><b>${fmt(data.expiring.length)}</b><span>Expiring in 30 days</span></div>
+            </div>
+          </div>`),
+        )
+
+        const prices = Object.entries(data.prices)
+          .filter(([, p]) => p.sellable)
+          .map(([id, p]) => `<code>${esc(id)}</code> ${esc(p.label)} — <b>${esc(money(p.amount, data.currency))}</b>`)
+          .join(' · ')
+
+        const yes = (on) => (on ? '<span class="tag active">on</span>' : '<span class="tag expired">off</span>')
+
+        box.append(
+          el(`<div class="grid2" style="margin-top:1rem">
+            <div class="card">
+              <h3>Prices in force</h3>
+              <p style="margin:0;font-weight:600">${prices || 'No sellable plans configured.'}</p>
+              <p class="note">
+                Set by <code>PRICE_ANNUAL_MINOR</code> and <code>PRICE_LIFETIME_MINOR</code> in minor
+                units (kobo), so ₦5,000 is <code>500000</code>. Nothing in the app can change what is
+                charged.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Wiring</h3>
+              <table>
+                <tbody>
+                  <tr><td>Checkout (Paystack)</td><td>${yes(data.paystack?.configured)}</td></tr>
+                  <tr><td>Email to families (Resend)</td><td>${yes(data.email?.configured)}</td></tr>
+                  <tr><td>Copies to you</td><td>${yes(data.email?.operator)}</td></tr>
+                  <tr><td>Renewal warnings</td><td>${yes(data.email?.reminders)}</td></tr>
+                </tbody>
+              </table>
+              ${
+                data.email?.configured
+                  ? `<p class="note">Sending as <code>${esc(data.email.from ?? 'default')}</code>.</p>`
+                  : `<p class="note">
+                       With <code>RESEND_API_KEY</code> unset, no family is ever emailed their code —
+                       they only see it on screen. Codes still work; losing one just becomes your
+                       problem to solve by hand.
+                     </p>`
+              }
+            </div>
+          </div>`),
+        )
+
+        box.append(el('<h2>Latest sign-ups</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.recent.length
+              ? `<table><thead><tr><th>When</th><th>Email</th><th>Name</th><th>Code</th><th>Plan</th><th>Status</th></tr></thead><tbody>
+                  ${data.recent
+                    .map(
+                      (r) => `<tr>
+                        <td>${esc(date(r.created_at))}</td>
+                        <td>${esc(r.email)}</td>
+                        <td>${esc(r.name ?? '—')}</td>
+                        <td><span class="mono">${esc(r.code ?? '—')}</span></td>
+                        <td>${planTag(r.plan)}</td>
+                        <td>${statusTag(r.status ?? 'pending')}</td>
+                      </tr>`,
+                    )
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">Nobody has signed up yet.</p>'
+          }</div>`),
+        )
+
+        if (data.expiring.length) {
+          box.append(el('<h2>Expiring soon</h2>'))
+          box.append(
+            el(`<div class="card scroll"><table>
+              <thead><tr><th>Code</th><th>Plan</th><th>Expires</th></tr></thead>
+              <tbody>${data.expiring
+                .map(
+                  (r) =>
+                    `<tr><td><span class="mono">${esc(r.code)}</span></td><td>${planTag(r.plan)}</td><td>${expiry(r.expires_at)}</td></tr>`,
+                )
+                .join('')}</tbody></table></div>`),
+          )
+        }
+
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Families
+       * ---------------------------------------------------------------- */
+
+      let familyQuery = ''
+
+      VIEWS.families = async () => {
+        const data = await api(`/admin/families${familyQuery ? `?q=${encodeURIComponent(familyQuery)}` : ''}`)
+        const box = document.createElement('div')
+
+        /* Granting access by hand — bank transfers, apologies, and the
+           twenty-first family you decide counts anyway. */
+        const granter = el(`<div class="card">
+          <h3>Give a family access</h3>
+          <div class="row">
+            <div style="flex:2 1 220px"><label for="g-email">Their email</label><input id="g-email" type="email" placeholder="parent@example.com" /></div>
+            <div><label for="g-name">Name (optional)</label><input id="g-name" /></div>
+            <div><label for="g-plan">Plan</label><select id="g-plan">
+              <option value="free-forever">Free forever</option>
+              <option value="annual">One year</option>
+              <option value="lifetime">Lifetime</option>
+            </select></div>
+            <div><label for="g-note">Note</label><input id="g-note" placeholder="why" /></div>
+            <div style="flex:0 0 auto"><button id="g-go">Grant</button></div>
+          </div>
+          <p class="note">
+            They still need their code to unlock a tablet — it appears in the table below, and in the
+            grown-up area once they enter it.
+          </p>
+        </div>`)
+        granter.querySelector('#g-go').onclick = (e) =>
+          act(e.target, 'Access granted.', async () => {
+            const result = await api('/admin/licence/grant', {
+              method: 'POST',
+              body: {
+                email: granter.querySelector('#g-email').value.trim(),
+                name: granter.querySelector('#g-name').value.trim() || undefined,
+                plan: granter.querySelector('#g-plan').value,
+                note: granter.querySelector('#g-note').value.trim() || undefined,
+              },
+            })
+            await copy(result.licence.code)
+          })
+        box.append(granter)
+
+        const search = el(`<div class="card" style="margin-top:1rem">
+          <div class="row">
+            <div style="flex:3 1 240px"><label for="q">Search by email, name or code</label><input id="q" value="${esc(familyQuery)}" /></div>
+            <div style="flex:0 0 auto"><button class="ghost" id="q-go">Search</button></div>
+            <div style="flex:0 0 auto"><button class="ghost" id="q-all">Show all</button></div>
+          </div>
+        </div>`)
+        const runSearch = () => {
+          familyQuery = search.querySelector('#q').value.trim()
+          reload()
+        }
+        search.querySelector('#q-go').onclick = runSearch
+        search.querySelector('#q').onkeydown = (e) => { if (e.key === 'Enter') runSearch() }
+        search.querySelector('#q-all').onclick = () => {
+          familyQuery = ''
+          reload()
+        }
+        box.append(search)
+
+        box.append(el(`<h2>${fmt(data.families.length)} famil${data.families.length === 1 ? 'y' : 'ies'}</h2>`))
+
+        if (!data.families.length) {
+          box.append(el('<div class="card"><p class="empty">Nothing to show.</p></div>'))
+          return box
+        }
+
+        const table = el(`<div class="card scroll"><table>
+          <thead><tr>
+            <th>Parent</th><th>Code</th><th>Plan</th><th>Status</th><th>Expires</th>
+            <th class="n">Devices</th><th class="n">Paid</th><th>Actions</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>`)
+        const tbody = table.querySelector('tbody')
+
+        for (const f of data.families) {
+          const tr = el(`<tr>
+            <td>
+              <b>${esc(f.email)}</b>
+              ${f.name ? `<br><span class="note">${esc(f.name)}</span>` : ''}
+              ${f.phone ? `<br><span class="note">${esc(f.phone)}</span>` : ''}
+              <br><span class="note">joined ${esc(date(f.created_at))} · via ${esc(f.source ?? '—')}</span>
+              ${f.note ? `<br><span class="note">${esc(f.note)}</span>` : ''}
+            </td>
+            <td><span class="mono">${esc(f.code ?? '—')}</span></td>
+            <td>${planTag(f.plan)}${f.coupon_code ? `<br><span class="note">${esc(f.coupon_code)}</span>` : ''}</td>
+            <td>${statusTag(f.status ?? 'pending')}<br><span class="note">${esc(f.granted_by ?? '')}</span></td>
+            <td>${f.status === 'pending' ? '—' : expiry(f.expires_at)}</td>
+            <td class="n">${fmt(f.devices)}${f.lastDevice ? `<br><span class="note">${esc(date(f.lastDevice))}</span>` : ''}</td>
+            <td class="n">${f.paid ? esc(money(f.paid, data.currency)) : '—'}</td>
+            <td class="acts"></td>
+          </tr>`)
+
+          const acts = tr.querySelector('.acts')
+          if (f.code) {
+            const copyBtn = el('<button class="ghost sm">Copy code</button>')
+            copyBtn.onclick = () => copy(f.code)
+            acts.append(copyBtn)
+
+            if (f.status !== 'pending' && f.email) {
+              /* The commonest support request: a new tablet and a lost code. */
+              const mail = el('<button class="ghost sm">Email code</button>')
+              mail.onclick = (e) =>
+                act(e.target, `Code sent to ${f.email}.`, () =>
+                  api('/admin/licence/email', { method: 'POST', body: { code: f.code } }),
+                )
+              acts.append(mail)
+            }
+
+            if (f.expires_at) {
+              const extendBtn = el('<button class="ghost sm">+1 year</button>')
+              extendBtn.onclick = (e) =>
+                act(e.target, 'Extended by a year.', () =>
+                  api('/admin/licence/extend', { method: 'POST', body: { code: f.code, months: 12 } }),
+                )
+              acts.append(extendBtn)
+            }
+
+            if (f.status === 'revoked') {
+              const restore = el('<button class="ghost sm">Restore</button>')
+              restore.onclick = (e) =>
+                act(e.target, 'Restored.', () =>
+                  api('/admin/licence/restore', { method: 'POST', body: { code: f.code } }),
+                )
+              acts.append(restore)
+            } else if (f.status !== 'pending') {
+              const revoke = el('<button class="danger sm">Revoke</button>')
+              revoke.onclick = (e) => {
+                if (!confirm(`Revoke access for ${f.email}? They keep their progress; new subjects lock again.`)) return
+                act(e.target, 'Revoked.', () =>
+                  api('/admin/licence/revoke', { method: 'POST', body: { code: f.code } }),
+                )
+              }
+              acts.append(revoke)
+            }
+
+            if (f.status === 'pending') {
+              const give = el('<button class="sm">Free forever</button>')
+              give.onclick = (e) =>
+                act(e.target, 'Access granted.', () =>
+                  api('/admin/licence/grant', {
+                    method: 'POST',
+                    body: { email: f.email, plan: 'free-forever' },
+                  }),
+                )
+              acts.append(give)
+            }
+          }
+          tbody.append(tr)
+        }
+
+        box.append(table)
+        box.append(
+          el(`<p class="note">
+            Devices is how many tablets have used that code. One or two is a family; twenty is a code
+            that has been forwarded, which is worth a conversation rather than an enforcement rule.
+          </p>`),
+        )
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Coupons
+       * ---------------------------------------------------------------- */
+
+      VIEWS.coupons = async () => {
+        const data = await api('/admin/coupons')
+        const box = document.createElement('div')
+
+        const maker = el(`<div class="card">
+          <h3>Make a code</h3>
+          <div class="row">
+            <div><label for="c-plan">Grants</label><select id="c-plan">
+              <option value="free-forever">Free forever</option>
+              <option value="annual">One year</option>
+              <option value="lifetime">Lifetime</option>
+            </select></div>
+            <div><label for="c-uses">How many families</label><input id="c-uses" type="number" min="1" value="1" /></div>
+            <div><label for="c-code">Code (blank to generate)</label><input id="c-code" placeholder="FAMILY-2026" /></div>
+            <div><label for="c-note">Note</label><input id="c-note" placeholder="first 20 families" /></div>
+            <div><label for="c-exp">Usable until</label><input id="c-exp" type="date" /></div>
+            <div style="flex:0 0 auto"><button id="c-go">Create</button></div>
+          </div>
+          <p class="note">
+            One code can cover a whole batch — twenty uses is the twenty free families, and each family
+            can only claim it once however many times they type it.
+          </p>
+        </div>`)
+        maker.querySelector('#c-go').onclick = (e) =>
+          act(e.target, 'Code created and copied.', async () => {
+            const result = await api('/admin/coupons', {
+              method: 'POST',
+              body: {
+                plan: maker.querySelector('#c-plan').value,
+                maxUses: Number(maker.querySelector('#c-uses').value || 1),
+                code: maker.querySelector('#c-code').value.trim() || undefined,
+                note: maker.querySelector('#c-note').value.trim() || undefined,
+                expiresAt: maker.querySelector('#c-exp').value || undefined,
+              },
+            })
+            await copy(result.coupon.code)
+          })
+        box.append(maker)
+
+        box.append(el('<h2>Codes</h2>'))
+        if (!data.coupons.length) {
+          box.append(el('<div class="card"><p class="empty">No codes yet.</p></div>'))
+          return box
+        }
+
+        const table = el(`<div class="card scroll"><table>
+          <thead><tr>
+            <th>Code</th><th>Grants</th><th class="n">Claimed</th><th>Usable until</th><th>Note</th><th>Actions</th>
+          </tr></thead><tbody></tbody></table></div>`)
+        const tbody = table.querySelector('tbody')
+
+        for (const c of data.coupons) {
+          const spent = c.uses >= c.max_uses
+          const tr = el(`<tr style="${c.active && !spent ? '' : 'opacity:0.55'}">
+            <td><span class="mono">${esc(c.code)}</span>${c.active ? '' : '<br><span class="tag revoked">off</span>'}</td>
+            <td>${planTag(c.plan)}${c.months ? `<br><span class="note">${fmt(c.months)} months</span>` : ''}</td>
+            <td class="n">${fmt(c.uses)} / ${fmt(c.max_uses)}</td>
+            <td>${c.expires_at ? esc(date(c.expires_at)) : '<b>no limit</b>'}</td>
+            <td>${esc(c.note ?? '—')}</td>
+            <td class="acts"></td>
+          </tr>`)
+
+          const acts = tr.querySelector('.acts')
+          const copyBtn = el('<button class="ghost sm">Copy</button>')
+          copyBtn.onclick = () => copy(c.code)
+          acts.append(copyBtn)
+
+          const toggle = el(`<button class="${c.active ? 'danger' : 'ghost'} sm">${c.active ? 'Turn off' : 'Turn on'}</button>`)
+          toggle.onclick = (e) =>
+            act(e.target, c.active ? 'Code turned off.' : 'Code turned on.', () =>
+              api('/admin/coupons/active', { method: 'POST', body: { code: c.code, active: !c.active } }),
+            )
+          acts.append(toggle)
+          tbody.append(tr)
+        }
+
+        box.append(table)
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Payments
+       * ---------------------------------------------------------------- */
+
+      VIEWS.payments = async () => {
+        const data = await api('/admin/payments')
+        const box = document.createElement('div')
+        const paid = data.payments.filter((p) => p.status === 'success')
+        const total = paid.reduce((a, p) => a + Number(p.amount ?? 0), 0)
+
+        box.append(
+          el(`<div class="tiles">
+            <div class="tile"><b>${fmt(paid.length)}</b><span>Successful</span></div>
+            <div class="tile"><b>${esc(money(total, data.currency))}</b><span>Total taken</span></div>
+            <div class="tile"><b>${fmt(data.payments.filter((p) => p.status === 'pending').length)}</b><span>Started, unpaid</span></div>
+          </div>`),
+        )
+
+        box.append(el('<h2>Transactions</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.payments.length
+              ? `<table><thead><tr><th>When</th><th>Email</th><th>Plan</th><th class="n">Amount</th><th>Status</th><th>How</th><th>Reference</th></tr></thead><tbody>
+                  ${data.payments
+                    .map(
+                      (p) => `<tr>
+                        <td>${esc(date(p.paid_at ?? p.created_at))}</td>
+                        <td>${esc(p.email ?? '—')}</td>
+                        <td>${planTag(p.plan)}</td>
+                        <td class="n">${esc(money(p.amount, p.currency ?? data.currency))}</td>
+                        <td>${statusTag(p.status === 'success' ? 'active' : p.status === 'pending' ? 'pending' : 'revoked')}
+                            <br><span class="note">${esc(p.status)}</span></td>
+                        <td>${esc(p.channel ?? '—')}</td>
+                        <td><span class="mono">${esc(p.reference)}</span></td>
+                      </tr>`,
+                    )
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">No payments yet. With PAYSTACK_SECRET_KEY unset, checkout is switched off and coupons are the only way in.</p>'
+          }</div>`),
+        )
+        box.append(
+          el(`<p class="note">
+            Paystack holds the card details and the receipt. What is stored here is an email address, a
+            reference, an amount and whether it went through.
+          </p>`),
+        )
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Usage — the anonymous half, from /api/stats
+       * ---------------------------------------------------------------- */
 
       function chart(rows, key, label) {
         const max = Math.max(1, ...rows.map((r) => Number(r[key])))
         const bars = rows
           .map((r) => {
             const v = Number(r[key])
-            return `<div style="height:${Math.max(2, (v / max) * 100)}%" data-label="${r.day}: ${fmt(v)} ${label}"></div>`
+            return `<div style="height:${Math.max(2, (v / max) * 100)}%" data-label="${esc(r.day)}: ${fmt(v)} ${esc(label)}"></div>`
           })
           .join('')
-        const first = rows[0]?.day ?? ''
-        const last = rows[rows.length - 1]?.day ?? ''
-        return `<div class="chart">${bars}</div><div class="axis"><span>${first}</span><span>${last}</span></div>`
+        return `<div class="chart">${bars}</div>
+          <div class="axis"><span>${esc(rows[0]?.day ?? '')}</span><span>${esc(rows[rows.length - 1]?.day ?? '')}</span></div>`
       }
 
-      async function load(token) {
-        root.innerHTML = '<p class="sub">Loading…</p>'
-        let data
-        try {
-          const res = await fetch('/api/stats', { headers: { 'x-admin-token': token } })
-          data = await res.json()
-          if (!res.ok || !data.ok) {
-            // Only a bad token should send them back to the gate. A database
-            // problem is not something re-typing the token will fix, and
-            // bouncing them hides the message that says what to do.
-            if (res.status === 401) {
-              sessionStorage.removeItem('brainy.admin')
-              return gate('That token was not accepted.')
-            }
-            return problem(data.error || `Server returned ${res.status}.`, data.hint)
-          }
-        } catch {
-          return gate('Could not reach the server.')
-        }
-
+      VIEWS.usage = async () => {
+        const data = await api('/stats')
+        const box = document.createElement('div')
         const i = data.installs
         const r = data.retention
         const totals = data.daily.reduce(
@@ -171,98 +810,144 @@
         )
         const today = data.daily[data.daily.length - 1]
 
-        root.innerHTML = ''
-        root.append(
-          $(`<div>
-            <h1>Brainy usage</h1>
-            <p class="sub">
-              Families who opted in to share usage · updated ${new Date(data.generatedAt).toLocaleString()}
-            </p>
-
+        box.append(
+          el(`<div>
+            <p class="sub">Only families who opted in · ${esc(when(data.generatedAt))}</p>
             <div class="tiles">
               <div class="tile"><b>${fmt(i.total)}</b><span>Activations</span></div>
               <div class="tile"><b>${fmt(i.children)}</b><span>Children</span></div>
               <div class="tile"><b>${fmt(today ? today.devices : 0)}</b><span>Active today</span></div>
               <div class="tile"><b>${fmt(i.active_7d)}</b><span>Active this week</span></div>
               <div class="tile"><b>${fmt(i.new_7d)}</b><span>New this week</span></div>
-              <div class="tile"><b>${pct(r.retained_7d, r.eligible_7d)}</b><span>Still active after 1wk</span></div>
+              <div class="tile"><b>${pct(r.retained_7d, r.eligible_7d)}</b><span>Back after 1wk</span></div>
             </div>
-
-            <h2>Devices opening Brainy each day</h2>
-            <div class="card">${data.daily.length ? chart(data.daily, 'devices', 'devices') : '<p class="empty">No activity yet.</p>'}</div>
-
-            <h2>Questions answered each day</h2>
-            <div class="card">${data.daily.length ? chart(data.daily, 'questions', 'questions') : '<p class="empty">No activity yet.</p>'}</div>
-
-            <div class="tiles" style="margin-top:1rem">
-              <div class="tile"><b>${fmt(totals.sessions)}</b><span>Quests (30d)</span></div>
-              <div class="tile"><b>${fmt(totals.questions)}</b><span>Questions (30d)</span></div>
-              <div class="tile"><b>${pct(totals.correct, totals.questions)}</b><span>First-try accuracy</span></div>
-              <div class="tile"><b>${fmt(Math.round(totals.minutes))}</b><span>Minutes practised</span></div>
-            </div>
-
-            <h2>By subject</h2>
-            <div class="card">
-              ${
-                data.subjects.length
-                  ? `<table><thead><tr><th>Subject</th><th class="n">Quests</th><th class="n">Questions</th><th class="n">Accuracy</th></tr></thead><tbody>
-                      ${data.subjects
-                        .map(
-                          (s) =>
-                            `<tr><td>${s.subject}</td><td class="n">${fmt(s.sessions)}</td><td class="n">${fmt(s.questions)}</td><td class="n">${pct(s.correct, s.questions)}</td></tr>`,
-                        )
-                        .join('')}
-                    </tbody></table>`
-                  : '<p class="empty">No sessions yet.</p>'
-              }
-            </div>
-
-            <h2>Curriculum and class</h2>
-            <div class="card">
-              ${
-                data.split.length
-                  ? `<table><thead><tr><th>Curriculum</th><th>Class</th><th class="n">Installs</th></tr></thead><tbody>
-                      ${data.split
-                        .map((s) => `<tr><td>${s.curriculum}</td><td>${s.year_band}</td><td class="n">${fmt(s.installs)}</td></tr>`)
-                        .join('')}
-                    </tbody></table>`
-                  : '<p class="empty">Nothing yet.</p>'
-              }
-            </div>
-
-            <h2>Recent feedback</h2>
-            <div class="card">
-              ${
-                data.feedback.length
-                  ? `<table><thead><tr><th>When</th><th>Kind</th><th>Message</th><th>Reply to</th></tr></thead><tbody>
-                      ${data.feedback
-                        .map(
-                          (f) =>
-                            `<tr><td>${new Date(f.created_at).toLocaleDateString()}</td><td>${f.category ?? ''}</td><td>${(f.message ?? '').replace(/[<>]/g, '')}</td><td>${f.contact ?? ''}</td></tr>`,
-                        )
-                        .join('')}
-                    </tbody></table>`
-                  : '<p class="empty">No feedback yet.</p>'
-              }
-            </div>
-
-            <p class="note">
-              These numbers cover only the families who opted in, so treat them as a floor rather than
-              a total. There is no name or contact behind any of it — an install is a browser profile,
-              not a person.
-            </p>
-            <p style="margin-top:1rem"><button class="ghost" id="out">Sign out</button></p>
           </div>`),
         )
-        root.querySelector('#out').onclick = () => {
-          sessionStorage.removeItem('brainy.admin')
-          gate()
-        }
+
+        box.append(el('<h2>Devices opening Brainy each day</h2>'))
+        box.append(
+          el(`<div class="card">${data.daily.length ? chart(data.daily, 'devices', 'devices') : '<p class="empty">No activity yet.</p>'}</div>`),
+        )
+        box.append(el('<h2>Questions answered each day</h2>'))
+        box.append(
+          el(`<div class="card">${data.daily.length ? chart(data.daily, 'questions', 'questions') : '<p class="empty">No activity yet.</p>'}</div>`),
+        )
+
+        box.append(
+          el(`<div class="tiles" style="margin-top:1rem">
+            <div class="tile"><b>${fmt(totals.sessions)}</b><span>Quests (30d)</span></div>
+            <div class="tile"><b>${fmt(totals.questions)}</b><span>Questions (30d)</span></div>
+            <div class="tile"><b>${pct(totals.correct, totals.questions)}</b><span>First-try accuracy</span></div>
+            <div class="tile"><b>${fmt(Math.round(totals.minutes))}</b><span>Minutes practised</span></div>
+          </div>`),
+        )
+
+        box.append(el('<h2>By subject</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.subjects.length
+              ? `<table><thead><tr><th>Subject</th><th class="n">Quests</th><th class="n">Questions</th><th class="n">Accuracy</th></tr></thead><tbody>
+                  ${data.subjects
+                    .map(
+                      (s) =>
+                        `<tr><td>${esc(s.subject)}</td><td class="n">${fmt(s.sessions)}</td><td class="n">${fmt(s.questions)}</td><td class="n">${pct(s.correct, s.questions)}</td></tr>`,
+                    )
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">No sessions yet.</p>'
+          }</div>`),
+        )
+
+        box.append(el('<h2>Curriculum and class</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.split.length
+              ? `<table><thead><tr><th>Curriculum</th><th>Class</th><th class="n">Installs</th></tr></thead><tbody>
+                  ${data.split
+                    .map((s) => `<tr><td>${esc(s.curriculum)}</td><td>${esc(s.year_band)}</td><td class="n">${fmt(s.installs)}</td></tr>`)
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">Nothing yet.</p>'
+          }</div>`),
+        )
+
+        box.append(
+          el(`<p class="note">
+            A floor, not a total: this covers only the families who opted in, and an install is a browser
+            profile rather than a person. It cannot be matched to anybody in Families — deliberately.
+          </p>`),
+        )
+        return box
       }
 
-      const saved = sessionStorage.getItem('brainy.admin')
-      if (saved) load(saved)
-      else gate()
+      /* ---------------------------------------------------------------- *
+       * Feedback and the log
+       * ---------------------------------------------------------------- */
+
+      VIEWS.feedback = async () => {
+        const data = await api('/stats')
+        const box = document.createElement('div')
+        box.append(el('<h2 style="margin-top:0.5rem">What parents have said</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.feedback.length
+              ? `<table><thead><tr><th>When</th><th>Kind</th><th>Message</th><th>Reply to</th></tr></thead><tbody>
+                  ${data.feedback
+                    .map(
+                      (f) => `<tr>
+                        <td>${esc(date(f.created_at))}</td>
+                        <td>${esc(f.category ?? '')}</td>
+                        <td>${esc(f.message ?? '')}</td>
+                        <td>${esc(f.contact ?? '')}</td>
+                      </tr>`,
+                    )
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">No feedback yet.</p>'
+          }</div>`),
+        )
+        return box
+      }
+
+      VIEWS.audit = async () => {
+        const data = await api('/admin/audit')
+        const box = document.createElement('div')
+        box.append(el('<h2 style="margin-top:0.5rem">Every change, and who made it</h2>'))
+        box.append(
+          el(`<div class="card scroll">${
+            data.audit.length
+              ? `<table><thead><tr><th>When</th><th>Who</th><th>Did what</th><th>To</th><th>Detail</th></tr></thead><tbody>
+                  ${data.audit
+                    .map(
+                      (a) => `<tr>
+                        <td>${esc(when(a.created_at))}</td>
+                        <td>${esc(a.actor ?? '—')}</td>
+                        <td><span class="mono">${esc(a.action)}</span></td>
+                        <td>${esc(a.target ?? '—')}</td>
+                        <td>${esc(a.detail ?? '')}</td>
+                      </tr>`,
+                    )
+                    .join('')}
+                </tbody></table>`
+              : '<p class="empty">Nothing has happened yet.</p>'
+          }</div>`),
+        )
+        box.append(
+          el(`<p class="note">
+            This is the answer when a parent says they paid and the app disagrees. Grants, extensions,
+            revocations and coupon changes all land here.
+          </p>`),
+        )
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
+       * Start
+       * ---------------------------------------------------------------- */
+
+      api('/admin/me')
+        .then((data) => dashboard(data.admin))
+        .catch(() => signIn())
     </script>
   </body>
 </html>

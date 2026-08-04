@@ -20,19 +20,23 @@ import {
   useProgress,
 } from '../state/selectors'
 import { useProfile } from '../state/store'
+import { subjectOpen, useEntitlement } from '../state/entitlement'
 
 interface Props {
   subjectId: string
   onBack: () => void
   onOpenIsland: (strandId: string) => void
+  /** Where the locked panel sends a grown-up. */
+  onOpenParent: () => void
 }
 
-export function Subject({ subjectId, onBack, onOpenIsland }: Props) {
+export function Subject({ subjectId, onBack, onOpenIsland, onOpenParent }: Props) {
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
   const yearBand = useProfile().yearBand
+  const { full, licence } = useEntitlement()
 
   const subject = curriculum.subjects.find((s) => s.id === subjectId)
 
@@ -50,7 +54,8 @@ export function Subject({ subjectId, onBack, onOpenIsland }: Props) {
   const style = subjectStyle(subject.color)
   const bandLabel = curriculum.yearBands.find((b) => b.id === yearBand)?.label ?? ''
   const totalStars = totalStarsEarned(levelStars)
-  const ready = subject.available && strands.length > 0
+  const open = subjectOpen(subject.id, full)
+  const ready = subject.available && strands.length > 0 && open
 
   return (
     <Screen>
@@ -154,6 +159,33 @@ export function Subject({ subjectId, onBack, onOpenIsland }: Props) {
             })}
           </ol>
         </>
+      ) : !open ? (
+        /*
+         * Locked because it is not paid for.
+         *
+         * Written for whoever is holding the tablet, which is usually the child:
+         * no price, no "upgrade now", nothing that makes a seven-year-old feel
+         * they have hit a wall or ask a parent to spend money. It names the way
+         * out — a grown-up — and says what is still theirs, which is all of
+         * maths, permanently.
+         */
+        <Card className="mt-4 p-6 sm:p-8 text-center border-amber-300 bg-amber-50">
+          <div className="text-6xl mb-3" aria-hidden>
+            🔒
+          </div>
+          <h2 className="text-2xl font-black text-amber-900">{subject.name} is closed right now</h2>
+          <p className="mt-2 font-bold text-amber-800 max-w-md mx-auto">
+            {licence && licence.status === 'expired'
+              ? 'A grown-up needs to renew before this one opens again.'
+              : 'A grown-up can open this one. Maths is always yours, whatever happens.'}
+          </p>
+          <Btn variant="secondary" size="md" className="mt-5" onClick={onOpenParent}>
+            👤 I&apos;m a grown-up
+          </Btn>
+          <p className="mt-4 text-sm font-bold text-amber-700">
+            Nothing you have already done is affected — your stars, coins and streak all stay.
+          </p>
+        </Card>
       ) : (
         <Card className="mt-4 p-6 sm:p-8 text-center">
           <div className="text-6xl mb-3">{subject.icon}</div>

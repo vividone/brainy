@@ -90,6 +90,166 @@ export async function ensureSchema() {
       app_version text,
       created_at  timestamptz not null default now()
     );
+
+    /*
+     * Accounts and money.
+     *
+     * A parent is the only person with an identity here. Children are never
+     * rows: no name, no age, no answers. The link between a paying adult and
+     * a playing child is the access code, and it stops at the device.
+     */
+    create table if not exists parents (
+      id          bigserial primary key,
+      email       text not null unique,
+      name        text,
+      phone       text,
+      country     text,
+      children    int  not null default 1,
+      /* Where they came from: 'site', 'app' or 'admin'. */
+      source      text not null default 'site',
+      note        text,
+      created_at  timestamptz not null default now()
+    );
+
+    /*
+     * Coupons are the codes handed out — one code can cover many families
+     * (the first-20 batch is a single code with 20 uses), which is why uses
+     * are counted here and each redemption is recorded separately.
+     */
+    create table if not exists coupons (
+      code        text primary key,
+      /* 'free-forever' | 'annual' | 'lifetime' */
+      plan        text not null,
+      /* How long it grants. null means it never expires. */
+      months      int,
+      max_uses    int  not null default 1,
+      uses        int  not null default 0,
+      note        text,
+      active      boolean not null default true,
+      expires_at  timestamptz,
+      created_by  text,
+      created_at  timestamptz not null default now()
+    );
+
+    /*
+     * One row per family. The code is what a parent types into the app, and is
+     * the only thing that travels between the two halves of the product.
+     *
+     * expires_at null means "never" — a free-forever family and a lifetime
+     * buyer are the same shape, which is deliberate: the first 20 families
+     * were promised permanence, so it must not be a special case that a
+     * later cleanup job can quietly get wrong.
+     */
+    create table if not exists subscriptions (
+      id          bigserial primary key,
+      parent_id   bigint not null references parents (id),
+      code        text not null unique,
+      /* 'none' until something grants access, then the plan that did. */
+      plan        text not null default 'none',
+      /* 'pending' | 'active' | 'expired' | 'revoked' */
+      status      text not null default 'pending',
+      /* What granted it: 'signup' | 'coupon' | 'paystack' | 'admin' */
+      source      text not null default 'signup',
+      coupon_code text,
+      children    int  not null default 1,
+      started_at  timestamptz,
+      expires_at  timestamptz,
+      note        text,
+      created_at  timestamptz not null default now(),
+      updated_at  timestamptz not null default now()
+    );
+    create index if not exists subscriptions_parent_idx on subscriptions (parent_id);
+
+    create table if not exists redemptions (
+      id            bigserial primary key,
+      coupon_code   text not null,
+      parent_id     bigint not null references parents (id),
+      created_at    timestamptz not null default now(),
+      /* One family cannot burn a twenty-use batch on its own. */
+      unique (coupon_code, parent_id)
+    );
+
+    /*
+     * Devices that have activated a licence.
+     *
+     * Not an enforcement mechanism — it is how you notice a code that has
+     * been forwarded to forty people, which is the only realistic abuse of a
+     * gate this soft.
+     */
+    create table if not exists licence_devices (
+      id          bigserial primary key,
+      code        text not null,
+      install_id  text not null,
+      first_seen  timestamptz not null default now(),
+      last_seen   timestamptz not null default now(),
+      unique (code, install_id)
+    );
+
+    create table if not exists payments (
+      id          bigserial primary key,
+      parent_id   bigint references parents (id),
+      reference   text not null unique,
+      provider    text not null default 'paystack',
+      plan        text,
+      /* Minor units — kobo for NGN. Never a float. */
+      amount      bigint not null default 0,
+      currency    text,
+      /* 'pending' | 'success' | 'failed' */
+      status      text not null default 'pending',
+      channel     text,
+      paid_at     timestamptz,
+      created_at  timestamptz not null default now()
+    );
+
+    /*
+     * One row per warning already sent, so a reminder goes once.
+     *
+     * A separate table rather than a column on subscriptions, because it is the
+     * shape that keeps working: a second sort of reminder is a new kind, and an
+     * extension is a delete rather than a nullable field to remember to clear.
+     */
+    create table if not exists reminders (
+      id          bigserial primary key,
+      code        text not null,
+      kind        text not null,
+      sent_at     timestamptz not null default now(),
+      unique (code, kind)
+    );
+
+    create table if not exists admin_users (
+      id          bigserial primary key,
+      email       text not null unique,
+      pw_hash     text not null,
+      name        text,
+      last_login  timestamptz,
+      created_at  timestamptz not null default now()
+    );
+
+    /*
+     * Every grant, extension and revocation, with who did it. Small enough to
+     * be free, and the first thing you want when a family says they paid and
+     * the app disagrees.
+     */
+    create table if not exists admin_audit (
+      id          bigserial primary key,
+      actor       text,
+      action      text not null,
+      target      text,
+      detail      text,
+      created_at  timestamptz not null default now()
+    );
+
+    /*
+     * Failed code attempts, by hashed IP, so guessing at access codes can be
+     * rate-limited. The IP itself is never stored — only a keyed hash, which
+     * answers "same caller?" without recording who.
+     */
+    create table if not exists code_attempts (
+      id          bigserial primary key,
+      ip_hash     text,
+      created_at  timestamptz not null default now()
+    );
+    create index if not exists code_attempts_idx on code_attempts (created_at);
   `)
     .catch((err) => {
       ready = undefined
@@ -129,4 +289,73 @@ export async function query(text, params = []) {
   if (!p) return null
   await ensureSchema()
   return p.query(text, params)
+}
+
+/**
+ * Thrown when a route needs the database and there isn't one.
+ *
+ * Usage pings can shrug that off and log to stdout; a licence cannot. Nobody
+ * should be told they have access because the database was asleep.
+ */
+export class NoDatabase extends Error {
+  constructor() {
+    super('DATABASE_URL is not set on this deployment.')
+    this.name = 'NoDatabase'
+  }
+}
+
+/** Like `query`, but for routes where a missing database is a hard failure. */
+export async function must(text, params = []) {
+  const result = await query(text, params)
+  if (!result) throw new NoDatabase()
+  return result
+}
+
+/** First row, or undefined. */
+export async function one(text, params = []) {
+  const result = await must(text, params)
+  return result.rows[0]
+}
+
+/** All rows. */
+export async function all(text, params = []) {
+  const result = await must(text, params)
+  return result.rows
+}
+
+/**
+ * Record an admin action.
+ *
+ * Never allowed to fail the action it describes — a lost audit line is
+ * annoying, a grant that half-happened is worse.
+ */
+export async function audit(actor, action, target, detail) {
+  try {
+    await query(`insert into admin_audit (actor, action, target, detail) values ($1, $2, $3, $4)`, [
+      actor ?? null,
+      action,
+      target ?? null,
+      detail == null ? null : String(detail).slice(0, 500),
+    ])
+  } catch (err) {
+    console.error('[brainy:audit]', err instanceof Error ? err.message : err)
+  }
+}
+
+/**
+ * Add whole months to a date, in JavaScript rather than in SQL.
+ *
+ * Postgres would do `now() + interval '12 months'` perfectly well, but every
+ * expiry then depends on the database's clock and time zone rather than the
+ * one the rest of the code reasons about — and it is one more thing the
+ * in-memory Postgres the smoke test runs against does not implement.
+ */
+export function addMonths(months, from = new Date()) {
+  if (months == null) return null
+  const d = new Date(from.getTime())
+  const day = d.getDate()
+  d.setMonth(d.getMonth() + months)
+  // 31 January + 1 month is 28 February, not 3 March.
+  if (d.getDate() < day) d.setDate(0)
+  return d
 }

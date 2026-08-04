@@ -6,7 +6,7 @@
     <title>Brainy — daily practice that Nigerian children actually want to do</title>
     <meta
       name="description"
-      content="Short daily maths, reasoning and English practice for Basic 1–6, matched to the Nigerian, British or American curriculum. Works offline. No ads, no accounts, nothing leaves the device."
+      content="Short daily maths, reasoning and English practice for Basic 1–6, matched to the Nigerian, British or American curriculum. Works offline. No ads, and your child's work never leaves the device."
     />
     <link rel="icon" type="image/svg+xml" href="/play/favicon.svg" />
     <link rel="apple-touch-icon" href="/play/apple-touch-icon.png" />
@@ -20,7 +20,7 @@
     <meta property="og:title" content="Brainy — daily practice children want to do" />
     <meta
       property="og:description"
-      content="Curriculum-matched practice for Basic 1–6 in maths, reasoning and English. Five minutes a day. Works offline. Nothing leaves the device."
+      content="Curriculum-matched practice for Basic 1–6 in maths, reasoning and English. Five minutes a day. Works offline. Your child's work never leaves the device."
     />
     <meta property="og:image" content="https://brainy.fortbridge.app/img/home.png" />
     <meta property="og:image:alt" content="The Brainy home screen: a daily quest and a grid of subjects" />
@@ -412,6 +412,56 @@
         margin-right: 0.4rem;
       }
 
+      .field-label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 0.25rem;
+      }
+      #join input {
+        width: 100%;
+        height: 52px;
+        padding: 0 0.9rem;
+        font: inherit;
+        font-weight: 700;
+        color: var(--ink);
+        background: #fff;
+        border: 2px solid var(--violet-100);
+        border-radius: 14px;
+        outline: none;
+      }
+      #join input:focus {
+        border-color: var(--violet);
+      }
+      #join .fine {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin: 0.7rem 0 0;
+      }
+      #join .fine.good {
+        color: #065f46;
+        font-weight: 800;
+      }
+      #join .fine.bad {
+        color: #b91c1c;
+        font-weight: 800;
+      }
+      #join .code {
+        display: inline-block;
+        font-family: 'SFMono-Regular', Consolas, monospace;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        background: #fff;
+        border: 2px dashed var(--violet);
+        border-radius: 10px;
+        padding: 0.35rem 0.6rem;
+        margin-top: 0.3rem;
+      }
+
       footer {
         border-top: 1px solid var(--violet-100);
         padding: 2.5rem 0 3rem;
@@ -490,7 +540,7 @@
             <a class="btn ghost" href="#how">See how it works</a>
           </div>
           <p class="cta-note">
-            Nothing to install. No account, no email, no ads. Works offline.
+            Nothing to install. Maths free with no sign-up, no ads ever. Works offline.
           </p>
         </div>
         <div class="shot">
@@ -633,13 +683,17 @@
     <section id="privacy">
       <div class="wrap">
         <div class="privacy">
-          <h2>No adverts. No profile. No sign-up.</h2>
+          <h2>No adverts. No profile. Nothing about your child.</h2>
           <p class="sub">
             This is a children's app, so the default is to collect nothing at all — and that is what
             happens unless you decide otherwise.
           </p>
           <ul class="ticks">
-            <li><b>No account and no email.</b> There is nothing to sign up for.</li>
+            <li><b>Nothing about your child leaves the tablet</b> — not their name, not their age, not
+              a single answer. There is no account for them and never will be.</li>
+            <li><b>Your email only if you want more than maths.</b> Maths needs no sign-up at all. A
+              free place or a licence needs an address, so access can be restored on a new tablet —
+              that address is ours to write to you with, and nothing else.</li>
             <li><b>No advertising</b>, in any version, ever.</li>
             <li><b>No chat and no contact</b> with other children. There is nobody else in the app.</li>
             <li><b>Your child's work stays here.</b> Their answers, progress and report live in this
@@ -661,20 +715,51 @@
       </div>
     </section>
 
-    <section>
+    <section id="free">
       <div class="wrap">
         <div class="offer">
           <h2>Free for the first 20 families</h2>
           <p class="sub" style="margin-inline: auto">
             Brainy is early, and the families who try it now are the ones shaping it. The first 20 keep
-            it free permanently for one child.
+            everything free permanently for one child.
           </p>
           <p class="price"><s>₦5,000/yr</s> Free forever</p>
           <p style="font-weight: 700; color: var(--muted); margin-top: 0">
-            One child per family. Additional children will be a small paid add-on later.
+            Maths is free for everybody, always — no sign-up, no card, no time limit. Leave your email
+            below and, while places remain, the rest opens too.
           </p>
+
+          <!--
+            The only form on this site.
+
+            It asks for a grown-up's email address and nothing about the child —
+            not a name, not an age. The address exists so a family's access can
+            be restored on a new tablet and so we can reach them about it, and
+            it is the single reason this page talks to a server at all.
+          -->
+          <form id="join" style="margin-top: 1.5rem; text-align: left; max-width: 30rem; margin-inline: auto">
+            <label for="join-email" class="field-label">Your email</label>
+            <input id="join-email" name="email" type="email" required autocomplete="email"
+              placeholder="you@example.com" />
+
+            <label for="join-name" class="field-label" style="margin-top: 0.7rem">Your name (optional)</label>
+            <input id="join-name" name="name" autocomplete="name" placeholder="so we know who we are writing to" />
+
+            <label for="join-phone" class="field-label" style="margin-top: 0.7rem">WhatsApp number (optional)</label>
+            <input id="join-phone" name="phone" inputmode="tel" placeholder="easier than email, if you prefer" />
+
+            <button class="btn gold" id="join-go" type="submit" style="margin-top: 1rem; width: 100%">
+              Claim a free place
+            </button>
+            <p class="fine" id="join-msg" role="status"></p>
+            <p class="fine">
+              One licence covers one child. We store your address, not your child's work — that never
+              leaves the tablet. No marketing lists, and no passing it on.
+            </p>
+          </form>
+
           <p style="margin-top: 1.5rem">
-            <a class="btn gold" href="/play/">Start now — no sign-up</a>
+            <a class="btn" href="/play/">Or just start playing maths — no sign-up</a>
           </p>
         </div>
       </div>
@@ -709,6 +794,91 @@
 
     <script>
       document.getElementById('yr').textContent = String(new Date().getFullYear())
+
+      /*
+       * The sign-up form.
+       *
+       * Deliberately plain: one fetch, no library, and it degrades to a clear
+       * message rather than a spinner if the server is unreachable. A parent who
+       * cannot get through here can still use the whole of maths without ever
+       * telling us anything, which is why nothing on this page blocks on it.
+       */
+      const form = document.getElementById('join')
+      const message = document.getElementById('join-msg')
+      const button = document.getElementById('join-go')
+
+      const say = (text, kind) => {
+        message.className = `fine ${kind ?? ''}`
+        message.innerHTML = text
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const email = form.email.value.trim()
+        if (!email) return
+
+        button.disabled = true
+        button.textContent = 'Sending…'
+        say('')
+
+        try {
+          const res = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              name: form.name.value.trim() || undefined,
+              phone: form.phone.value.trim() || undefined,
+              source: 'site',
+            }),
+          })
+          const data = await res.json().catch(() => null)
+
+          if (!res.ok || !data?.ok) {
+            button.disabled = false
+            button.textContent = 'Claim a free place'
+            say(
+              (data && data.error) ||
+                'Something went wrong our end. Try again in a moment, or just open Brainy — maths is free without any of this.',
+              'bad',
+            )
+            return
+          }
+
+          form.querySelectorAll('input').forEach((input) => (input.disabled = true))
+          button.remove()
+
+          /* Only mention the inbox when the server actually sent something. */
+          const emailed = data.emailed
+            ? ' We have emailed it to you as well.'
+            : ' Write it down — this is the only place it is shown.'
+
+          if (data.licence && data.licence.full) {
+            /* A free place was still going, and it has been claimed. */
+            say(
+              `<b>You have a place — everything is unlocked.</b><br>Open Brainy, tap the grown-up
+               button, then <b>Access</b>, and enter this code:
+               <span class="code">${String(data.licence.code).replace(/[<>&]/g, '')}</span><br>
+               Keep it somewhere safe: it is how you unlock another tablet later.${emailed}`,
+              'good',
+            )
+          } else {
+            say(
+              `<b>Thank you — we have your details.</b><br>The free places are taken for now, so we will
+               write to you before anything changes.${data.emailed ? ' There is a confirmation in your inbox.' : ''}
+               Maths is yours to use in the meantime, free and with no limit.`,
+              'good',
+            )
+          }
+        } catch {
+          button.disabled = false
+          button.textContent = 'Claim a free place'
+          say(
+            'We could not reach the server. Check your connection — or just open Brainy, since maths needs no sign-up at all.',
+            'bad',
+          )
+        }
+      })
     </script>
   </body>
 </html>

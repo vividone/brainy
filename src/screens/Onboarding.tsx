@@ -111,7 +111,11 @@ export function Onboarding() {
               {[
                 ['🎯', 'It adapts', 'Questions get harder as they improve, and quietly easier when they struggle.'],
                 ['📊', 'You get a report', 'See what they are strong at, what to help with, and how to help.'],
-                ['🔒', 'Nothing leaves this device', 'No account, no email, no tracking, no ads. Ever.'],
+                [
+                  '🔒',
+                  "Nothing about them leaves this device",
+                  'No account for your child, no tracking, no ads. Ever.',
+                ],
                 ['✈️', 'Works offline', 'Once loaded, it plays with no internet at all.'],
               ].map(([emoji, title, body]) => (
                 <li key={title} className="flex gap-3">
@@ -418,8 +422,9 @@ export function Onboarding() {
 
       {step === 0 && (
         <p className="mt-4 text-center text-xs font-semibold text-brand-400">
-          {APP_NAME} stores everything in this browser on this device. It makes no network requests after
-          loading, and there is nothing to sign up for.
+          {APP_NAME} stores everything in this browser on this device, and nothing about your child ever
+          leaves it. Maths is free with no sign-up; the other subjects need a code or a licence, which a
+          grown-up can sort out later.
         </p>
       )}
     </Screen>

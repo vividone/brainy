@@ -19,6 +19,7 @@ import type { CosmeticSlot } from '../game/cosmetics'
 import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
 import { shopItemById } from '../game/cosmetics'
 import { dayKey, daysBetween } from '../lib/dates'
+import type { StoredLicence } from '../lib/licence'
 
 /*
  * Storage key kept from the app's earlier name on purpose: changing it
@@ -106,6 +107,16 @@ export interface DeviceSettings {
   locked: boolean
   /** Optional line the child sees on the locked screen. */
   lockNote: string
+  /**
+   * The family's access licence, or null while they are on the free tier.
+   *
+   * Stored on the device rather than fetched, so a subject a family has paid
+   * for opens in airplane mode. It belongs to the family, not the tablet, which
+   * is why it travels in a backup — moving to a new device must not mean buying
+   * again. See src/lib/licence.ts for how it is refreshed and why a failed
+   * check never takes access away.
+   */
+  licence: StoredLicence | null
 }
 
 /** The merged view the screens actually consume. */
@@ -201,6 +212,14 @@ interface Actions {
   setShareUsage: (on: boolean) => void
   /** Record that a usage ping has been delivered. */
   markPinged: (patch: { lastOpenPing?: string; activationSent?: boolean }) => void
+  /**
+   * Store, refresh or drop the family's licence.
+   *
+   * Passing null is a real removal — the only things that should ever do it are
+   * a parent choosing to, and the server saying positively that the code no
+   * longer exists. A failed check must never call this.
+   */
+  setLicence: (licence: StoredLicence | null) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -217,7 +236,12 @@ interface Actions {
   removeLearner: (id: string) => void
 
   resetProgress: () => void
-  resetEverything: () => void
+  /**
+   * Wipe the whole device back to a first run. Returns the install id that
+   * was in use, if any, so the caller can have the server forget it too —
+   * after this returns there is nothing left to identify those rows by.
+   */
+  resetEverything: () => string | null
   exportSave: () => string
   /** Merge a save exported from another device. Returns a short outcome. */
   importSave: (json: string) => { ok: boolean; message: string }
@@ -248,6 +272,7 @@ const defaultDevice = (): DeviceSettings => ({
   activationSent: false,
   locked: false,
   lockNote: '',
+  licence: null,
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -310,6 +335,7 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'activationSent',
   'locked',
   'lockNote',
+  'licence',
 ])
 
 /** Monday-of-week key, used for streak freezes and the weekly summary. */
@@ -428,6 +454,8 @@ export const useStore = create<Store>()(
           })),
 
         markPinged: (patch) => set((s) => ({ device: { ...s.device, ...patch } })),
+
+        setLicence: (licence) => set((s) => ({ device: { ...s.device, licence } })),
 
         setLocked: (locked, note) =>
           set((s) => ({
@@ -660,11 +688,27 @@ export const useStore = create<Store>()(
 
         removeLearner: (id) =>
           set((s) => {
-            // Never leave the app with no child at all.
-            if (s.learners.length <= 1) return {}
             const learners = s.learners.filter((l) => l.id !== id)
             const data = { ...s.data }
             delete data[id]
+
+            /*
+             * Removing the last child used to be refused outright, which left
+             * a parent unable to clear a child off a shared or borrowed
+             * tablet. It is allowed now and lands back at setup — but the
+             * grown-up's own settings survive, because they are still the
+             * same grown-up. Wiping those is what "delete everything" is for.
+             */
+            if (learners.length === 0) {
+              const fresh = placeholderLearner()
+              return {
+                onboarded: false,
+                learners: [fresh],
+                data: { [fresh.id]: emptyLearnerData() },
+                activeLearnerId: fresh.id,
+              }
+            }
+
             return {
               learners,
               data,
@@ -687,7 +731,11 @@ export const useStore = create<Store>()(
             economy: d.economy,
           })),
 
-        resetEverything: () => set({ ...initialState() }),
+        resetEverything: () => {
+          const { installId } = get().device
+          set({ ...initialState() })
+          return installId
+        },
 
         exportSave: () => {
           const s = get()
@@ -787,12 +835,19 @@ export const useStore = create<Store>()(
            * install and would move a consent given on one device onto
            * another, which is not what was agreed to. So consent starts off
            * again here and has to be given on this device.
+           *
+           * The licence does travel, and that is the whole point of it living
+           * in the backup: a family replacing a broken tablet has already paid,
+           * and making them find their code again to prove it would be a
+           * punishment for owning one device rather than two. It is re-checked
+           * against the server on the next launch anyway.
            */
           const device: DeviceSettings = {
             ...s.device,
             parentPin: incoming.device?.parentPin ?? s.device.parentPin,
             sound: incoming.device?.sound ?? s.device.sound,
             reduceMotion: incoming.device?.reduceMotion ?? s.device.reduceMotion,
+            licence: incoming.device?.licence ?? s.device.licence,
           }
 
           set({

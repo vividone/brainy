@@ -11,22 +11,10 @@
  */
 
 import { query } from './_db.js'
+import { clip, num, readJson } from './_http.js'
 
 const KINDS = new Set(['activate', 'open', 'session'])
-const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : null)
-const num = (v, max) => (Number.isFinite(v) ? Math.max(0, Math.min(Math.round(v), max)) : 0)
-
-async function readJson(req) {
-  if (req.body && typeof req.body === 'object') return req.body
-  const chunks = []
-  let size = 0
-  for await (const chunk of req) {
-    size += chunk.length
-    if (size > 16 * 1024) throw new Error('too large')
-    chunks.push(chunk)
-  }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
-}
+const MAX_BODY = 16 * 1024
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -36,7 +24,7 @@ export default async function handler(req, res) {
 
   let body
   try {
-    body = await readJson(req)
+    body = await readJson(req, MAX_BODY)
   } catch {
     return res.status(400).json({ ok: false })
   }
