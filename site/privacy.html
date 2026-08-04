@@ -57,6 +57,10 @@
         browser on your device and are never uploaded. During setup we ask whether we may collect
         anonymous usage data; the box starts unticked, and if you leave it that way nothing is ever
         sent. Nothing about your child ever leaves the tablet, on any plan.
+        <br /><br />
+        This <em>website</em> is a separate thing from the app, and is treated separately: it can use
+        Google Analytics to count visits, but only if you agree when asked. See
+        <a href="#analytics">Google Analytics</a> below.
       </div>
 
       <h2>What we collect</h2>
@@ -95,8 +99,9 @@
       <ul>
         <li>
           You export a backup file and move it somewhere yourself. The file holds your children's
-          progress and your PIN, but never the sharing id — consent stays with the device it was
-          given on, so a restored tablet asks you again.
+          progress, your grown-up code and your access code, so treat it like the access code
+          itself — anyone you send it to could restore it. It never holds the sharing id: consent
+          stays with the device it was given on, so a restored tablet asks you again.
         </li>
         <li>You send the anonymous summary described below, either once or weekly.</li>
         <li>You write to us using the feedback form.</li>
@@ -224,14 +229,57 @@
         entering the code again reopens them.
       </p>
 
+      <h2 id="analytics">Google Analytics — on this website, not in the app</h2>
+      <p>
+        This website — the pages you are reading now — can use Google Analytics to tell us which pages
+        people actually read, so we know what is worth writing and what is being skipped. It is the
+        ordinary business of running a website, and we would rather do it openly than guess.
+      </p>
+      <p>
+        <strong>Nothing loads until you agree.</strong> On your first visit you are asked, with two
+        buttons the same size. Until you choose "yes" there is no request to Google, no cookie and no
+        measurement of any kind — not a "cookieless ping", not a consent signal, nothing. If your
+        browser already sends <em>Do Not Track</em> or <em>Global Privacy Control</em>, we take that as
+        your answer and never ask.
+      </p>
+      <p>If you do agree, Google Analytics sets a cookie and receives, for this website only:</p>
+      <ul>
+        <li>Which pages you looked at, and when</li>
+        <li>Roughly where in the world you are, from your IP address, which Google truncates</li>
+        <li>Your device type, browser and screen size</li>
+        <li>Which site or search sent you here, if any</li>
+      </ul>
+      <p>
+        We have switched off Google's advertising features: no Google Signals, no ad personalisation,
+        no remarketing audiences. Nothing collected here is used to advertise to you or sold to anybody,
+        and we cannot see who you are from it.
+      </p>
+      <p>
+        <strong>The app has none of this.</strong> Brainy itself, at
+        <a href="/play/">brainy.fortbridge.app/play</a>, contains no Google script, no analytics
+        service and no third-party code whatsoever — the build refuses to publish if one ever appears
+        there. So nothing your child does is measured by anybody, which is the point. The grown-up
+        dashboard is excluded too.
+      </p>
+      <p>
+        <strong>Changing your mind:</strong> <a href="#" data-analytics-choice>reopen the question</a>
+        from here or from the "Cookies" link in the footer of any page, and choose again. Choosing "no"
+        stops the measurement immediately <em>and deletes the analytics cookies already set</em> — you
+        do not have to go into your browser settings to undo it.
+      </p>
+
       <h2>Third parties</h2>
       <p>
-        Brainy contains no analytics service, no advertising, no tracking pixels, no third-party fonts
+        The app contains no analytics service, no advertising, no tracking pixels, no third-party fonts
         and no embedded content. Usage data, summaries and feedback go to our own server and are not
         shared with anyone else.
       </p>
-      <p>There are two, and only if you have given us an email address:</p>
+      <p>Three third parties are involved, and not one of them on a child's tablet:</p>
       <ul>
+        <li>
+          <strong>Google Analytics</strong> measure this website, and only if you agreed — see the
+          section above.
+        </li>
         <li>
           <strong>Resend</strong> deliver our email — your access code, a payment confirmation, and a
           warning before a licence runs out. They process your address in order to deliver those
@@ -245,7 +293,7 @@
         </li>
       </ul>
       <p>
-        Both have their own privacy notices covering what they do with what they are given. Neither
+        Each has its own privacy notice covering what they do with what they are given. None of them
         receives anything about your child, because nothing about your child exists on our side to
         send them.
       </p>
@@ -323,8 +371,12 @@
 
     <footer>
       <div class="wrap">
-        Brainy is powered by <strong>Fortbridge Technologies Ltd</strong>.
+        Brainy is powered by <strong>Fortbridge Technologies Ltd</strong>. ·
+        <a href="#" data-analytics-choice>Change your analytics choice</a>
       </div>
     </footer>
+
+    <!-- Website only. See the Analytics section above, and scripts/build-site.mjs. -->
+    <script src="/analytics.js" defer></script>
   </body>
 </html>

@@ -740,11 +740,16 @@ export const useStore = create<Store>()(
         exportSave: () => {
           const s = get()
           /*
-           * Everything about the children, but none of the analytics
-           * plumbing. A backup is a file a parent may well email to
-           * themselves, and the install id is the one pseudonymous
-           * identifier we hold — it has no business travelling in it, and
-           * consent belongs to the device it was given on.
+           * Everything about the children and the grown-up's own settings,
+           * but none of the analytics plumbing. The install id is the one
+           * pseudonymous identifier we hold, and consent belongs to the
+           * device it was given on, so neither travels — a restored tablet
+           * asks again.
+           *
+           * The licence does travel, which is the point of restoring onto a
+           * new tablet, so the file carries the access code and should be
+           * treated as one. That is said plainly in the privacy notice
+           * rather than left for a parent to work out.
            */
           const {
             installId: _id,

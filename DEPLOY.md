@@ -82,6 +82,7 @@ rather than a key-value store.
 | `OPERATOR_EMAIL` | optional | Emails **you** on every sign-up, redemption and payment |
 | `CRON_SECRET` | for renewal warnings | Any long random string. Vercel sends it as a Bearer token; without it `/api/cron/expiring` refuses to run |
 | `REPORT_WEBHOOK_URL` | optional | Also POST feedback, sign-ups and payments to Slack, Discord or Apps Script |
+| `GA_MEASUREMENT_ID` | optional | Overrides the Google Analytics property for the **website**. Defaults to the live one in `scripts/build-site.mjs`; set it to an empty string to build with analytics off |
 
 With none of them set, the app still works: usage pings write to the function log, and maths — which
 is free for everybody — needs no server at all. What breaks without `DATABASE_URL` is sign-ups and
@@ -136,6 +137,34 @@ is never in the client bundle.
 The licence is stored on the device, so paid subjects open in airplane mode. It is re-checked about
 once a week, and **only a definite "this code does not exist" ever removes it** — a failed check, a
 flat signal or a dead server leaves a family exactly as they were.
+
+### Google Analytics — website only
+
+The property is **`G-T76WQTXYYE`**, and it measures the landing page and the privacy notice. It is
+deliberately absent from three places: the app at `/play/`, the dashboard at `/admin`, and any
+localhost or `*.vercel.app` hostname.
+
+- **It is one file**, [`site/analytics.js`](site/analytics.js), loaded by `index.html` and
+  `privacy.html` only. The measurement id is substituted at build time from
+  `scripts/build-site.mjs`, so there is one place to change it.
+- **The build enforces the boundary.** `npm run build` scans `dist/play/**` for
+  `googletagmanager`, `google-analytics`, `gtag(` and `dataLayer`, and *fails* if any appears. It also
+  fails if `admin.html` ever references the analytics file. The claim on the landing page that the app
+  carries no third-party script is therefore checked rather than trusted.
+- **Nothing loads before consent.** A visitor is asked once, with two buttons the same size; until
+  they agree there is no request to Google, no cookie and no consent-mode ping. `Do Not Track` and
+  Global Privacy Control are treated as an answer, so those visitors are never asked. Declining later
+  sets Google's own `ga-disable-…` flag and deletes the `_ga*` cookies rather than telling the visitor
+  to clear their browser.
+- **Advertising features are off** in code: no Google Signals, no ad personalisation, no remarketing.
+
+Two consequences worth knowing before you look at the numbers. Consent-gating means the figures are a
+**floor, not a total** — the same caveat as the in-app usage data. And because localhost and preview
+deployments are excluded, the way to test the tag is a real visit to the production domain, checking
+for the `collect` request in the Network tab after clicking *Yes, that's fine*.
+
+Set `GA_MEASUREMENT_ID=""` to build with it off entirely; the banner disappears too, since a site with
+no cookies has no business asking about cookies.
 
 ### Email, via Resend
 
@@ -195,6 +224,9 @@ Worth doing on a real phone, not just a laptop.
 - [ ] A coupon made in *Coupons* unlocks everything from grown-up area → **Access**
 - [ ] The same coupon typed twice by the same family consumes only one use
 - [ ] The code arrives by email, and the link in it opens the app
+- [ ] The landing page asks about analytics once, and **nothing** is requested from Google until you agree
+- [ ] `/play/` requests nothing from Google at all, before or after agreeing (check the Network tab)
+- [ ] The footer *Cookies* link reopens the question, and declining removes the `_ga*` cookies
 - [ ] With `PAYSTACK_SECRET_KEY` set, **Access** shows the prices and checkout reaches Paystack
 - [ ] Paying with a test card returns to `/play/?ref=…` and lands on "Everything is unlocked"
 - [ ] *Revoke* in *Families*, then **Check again** in the app, closes the paid subjects

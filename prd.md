@@ -820,7 +820,7 @@ Gating by **content**, never by time. A countdown that locks a child out mid-tho
 - **₦5,000 per year** in Nigeria, with a one-time lifetime option offered at launch as an early-adopter reward.
 - Priced regionally elsewhere — roughly **$15–20 per year** — still well under Khan Academy Kids' peers and IXL.
 - **The first 20 families to sign up get it free forever, for one child.** They are the people taking a risk on an unproven app, and their feedback is worth more than their subscription. Additional children on the same licence are paid, at a reduced per-child rate.
-- One licence covers one child. Multi-child support (phase 6) adds profiles on one device, each with its own progress, mascot and report.
+- One licence covers one child. Multi-child support **shipped in phase 6**: several children share one device, each with their own progress, character, pet and report, and the licence records how many children it covers.
 
 ### 14.4 The charity commitment
 

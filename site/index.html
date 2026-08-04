@@ -695,6 +695,9 @@
               free place or a licence needs an address, so access can be restored on a new tablet —
               that address is ours to write to you with, and nothing else.</li>
             <li><b>No advertising</b>, in any version, ever.</li>
+            <li><b>No third-party code in the app at all.</b> This marketing page can count visits with
+              Google Analytics if you agree when asked — the app itself has no analytics, no Google
+              script and nothing embedded, and the build refuses to publish if that ever changes.</li>
             <li><b>No chat and no contact</b> with other children. There is nobody else in the app.</li>
             <li><b>Your child's work stays here.</b> Their answers, progress and report live in this
               browser and are never uploaded.</li>
@@ -783,6 +786,8 @@
             <a href="/play/">Open the app</a>
             <a href="#how">How it works</a>
             <a href="/privacy.html">Privacy</a>
+            <!-- Withdrawing has to be as easy as agreeing was. -->
+            <a href="#" data-analytics-choice>Cookies</a>
           </nav>
         </div>
         <div class="powered">
@@ -880,5 +885,11 @@
         }
       })
     </script>
+
+    <!--
+      Analytics for this page only, and only after the visitor agrees. The app at
+      /play/ never loads this, and the build fails if a Google script reaches it.
+    -->
+    <script src="/analytics.js" defer></script>
   </body>
 </html>
