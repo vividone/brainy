@@ -2,7 +2,7 @@
 
 A gamified curriculum-practice app for primary-school children, by Fortbridge Technologies Ltd.
 
-Live at **brainy.accurify.co** — marketing site at the root, app at `/play/`. See [DEPLOY.md](DEPLOY.md). Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
+Live at **brainy.fortbridge.app** — marketing site at the root, app at `/play/`. See [DEPLOY.md](DEPLOY.md). Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
 
 **What is built:** the full structure for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age.
 

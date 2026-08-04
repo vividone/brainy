@@ -6,7 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 /*
  * The app is served from /play/ so the marketing site can own the root of
- * brainy.accurify.co. Both ship from the same `dist/`.
+ * brainy.fortbridge.app. Both ship from the same `dist/`.
  */
 export default defineConfig({
   base: '/play/',

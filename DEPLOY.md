@@ -1,4 +1,4 @@
-# Deploying Brainy to brainy.accurify.co
+# Deploying Brainy to brainy.fortbridge.app
 
 ## What a build produces
 
@@ -36,8 +36,8 @@ npm run serve          # http://localhost:4200
 2. Vercel → **Add New… → Project** → import the repo.
 3. Framework preset **Other**. It reads `vercel.json`: build `npm run build`, output `dist`.
 4. Deploy.
-5. **Settings → Domains** → add `brainy.accurify.co`.
-6. Wherever `accurify.co` DNS lives, add the record Vercel shows you:
+5. **Settings → Domains** → add `brainy.fortbridge.app`.
+6. Wherever `fortbridge.app` DNS lives, add the record Vercel shows you:
 
    | Type | Name | Value |
    |---|---|---|
@@ -63,13 +63,13 @@ A Google Apps Script writing to a Sheet is probably the least effort if you want
 
 Worth doing on a real phone, not just a laptop.
 
-- [ ] `https://brainy.accurify.co/` shows the landing page
-- [ ] `https://brainy.accurify.co/play/` opens the app and onboarding starts
+- [ ] `https://brainy.fortbridge.app/` shows the landing page
+- [ ] `https://brainy.fortbridge.app/play/` opens the app and onboarding starts
 - [ ] "Add to home screen" is offered (Chrome on Android, Share → Add to Home Screen on iOS)
 - [ ] Opened from the home screen it runs full-screen with no browser chrome
 - [ ] Put the phone in airplane mode, reopen it — a whole quest should still play
 - [ ] The grown-up area opens with the code set during onboarding
-- [ ] `https://brainy.accurify.co/privacy.html` loads
+- [ ] `https://brainy.fortbridge.app/privacy.html` loads
 - [ ] Grown-up area → Settings → *Help improve Brainy* → **Send it now** returns "Sent. Thank you.", and the report appears in your Vercel logs or webhook
 - [ ] The feedback form sends, and its **Copy instead** fallback works with the phone offline
 
@@ -101,7 +101,7 @@ The link is all they need — no store, no install, no account. Something like:
 
 > Brainy is a short daily practice app for Basic 1–6: maths, reasoning and English, matched to your child's class. Five minutes a day.
 >
-> https://brainy.accurify.co
+> https://brainy.fortbridge.app
 >
 > Nothing to install and no sign-up. On a phone, use "Add to home screen" so it opens like an app and works without data.
 >

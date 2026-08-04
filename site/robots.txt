@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /play/
 
-Sitemap: https://brainy.accurify.co/sitemap.xml
+Sitemap: https://brainy.fortbridge.app/sitemap.xml
