@@ -17,6 +17,7 @@ import {
 import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
 import { Mascot } from '../components/Mascot'
+import { PinGate } from '../components/PinGate'
 import { APP_VERSION, CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
@@ -30,81 +31,6 @@ import { FeedbackCard } from './Feedback'
 /* ------------------------------------------------------------------ *
  * PIN gate
  * ------------------------------------------------------------------ */
-
-function Gate({ onPass, onBack }: { onPass: () => void; onBack: () => void }) {
-  const pin = useStore((s) => s.device.parentPin)
-  const [entry, setEntry] = useState('')
-  const [error, setError] = useState(false)
-
-  const submit = (value: string) => {
-    if (value === pin) return onPass()
-    setError(true)
-    setEntry('')
-    window.setTimeout(() => setError(false), 600)
-  }
-
-  const press = (digit: string) => {
-    const next = entry + digit
-    setEntry(next)
-    if (next.length === 4) window.setTimeout(() => submit(next), 120)
-  }
-
-  return (
-    <Screen className="max-w-md">
-      <header className="flex items-center gap-3 pt-1">
-        <IconBtn label="Back" onClick={onBack}>
-          ←
-        </IconBtn>
-        <h1 className="text-2xl font-black text-brand-900">Grown-ups only</h1>
-      </header>
-
-      <Card className={`mt-8 p-6 text-center ${error ? 'animate-shake border-rose-400' : ''}`}>
-        <p className="text-5xl">🔒</p>
-        <p className="mt-2 font-bold text-brand-600">Enter the 4-digit code</p>
-
-        <div className="mt-4 flex justify-center gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <span
-              key={i}
-              className={`size-5 rounded-full border-2 ${i < entry.length ? 'bg-brand-600 border-brand-700' : 'border-brand-300'}`}
-            />
-          ))}
-        </div>
-        {error && <p className="mt-3 font-black text-rose-600">Not quite — try again</p>}
-
-        <div className="mt-6 grid grid-cols-3 gap-2">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-            <button
-              key={d}
-              onClick={() => press(d)}
-              className="h-16 rounded-2xl border-2 border-b-4 border-brand-300 bg-white text-2xl font-black text-brand-900"
-            >
-              {d}
-            </button>
-          ))}
-          <button
-            onClick={() => setEntry('')}
-            className="h-16 rounded-2xl border-2 border-b-4 border-rose-300 bg-rose-50 font-black text-rose-700"
-          >
-            C
-          </button>
-          <button
-            onClick={() => press('0')}
-            className="h-16 rounded-2xl border-2 border-b-4 border-brand-300 bg-white text-2xl font-black text-brand-900"
-          >
-            0
-          </button>
-          <button
-            onClick={() => setEntry(entry.slice(0, -1))}
-            className="h-16 rounded-2xl border-2 border-b-4 border-amber-300 bg-amber-50 font-black text-amber-800"
-          >
-            ⌫
-          </button>
-        </div>
-      </Card>
-    </Screen>
-  )
-}
 
 /* ------------------------------------------------------------------ *
  * Report
@@ -207,7 +133,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
     return `Right now Auto is pitching "${focus.title}" at level ${level} of 5, and will move it as he improves.`
   }, [curriculum.id, subject.id, bands, progress])
 
-  if (!unlocked) return <Gate onPass={() => setUnlocked(true)} onBack={onBack} />
+  if (!unlocked) return <PinGate title="Grown-ups only" onPass={() => setUnlocked(true)} onBack={onBack} />
 
   return (
     <Screen bg="bg-slate-50">
@@ -772,6 +698,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
   const [confirmReset, setConfirmReset] = useState(false)
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [showSummary, setShowSummary] = useState(false)
+  const [lockNote, setLockNote] = useState(useStore.getState().device.lockNote)
   const [copied, setCopied] = useState<string | null>(null)
   const { totals } = useLearnerData()
   const summaryText = buildSharableSummary(
@@ -1024,6 +951,44 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
             Save
           </Btn>
         </div>
+      </Card>
+
+      {/*
+        Pausing the app.
+
+        First card in Settings on purpose: a parent reaching for this is
+        usually reaching for it in a hurry, at bedtime or over homework.
+      */}
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Pause Brainy</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-3">
+          Locks the app for everyone on this device. Your child sees a friendly &ldquo;taking a
+          break&rdquo; screen and needs this code to get back in.
+        </p>
+        <label htmlFor="locknote" className="block font-black text-slate-800 text-sm">
+          Leave them a message (optional)
+        </label>
+        <input
+          id="locknote"
+          value={lockNote}
+          onChange={(e) => setLockNote(e.target.value.slice(0, 80))}
+          placeholder="e.g. Homework first, then Brainy!"
+          className="mt-1 w-full h-12 rounded-2xl border-2 border-slate-300 px-3 font-semibold outline-none focus:border-slate-900"
+        />
+        <Btn
+          variant="danger"
+          size="lg"
+          full
+          className="mt-3"
+          onClick={() => store.setLocked(true, lockNote)}
+        >
+          🔒 Lock now
+        </Btn>
+        <p className="mt-2 text-xs font-semibold text-slate-400">
+          This is a soft lock, not a security feature — an older child who knows their way around a
+          browser could clear its storage. It is here so &ldquo;not now&rdquo; sticks without taking
+          the tablet away.
+        </p>
       </Card>
 
       {/*

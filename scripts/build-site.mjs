@@ -5,7 +5,7 @@
  *   dist/index.html      landing page
  *   dist/privacy.html    privacy notice
  *   dist/img/            marketing screenshots
- *   dist/app/            the PWA
+ *   dist/play/           the PWA
  */
 
 import { cp, mkdir, readdir } from 'node:fs/promises'

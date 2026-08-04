@@ -81,6 +81,17 @@ export interface DeviceSettings {
   shareWeekly: boolean
   /** Monday-of-week key of the last automatic send, so it goes once a week. */
   lastSharedWeek: string | null
+  /**
+   * Parent has paused the app. The child sees a friendly locked screen and
+   * needs the grown-up code to get back in.
+   *
+   * Deliberately a soft lock: a determined older child can clear browser
+   * storage. It exists so a parent can say "not now" without confiscating
+   * the tablet, not to be tamper-proof.
+   */
+  locked: boolean
+  /** Optional line the child sees on the locked screen. */
+  lockNote: string
 }
 
 /** The merged view the screens actually consume. */
@@ -167,6 +178,8 @@ interface Actions {
   setAge: (age: number) => void
   /** Record that the weekly summary has gone for this week. */
   markShared: (week: string) => void
+  /** Pause or resume the whole app for whoever is using this device. */
+  setLocked: (locked: boolean, note?: string) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -209,6 +222,8 @@ const defaultDevice = (): DeviceSettings => ({
   parentPin: '1234',
   shareWeekly: false,
   lastSharedWeek: null,
+  locked: false,
+  lockNote: '',
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -266,6 +281,8 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'parentPin',
   'shareWeekly',
   'lastSharedWeek',
+  'locked',
+  'lockNote',
 ])
 
 /** Monday-of-week key, used for streak freezes and the weekly summary. */
@@ -358,6 +375,11 @@ export const useStore = create<Store>()(
 
         markShared: (week) =>
           set((s) => ({ device: { ...s.device, lastSharedWeek: week } })),
+
+        setLocked: (locked, note) =>
+          set((s) => ({
+            device: { ...s.device, locked, lockNote: note ?? s.device.lockNote },
+          })),
 
         setAge: (age) =>
           set((s) => ({

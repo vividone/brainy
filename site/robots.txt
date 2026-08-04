@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /app/
+Disallow: /play/
 
 Sitemap: https://brainy.accurify.co/sitemap.xml

@@ -12,6 +12,7 @@ import { Session } from './screens/Session'
 import { Shop } from './screens/Shop'
 import { Subject } from './screens/Subject'
 import { WhoIsPlaying } from './screens/WhoIsPlaying'
+import { Locked } from './screens/Locked'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
@@ -72,6 +73,7 @@ export default function App() {
    * the app starting up, and marks the week only on success so a failed
    * send retries next launch rather than being lost.
    */
+  const locked = useStore((s) => s.device.locked)
   const shareWeekly = useStore((s) => s.device.shareWeekly)
   const lastSharedWeek = useStore((s) => s.device.lastSharedWeek)
   const markShared = useStore((s) => s.markShared)
@@ -173,6 +175,12 @@ export default function App() {
   }, [lastLaunch, startDaily, startLevel])
 
   if (!onboarded) return <Onboarding />
+  /*
+   * The lock sits above everything, including the child picker and any
+   * session in progress. A parent who locks it means now, not after this
+   * quest finishes.
+   */
+  if (locked) return <Locked />
   if (needsPicker) {
     return (
       <WhoIsPlaying

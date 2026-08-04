@@ -1,8 +1,8 @@
 /**
  * Serves `dist/` exactly as a static host would, so the marketing site at `/`
- * and the app at `/app/` can be checked together before deploying.
+ * and the app at `/play/` can be checked together before deploying.
  *
- * `vite preview` cannot do this: it applies the app's `/app/` base to the
+ * `vite preview` cannot do this: it applies the app's `/play/` base to the
  * whole server and redirects the root away from the landing page.
  */
 
@@ -38,10 +38,10 @@ createServer(async (req, res) => {
   try {
     if ((await stat(file).catch(() => null))?.isDirectory()) file = path.join(file, 'index.html')
     else if (!path.extname(file)) {
-      // Bare path: try .html, then fall back to the app shell under /app.
+      // Bare path: try .html, then fall back to the app shell under /play.
       const asHtml = `${file}.html`
       if (await stat(asHtml).catch(() => null)) file = asHtml
-      else if (url.startsWith('/app')) file = path.join(dist, 'app', 'index.html')
+      else if (url.startsWith('/play')) file = path.join(dist, 'play', 'index.html')
     }
     const body = await readFile(file)
     send(res, 200, body, TYPES[path.extname(file)] ?? 'application/octet-stream')

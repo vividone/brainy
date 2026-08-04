@@ -5,12 +5,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 /*
- * The app is served from /app/ so the marketing site can own the root of
+ * The app is served from /play/ so the marketing site can own the root of
  * brainy.accurify.co. Both ship from the same `dist/`.
  */
 export default defineConfig({
-  base: '/app/',
-  build: { outDir: 'dist/app', emptyOutDir: true },
+  base: '/play/',
+  build: { outDir: 'dist/play', emptyOutDir: true },
   plugins: [
     react(),
     tailwindcss(),
@@ -25,9 +25,9 @@ export default defineConfig({
         background_color: '#faf5ff',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/app/',
-        scope: '/app/',
-        id: '/app/',
+        start_url: '/play/',
+        scope: '/play/',
+        id: '/play/',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

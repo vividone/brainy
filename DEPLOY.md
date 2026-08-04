@@ -10,13 +10,13 @@ npm run build
 dist/
   index.html        landing page
   privacy.html      privacy notice
-  robots.txt        allows the landing page, disallows /app/
+  robots.txt        allows the landing page, disallows /play/
   sitemap.xml
   img/              marketing screenshots
-  app/              the PWA (index.html, assets/, sw.js, manifest, icons)
+  play/             the PWA (index.html, assets/, sw.js, manifest, icons)
 ```
 
-The marketing site owns the root; the app lives at `/app/`. Both ship from one `dist/`, so there is one deploy, not two.
+The marketing site owns the root; the app lives at `/play/`. Both ship from one `dist/`, so there is one deploy, not two.
 
 Check it locally exactly as a host would serve it:
 
@@ -24,7 +24,7 @@ Check it locally exactly as a host would serve it:
 npm run serve          # http://localhost:4200
 ```
 
-`vite preview` is not a substitute — it applies the app's `/app/` base to the whole server and redirects the root away from the landing page.
+`vite preview` is not a substitute — it applies the app's `/play/` base to the whole server and redirects the root away from the landing page.
 
 ---
 
@@ -64,7 +64,7 @@ A Google Apps Script writing to a Sheet is probably the least effort if you want
 Worth doing on a real phone, not just a laptop.
 
 - [ ] `https://brainy.accurify.co/` shows the landing page
-- [ ] `https://brainy.accurify.co/app/` opens the app and onboarding starts
+- [ ] `https://brainy.accurify.co/play/` opens the app and onboarding starts
 - [ ] "Add to home screen" is offered (Chrome on Android, Share → Add to Home Screen on iOS)
 - [ ] Opened from the home screen it runs full-screen with no browser chrome
 - [ ] Put the phone in airplane mode, reopen it — a whole quest should still play
