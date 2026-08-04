@@ -23,6 +23,9 @@ import { useLearnerData, useProfile, useSettings, useStore } from '../state/stor
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
 import { buildAnalytics, buildSharableSummary, type Analytics } from '../state/analytics'
 import { setSpeechRate, speak } from '../lib/speech'
+import { sendReport } from '../lib/report'
+import { isoWeek } from '../state/weekly'
+import { FeedbackCard } from './Feedback'
 
 /* ------------------------------------------------------------------ *
  * PIN gate
@@ -1038,8 +1041,31 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           topics are going badly, which is how we find questions that are wrong or badly pitched. Read
           it before you send it.
         </p>
+        {/* The one switch in the app that permits a network request. */}
+        <div className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 p-3 mb-3">
+          <div className="min-w-0">
+            <p className="font-black text-slate-800">Send it automatically each week</p>
+            <p className="text-xs font-semibold text-slate-500">
+              Off unless you turn it on. This is the only thing in Brainy that ever contacts a server,
+              and it sends exactly the summary below — no name, no identifier, no dates. We cannot tell
+              your reports apart from anybody else's, which is deliberate.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={settings.shareWeekly}
+            aria-label="Send an anonymous summary each week"
+            onClick={() => updateSettings({ shareWeekly: !settings.shareWeekly })}
+            className={`mt-1 h-9 w-16 shrink-0 rounded-full border-2 transition ${settings.shareWeekly ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+          >
+            <span
+              className={`block size-7 rounded-full bg-white shadow transition-transform ${settings.shareWeekly ? 'translate-x-7' : 'translate-x-0.5'}`}
+            />
+          </button>
+        </div>
+
         <Btn variant="secondary" size="md" onClick={() => setShowSummary((v) => !v)}>
-          {showSummary ? 'Hide summary' : '📋 Build a summary to share'}
+          {showSummary ? 'Hide summary' : '📋 See what would be sent'}
         </Btn>
         {showSummary && (
           <div className="mt-3">
@@ -1060,11 +1086,29 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
               >
                 Copy to clipboard
               </Btn>
+              <Btn
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  setCopied('Sending…')
+                  const ok = await sendReport({
+                    type: 'weekly',
+                    week: isoWeek(),
+                    app: APP_VERSION,
+                    children: [summaryText],
+                  })
+                  setCopied(ok ? 'Sent. Thank you.' : 'Could not send — copy it and message us instead.')
+                }}
+              >
+                Send it now
+              </Btn>
               {copied && <span className="self-center text-sm font-bold text-emerald-700">{copied}</span>}
             </div>
           </div>
         )}
       </Card>
+
+      <FeedbackCard summary={summaryText} />
 
       <Card className="p-5 border-slate-200">
         <h2 className="font-black text-slate-900 mb-1">Your data</h2>

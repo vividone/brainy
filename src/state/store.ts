@@ -71,6 +71,16 @@ export interface DeviceSettings {
   reduceMotion: boolean
   /** 4 digits. Guards the parent zone; not a security boundary. */
   parentPin: string
+  /**
+   * Send an anonymous weekly summary automatically.
+   *
+   * Off unless a parent turns it on. This is the *only* thing in the app that
+   * ever makes a network request after load, which is why it is a single
+   * explicit switch rather than something buried in a consent banner.
+   */
+  shareWeekly: boolean
+  /** Monday-of-week key of the last automatic send, so it goes once a week. */
+  lastSharedWeek: string | null
 }
 
 /** The merged view the screens actually consume. */
@@ -155,6 +165,8 @@ interface Actions {
   updateSettings: (patch: Partial<Settings>) => void
   setCurriculum: (curriculumId: string, yearBand: string) => void
   setAge: (age: number) => void
+  /** Record that the weekly summary has gone for this week. */
+  markShared: (week: string) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -191,7 +203,13 @@ const defaultLearnerSettings = (): LearnerSettings => ({
   dyslexiaFont: false,
 })
 
-const defaultDevice = (): DeviceSettings => ({ sound: true, reduceMotion: false, parentPin: '1234' })
+const defaultDevice = (): DeviceSettings => ({
+  sound: true,
+  reduceMotion: false,
+  parentPin: '1234',
+  shareWeekly: false,
+  lastSharedWeek: null,
+})
 
 export const emptyLearnerData = (): LearnerData => ({
   settings: defaultLearnerSettings(),
@@ -242,10 +260,16 @@ const initialState = (): SaveState => {
   }
 }
 
-const DEVICE_KEYS = new Set<keyof DeviceSettings>(['sound', 'reduceMotion', 'parentPin'])
+const DEVICE_KEYS = new Set<keyof DeviceSettings>([
+  'sound',
+  'reduceMotion',
+  'parentPin',
+  'shareWeekly',
+  'lastSharedWeek',
+])
 
-/** Monday-of-week key, used to grant one streak freeze per week. */
-function weekKey(d = new Date()): string {
+/** Monday-of-week key, used for streak freezes and the weekly summary. */
+export function weekKey(d = new Date()): string {
   const monday = new Date(d)
   const offset = (d.getDay() + 6) % 7
   monday.setDate(d.getDate() - offset)
@@ -331,6 +355,9 @@ export const useStore = create<Store>()(
               l.id === s.activeLearnerId ? { ...l, curriculumId, yearBand } : l,
             ),
           })),
+
+        markShared: (week) =>
+          set((s) => ({ device: { ...s.device, lastSharedWeek: week } })),
 
         setAge: (age) =>
           set((s) => ({

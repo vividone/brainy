@@ -28,41 +28,36 @@ npm run serve          # http://localhost:4200
 
 ---
 
-## Netlify (recommended)
+## Vercel
 
-`netlify.toml` is already in the repo, so there is nothing to configure in the UI.
+`vercel.json` is in the repo, so there is nothing to configure in the dashboard.
 
 1. Push this repo to GitHub.
-2. Netlify → **Add new site → Import an existing project** → pick the repo.
-3. It reads `netlify.toml`: build `npm run build`, publish `dist`. Deploy.
-4. **Domain settings → Add a domain** → `brainy.accurify.co`.
-5. At whoever hosts `accurify.co` DNS, add:
+2. Vercel → **Add New… → Project** → import the repo.
+3. Framework preset **Other**. It reads `vercel.json`: build `npm run build`, output `dist`.
+4. Deploy.
+5. **Settings → Domains** → add `brainy.accurify.co`.
+6. Wherever `accurify.co` DNS lives, add the record Vercel shows you:
 
    | Type | Name | Value |
    |---|---|---|
-   | CNAME | `brainy` | `<your-site>.netlify.app` |
+   | CNAME | `brainy` | `cname.vercel-dns.com` |
 
-6. Wait for the certificate to issue (usually minutes). **HTTPS is not optional** — service workers, and therefore offline and install-to-home-screen, only work over HTTPS.
+7. Wait for the certificate. **HTTPS is not optional** — service workers, and so offline and
+   add-to-home-screen, only work over HTTPS.
 
-The config also sets the cache headers that matter: hashed assets are immutable for a year, but `sw.js` and the app shell must revalidate every time or an update never reaches a device that has already installed it.
+`api/report.js` is picked up automatically as a serverless function at `/api/report`. There is nothing to wire up.
 
-### Vercel
+The config also sets the cache headers that matter: hashed assets are immutable for a year, but `sw.js` and the app shell must revalidate every time, or an update never reaches a device that has already installed it.
 
-No config file needed:
+### Where reports go
 
-- Build command `npm run build`
-- Output directory `dist`
-- Add `brainy.accurify.co` under Domains, then the same CNAME.
+The weekly summary and the feedback form both POST to `/api/report`. Choose one:
 
-Vercel serves `dist/` as-is, so `/` and `/app/` both work. You will want to add the same cache headers for `/app/sw.js` via `vercel.json` if updates start sticking.
+- **Nothing to set up.** Leave `REPORT_WEBHOOK_URL` unset and every report is written to the function log — Vercel dashboard → the project → *Logs*. Fine for twenty families; not a durable store.
+- **Send them somewhere you already look.** Set `REPORT_WEBHOOK_URL` under **Settings → Environment Variables** to any URL that accepts a JSON POST: a Slack or Discord incoming webhook, a Google Apps Script bound to a Sheet, a Zapier or Make hook, or an email relay. Redeploy for it to take effect.
 
-### Cloudflare Pages
-
-- Build command `npm run build`, output directory `dist`.
-- If `accurify.co` is already on Cloudflare, the subdomain is a click rather than a CNAME.
-- Turn **Auto Minify off for HTML** — it can rewrite the inlined SVG in the landing page.
-
----
+A Google Apps Script writing to a Sheet is probably the least effort if you want the numbers in one place you can sort.
 
 ## After deploying, check these
 
@@ -75,6 +70,8 @@ Worth doing on a real phone, not just a laptop.
 - [ ] Put the phone in airplane mode, reopen it — a whole quest should still play
 - [ ] The grown-up area opens with the code set during onboarding
 - [ ] `https://brainy.accurify.co/privacy.html` loads
+- [ ] Grown-up area → Settings → *Help improve Brainy* → **Send it now** returns "Sent. Thank you.", and the report appears in your Vercel logs or webhook
+- [ ] The feedback form sends, and its **Copy instead** fallback works with the phone offline
 
 **iOS note.** Safari does not prompt to install; a parent has to use Share → Add to Home Screen. Worth saying so explicitly when you share the link, or most iPhone users will just use it in the browser and never get the offline behaviour.
 
@@ -113,4 +110,8 @@ The link is all they need — no store, no install, no account. Something like:
 **What to ask them for.** There is no analytics in Brainy, so the app cannot tell you what is working. Two ways to find out:
 
 1. **Ask.** At twenty families, a WhatsApp group and three questions beats any dashboard: does your child open it without being asked, what confused them, what looked wrong.
-2. **The in-app summary.** Grown-up area → Settings → *Help improve Brainy*. It builds a de-identified summary — curriculum, class, bucketed counts, accuracy, and the topics scoring worst — and copies it to the clipboard for the parent to send. Nothing is transmitted by the app itself. The lowest-accuracy skills are the useful part: a skill sitting at 30% across several families is a badly worded question, not a struggling child.
+2. **The in-app summary.** Grown-up area → Settings → *Help improve Brainy*. The parent can read the exact text, copy it, send it once, or switch on a weekly send. It carries curriculum, class, bucketed counts, accuracy and the topics scoring worst — and no name, no identifier and no dates. The lowest-accuracy skills are the useful part: a skill sitting at 30% across several families is a badly worded question, not a struggling child.
+
+   Because there is no identifier, you cannot tell one family's reports from another's, or follow a family over time. That is deliberate — an id plus a history would make it personal data again. It still answers the question that matters, which is *which content is broken*.
+
+3. **The feedback form.** Same screen. Categories first ("a question looks wrong", "something confused my child"), because an open text box gets nothing while a named category gets the report that fixes content.

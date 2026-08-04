@@ -16,6 +16,9 @@ import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
 import { setSpeechEnabled, setSpeechRate } from './lib/speech'
+import { sendReport } from './lib/report'
+import { buildWeeklySummaries, isoWeek } from './state/weekly'
+import { APP_VERSION } from './game/characters'
 
 type Route =
   | { name: 'home' }
@@ -61,6 +64,30 @@ export default function App() {
     document.documentElement.classList.toggle('font-dyslexic', settings.dyslexiaFont)
     document.documentElement.classList.toggle('reduce-motion', settings.reduceMotion)
   }, [settings.dyslexiaFont, settings.reduceMotion])
+
+  /*
+   * The weekly summary, if a parent switched it on.
+   *
+   * Runs once per ISO week, after a short delay so it never competes with
+   * the app starting up, and marks the week only on success so a failed
+   * send retries next launch rather than being lost.
+   */
+  const shareWeekly = useStore((s) => s.device.shareWeekly)
+  const lastSharedWeek = useStore((s) => s.device.lastSharedWeek)
+  const markShared = useStore((s) => s.markShared)
+  useEffect(() => {
+    if (!shareWeekly) return
+    const week = isoWeek()
+    if (lastSharedWeek === week) return
+
+    const timer = window.setTimeout(async () => {
+      const children = buildWeeklySummaries(useStore.getState())
+      if (children.length === 0) return
+      const ok = await sendReport({ type: 'weekly', week, app: APP_VERSION, children })
+      if (ok) markShared(week)
+    }, 6000)
+    return () => window.clearTimeout(timer)
+  }, [shareWeekly, lastSharedWeek, markShared])
 
   /* Back button and Escape both go up one level rather than leaving the app. */
   useEffect(() => {
