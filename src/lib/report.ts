@@ -13,6 +13,8 @@ const TIMEOUT_MS = 8000
 
 export interface WeeklyReport {
   type: 'weekly'
+  /** Present only when the parent has opted in; absent otherwise. */
+  installId?: string
   /** ISO-week bucket, e.g. "2026-W31". Coarse on purpose — no timestamps. */
   week: string
   app: string
@@ -22,6 +24,7 @@ export interface WeeklyReport {
 
 export interface FeedbackReport {
   type: 'feedback'
+  installId?: string
   app: string
   category: string
   message: string

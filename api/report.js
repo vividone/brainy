@@ -7,18 +7,23 @@
  * Storage is deliberately pluggable, because the right answer depends on what
  * you already run:
  *
- *   REPORT_WEBHOOK_URL   POST the report on to Slack, Discord, a Google Apps
- *                        Script, Zapier, an email relay — anything that takes
- *                        a JSON POST. Set it and reports arrive where you
- *                        already look.
- *   (unset)              Log to stdout. Visible in the Vercel dashboard under
- *                        the function's logs. Fine for twenty families, not a
- *                        long-term store.
+ *   DATABASE_URL         Postgres. Summaries and feedback are stored and show
+ *                        up on the admin dashboard.
+ *   REPORT_WEBHOOK_URL   Optionally also POST each one on to Slack, Discord, a
+ *                        Google Apps Script or an email relay, so feedback
+ *                        lands where you already look rather than waiting to
+ *                        be checked.
+ *   (neither set)        Log to stdout, visible in the Vercel function logs.
  *
- * What this must never do is grow into a profile. There is no identifier in
- * the payload, nothing is written to a cookie, and no IP address is recorded
- * beyond whatever the platform keeps in its own access logs.
+ * A random install id may be present, but only for a parent who opted in —
+ * it is minted at that moment and destroyed if they opt out. It distinguishes
+ * one browser profile from another so a tablet is not counted twice; it is
+ * not tied to a person and cannot be resolved to one. Nothing is written to a
+ * cookie, and no IP address or user agent is recorded beyond whatever the
+ * platform keeps in its own access logs.
  */
+
+import { query } from './_db.js'
 
 const MAX_BODY = 64 * 1024
 
@@ -81,6 +86,32 @@ export default async function handler(req, res) {
           contact: clip(body.contact, 160),
           summary: clip(body.summary, 4000),
         }
+
+  try {
+    if (record.type === 'weekly') {
+      for (const bodyText of record.children) {
+        await query(
+          `insert into summaries (install_id, week, app_version, body) values ($1, $2, $3, $4)`,
+          [clip(body.installId, 64), record.week, record.app, bodyText],
+        )
+      }
+    } else {
+      await query(
+        `insert into feedback (install_id, category, message, contact, summary, app_version)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [
+          clip(body.installId, 64),
+          record.category,
+          record.message,
+          record.contact,
+          record.summary,
+          record.app,
+        ],
+      )
+    }
+  } catch (err) {
+    console.error('[brainy] store failed', err instanceof Error ? err.message : err)
+  }
 
   const webhook = process.env.REPORT_WEBHOOK_URL
   if (webhook) {

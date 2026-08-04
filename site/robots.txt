@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /play/
+Disallow: /admin
+Disallow: /api/
 
 Sitemap: https://brainy.fortbridge.app/sitemap.xml

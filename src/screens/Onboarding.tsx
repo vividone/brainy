@@ -39,6 +39,8 @@ export function Onboarding() {
   const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
   const [petId, setPetId] = useState(PETS[0].id)
   const [pin, setPin] = useState('')
+  /* Unticked on purpose. A pre-ticked box is not consent. */
+  const [shareUsage, setShareUsage] = useState(false)
   const [done, setDone] = useState(false)
 
   const curriculum = curricula.find((c) => c.id === curriculumId) ?? curricula[0]
@@ -66,6 +68,7 @@ export function Onboarding() {
       characterId,
       petId,
       parentPin: pin,
+      shareUsage,
     })
   }
 
@@ -243,6 +246,35 @@ export function Onboarding() {
               This guards the grown-up area, where the progress report and all the settings live —
               difficulty, session length, timers and read-aloud. Pick something {firstName} will not guess.
             </p>
+
+            {/*
+              The one consent request, asked plainly and left unticked.
+              A pre-ticked box is not consent, particularly for a children's
+              product, and this is the only thing that ever leaves the device.
+            */}
+            <div className="mt-5 rounded-2xl border-2 border-brand-200 bg-brand-50 p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={shareUsage}
+                  onChange={(e) => setShareUsage(e.target.checked)}
+                  className="mt-1 size-5 shrink-0"
+                />
+                <span>
+                  <span className="block font-black text-brand-900">
+                    Help improve Brainy with anonymous usage data
+                  </span>
+                  <span className="block text-sm font-semibold text-brand-600 mt-1">
+                    Sends how often Brainy is opened, how many questions were answered, and which
+                    topics score worst — plus a random code so the same tablet is not counted twice.
+                    Never {firstName}&apos;s name, age, or anything they type.
+                  </span>
+                  <span className="block text-sm font-semibold text-brand-500 mt-1">
+                    Entirely optional, and you can change it any time in the grown-up area.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
         )}
 

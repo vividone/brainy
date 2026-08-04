@@ -19,6 +19,8 @@ import { setSoundEnabled } from './lib/sound'
 import { setSpeechEnabled, setSpeechRate } from './lib/speech'
 import { sendReport } from './lib/report'
 import { buildWeeklySummaries, isoWeek } from './state/weekly'
+import { sendEvent } from './lib/usage'
+import { dayKey } from './lib/dates'
 import { APP_VERSION } from './game/characters'
 
 type Route =
@@ -74,22 +76,62 @@ export default function App() {
    * send retries next launch rather than being lost.
    */
   const locked = useStore((s) => s.device.locked)
-  const shareWeekly = useStore((s) => s.device.shareWeekly)
-  const lastSharedWeek = useStore((s) => s.device.lastSharedWeek)
+  const device = useStore((s) => s.device)
   const markShared = useStore((s) => s.markShared)
+  const markPinged = useStore((s) => s.markPinged)
+
+  /*
+   * Usage pings and the weekly summary, both behind the same opt-in.
+   *
+   * Delayed so they never compete with start-up, and each one records that it
+   * succeeded only after it did, so a failed send retries on the next launch
+   * rather than being silently lost.
+   */
   useEffect(() => {
-    if (!shareWeekly) return
-    const week = isoWeek()
-    if (lastSharedWeek === week) return
+    if (!device.shareUsage || !device.installId) return
+    const installId = device.installId
 
     const timer = window.setTimeout(async () => {
-      const children = buildWeeklySummaries(useStore.getState())
-      if (children.length === 0) return
-      const ok = await sendReport({ type: 'weekly', week, app: APP_VERSION, children })
-      if (ok) markShared(week)
-    }, 6000)
+      const state = useStore.getState()
+      const learner = state.learners.find((l) => l.id === state.activeLearnerId)
+
+      if (!state.device.activationSent) {
+        const ok = await sendEvent({
+          installId,
+          app: APP_VERSION,
+          kind: 'activate',
+          curriculum: learner?.curriculumId,
+          yearBand: learner?.yearBand,
+          children: state.learners.length,
+        })
+        if (ok) markPinged({ activationSent: true })
+      }
+
+      const today = dayKey()
+      if (state.device.lastOpenPing !== today) {
+        const ok = await sendEvent({
+          installId,
+          app: APP_VERSION,
+          kind: 'open',
+          curriculum: learner?.curriculumId,
+          yearBand: learner?.yearBand,
+          children: state.learners.length,
+        })
+        if (ok) markPinged({ lastOpenPing: today })
+      }
+
+      const week = isoWeek()
+      if (state.device.lastSharedWeek !== week) {
+        const children = buildWeeklySummaries(state)
+        if (children.length > 0) {
+          const ok = await sendReport({ type: 'weekly', week, app: APP_VERSION, children, installId })
+          if (ok) markShared(week)
+        }
+      }
+    }, 5000)
+
     return () => window.clearTimeout(timer)
-  }, [shareWeekly, lastSharedWeek, markShared])
+  }, [device.shareUsage, device.installId, device.activationSent, device.lastOpenPing, device.lastSharedWeek, markPinged, markShared])
 
   /* Back button and Escape both go up one level rather than leaving the app. */
   useEffect(() => {
@@ -165,6 +207,19 @@ export default function App() {
       // double-award coins and XP.
       const { awards, result } = finishSession(raw)
       setRoute({ name: 'results', result, awards })
+
+      const { device: d } = useStore.getState()
+      if (d.shareUsage && d.installId) {
+        void sendEvent({
+          installId: d.installId,
+          app: APP_VERSION,
+          kind: 'session',
+          subject: result.subjectId,
+          questions: result.total,
+          correct: result.correctFirstTry,
+          durationMs: result.durationMs,
+        })
+      }
     },
     [finishSession],
   )

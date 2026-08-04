@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brainy — usage</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/play/favicon.svg" />
+    <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --violet: #7c3aed;
+        --green: #059669;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: var(--ink);
+        font-family: 'Nunito', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      .wrap { width: min(1080px, 100% - 2rem); margin: 0 auto; padding: 2rem 0 4rem; }
+      h1 { font-size: 1.6rem; font-weight: 900; margin: 0; letter-spacing: -0.02em; }
+      .sub { color: var(--muted); font-weight: 600; margin: 0.2rem 0 1.5rem; font-size: 0.9rem; }
+      h2 { font-size: 1.05rem; font-weight: 900; margin: 2rem 0 0.75rem; }
+
+      .gate { max-width: 380px; margin: 15vh auto; text-align: center; }
+      input, button {
+        font: inherit;
+      }
+      input {
+        width: 100%; height: 46px; padding: 0 0.9rem; border-radius: 12px;
+        border: 2px solid var(--line); outline: none; font-weight: 700;
+      }
+      input:focus { border-color: var(--violet); }
+      button {
+        height: 46px; padding: 0 1.4rem; border-radius: 12px; border: 0;
+        background: var(--violet); color: #fff; font-weight: 800; cursor: pointer;
+      }
+      button.ghost { background: #fff; color: var(--ink); border: 2px solid var(--line); }
+
+      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+      .tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1rem; }
+      .tile b { display: block; font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; }
+      .tile span { color: var(--muted); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+      th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--line); }
+      th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+
+      .chart { display: flex; align-items: flex-end; gap: 3px; height: 140px; }
+      .chart div { flex: 1; background: var(--violet); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+      .chart div:hover::after {
+        content: attr(data-label); position: absolute; bottom: 100%; left: 50%;
+        transform: translateX(-50%); background: var(--ink); color: #fff;
+        font-size: 0.7rem; padding: 0.2rem 0.45rem; border-radius: 6px; white-space: nowrap;
+      }
+      .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; font-weight: 700; margin-top: 0.35rem; }
+      .empty { color: var(--muted); font-weight: 600; padding: 1.5rem 0; text-align: center; }
+      .err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.8rem 1rem; border-radius: 12px; font-weight: 700; }
+      .note { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-top: 0.6rem; }
+    </style>
+  </head>
+  <body>
+    <div id="root" class="wrap"></div>
+
+    <script>
+      const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild }
+      const root = document.getElementById('root')
+      const fmt = (n) => (n ?? 0).toLocaleString('en')
+      const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) + '%' : '—')
+
+      function gate(message) {
+        root.innerHTML = ''
+        const box = $(`<div class="gate">
+          <h1>Brainy usage</h1>
+          <p class="sub">Enter the admin token.</p>
+          ${message ? `<p class="err" style="margin-bottom:1rem">${message}</p>` : ''}
+          <input id="tok" type="password" placeholder="Admin token" autocomplete="off" />
+          <button id="go" style="margin-top:0.75rem;width:100%">View</button>
+        </div>`)
+        root.append(box)
+        const input = box.querySelector('#tok')
+        const submit = () => {
+          const v = input.value.trim()
+          if (!v) return
+          sessionStorage.setItem('brainy.admin', v)
+          load(v)
+        }
+        box.querySelector('#go').onclick = submit
+        input.onkeydown = (e) => { if (e.key === 'Enter') submit() }
+        input.focus()
+      }
+
+      function chart(rows, key, label) {
+        const max = Math.max(1, ...rows.map((r) => Number(r[key])))
+        const bars = rows
+          .map((r) => {
+            const v = Number(r[key])
+            return `<div style="height:${Math.max(2, (v / max) * 100)}%" data-label="${r.day}: ${fmt(v)} ${label}"></div>`
+          })
+          .join('')
+        const first = rows[0]?.day ?? ''
+        const last = rows[rows.length - 1]?.day ?? ''
+        return `<div class="chart">${bars}</div><div class="axis"><span>${first}</span><span>${last}</span></div>`
+      }
+
+      async function load(token) {
+        root.innerHTML = '<p class="sub">Loading…</p>'
+        let data
+        try {
+          const res = await fetch('/api/stats', { headers: { 'x-admin-token': token } })
+          data = await res.json()
+          if (!res.ok || !data.ok) {
+            sessionStorage.removeItem('brainy.admin')
+            return gate(data.error === 'bad token' ? 'That token was not accepted.' : data.error || 'Could not load.')
+          }
+        } catch {
+          return gate('Could not reach the server.')
+        }
+
+        const i = data.installs
+        const r = data.retention
+        const totals = data.daily.reduce(
+          (a, d) => ({
+            sessions: a.sessions + Number(d.sessions),
+            questions: a.questions + Number(d.questions),
+            correct: a.correct + Number(d.correct),
+            minutes: a.minutes + Number(d.duration_ms) / 60000,
+          }),
+          { sessions: 0, questions: 0, correct: 0, minutes: 0 },
+        )
+        const today = data.daily[data.daily.length - 1]
+
+        root.innerHTML = ''
+        root.append(
+          $(`<div>
+            <h1>Brainy usage</h1>
+            <p class="sub">
+              Families who opted in to share usage · updated ${new Date(data.generatedAt).toLocaleString()}
+            </p>
+
+            <div class="tiles">
+              <div class="tile"><b>${fmt(i.total)}</b><span>Activations</span></div>
+              <div class="tile"><b>${fmt(i.children)}</b><span>Children</span></div>
+              <div class="tile"><b>${fmt(today ? today.devices : 0)}</b><span>Active today</span></div>
+              <div class="tile"><b>${fmt(i.active_7d)}</b><span>Active this week</span></div>
+              <div class="tile"><b>${fmt(i.new_7d)}</b><span>New this week</span></div>
+              <div class="tile"><b>${pct(r.retained_7d, r.eligible_7d)}</b><span>Still active after 1wk</span></div>
+            </div>
+
+            <h2>Devices opening Brainy each day</h2>
+            <div class="card">${data.daily.length ? chart(data.daily, 'devices', 'devices') : '<p class="empty">No activity yet.</p>'}</div>
+
+            <h2>Questions answered each day</h2>
+            <div class="card">${data.daily.length ? chart(data.daily, 'questions', 'questions') : '<p class="empty">No activity yet.</p>'}</div>
+
+            <div class="tiles" style="margin-top:1rem">
+              <div class="tile"><b>${fmt(totals.sessions)}</b><span>Quests (30d)</span></div>
+              <div class="tile"><b>${fmt(totals.questions)}</b><span>Questions (30d)</span></div>
+              <div class="tile"><b>${pct(totals.correct, totals.questions)}</b><span>First-try accuracy</span></div>
+              <div class="tile"><b>${fmt(Math.round(totals.minutes))}</b><span>Minutes practised</span></div>
+            </div>
+
+            <h2>By subject</h2>
+            <div class="card">
+              ${
+                data.subjects.length
+                  ? `<table><thead><tr><th>Subject</th><th class="n">Quests</th><th class="n">Questions</th><th class="n">Accuracy</th></tr></thead><tbody>
+                      ${data.subjects
+                        .map(
+                          (s) =>
+                            `<tr><td>${s.subject}</td><td class="n">${fmt(s.sessions)}</td><td class="n">${fmt(s.questions)}</td><td class="n">${pct(s.correct, s.questions)}</td></tr>`,
+                        )
+                        .join('')}
+                    </tbody></table>`
+                  : '<p class="empty">No sessions yet.</p>'
+              }
+            </div>
+
+            <h2>Curriculum and class</h2>
+            <div class="card">
+              ${
+                data.split.length
+                  ? `<table><thead><tr><th>Curriculum</th><th>Class</th><th class="n">Installs</th></tr></thead><tbody>
+                      ${data.split
+                        .map((s) => `<tr><td>${s.curriculum}</td><td>${s.year_band}</td><td class="n">${fmt(s.installs)}</td></tr>`)
+                        .join('')}
+                    </tbody></table>`
+                  : '<p class="empty">Nothing yet.</p>'
+              }
+            </div>
+
+            <h2>Recent feedback</h2>
+            <div class="card">
+              ${
+                data.feedback.length
+                  ? `<table><thead><tr><th>When</th><th>Kind</th><th>Message</th><th>Reply to</th></tr></thead><tbody>
+                      ${data.feedback
+                        .map(
+                          (f) =>
+                            `<tr><td>${new Date(f.created_at).toLocaleDateString()}</td><td>${f.category ?? ''}</td><td>${(f.message ?? '').replace(/[<>]/g, '')}</td><td>${f.contact ?? ''}</td></tr>`,
+                        )
+                        .join('')}
+                    </tbody></table>`
+                  : '<p class="empty">No feedback yet.</p>'
+              }
+            </div>
+
+            <p class="note">
+              These numbers cover only the families who opted in, so treat them as a floor rather than
+              a total. There is no name or contact behind any of it — an install is a browser profile,
+              not a person.
+            </p>
+            <p style="margin-top:1rem"><button class="ghost" id="out">Sign out</button></p>
+          </div>`),
+        )
+        root.querySelector('#out').onclick = () => {
+          sessionStorage.removeItem('brainy.admin')
+          gate()
+        }
+      }
+
+      const saved = sessionStorage.getItem('brainy.admin')
+      if (saved) load(saved)
+      else gate()
+    </script>
+  </body>
+</html>

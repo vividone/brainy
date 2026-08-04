@@ -10,9 +10,11 @@
     "typecheck": "tsc -b --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "smoke:api": "node scripts/api-smoke.mjs"
   },
   "dependencies": {
+    "pg": "^8.22.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.2"
@@ -23,6 +25,7 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "pg-mem": "^3.0.14",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",

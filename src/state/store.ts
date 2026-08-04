@@ -72,15 +72,29 @@ export interface DeviceSettings {
   /** 4 digits. Guards the parent zone; not a security boundary. */
   parentPin: string
   /**
-   * Send an anonymous weekly summary automatically.
+   * Parent has agreed to share anonymous usage data.
    *
-   * Off unless a parent turns it on. This is the *only* thing in the app that
-   * ever makes a network request after load, which is why it is a single
-   * explicit switch rather than something buried in a consent banner.
+   * One switch covering everything that leaves the device: the usage pings
+   * and the weekly learning summary. Off until a parent says yes, asked
+   * plainly during setup and reversible at any time.
    */
-  shareWeekly: boolean
+  shareUsage: boolean
+  /**
+   * Random identifier for this installation, so activations and daily use
+   * can be counted without counting the same tablet twice.
+   *
+   * Created only at the moment consent is given, and destroyed the moment it
+   * is withdrawn. Before a parent opts in there is no identifier in the save
+   * at all, so there is nothing that could leak. It is tied to a browser
+   * profile, not a person, and never travels with a name.
+   */
+  installId: string | null
   /** Monday-of-week key of the last automatic send, so it goes once a week. */
   lastSharedWeek: string | null
+  /** Day key of the last "opened today" ping. */
+  lastOpenPing: string | null
+  /** Whether the one-off activation ping has been delivered. */
+  activationSent: boolean
   /**
    * Parent has paused the app. The child sees a friendly locked screen and
    * needs the grown-up code to get back in.
@@ -172,7 +186,7 @@ export interface NewLearner {
 }
 
 interface Actions {
-  completeOnboarding: (p: NewLearner & { parentPin: string }) => void
+  completeOnboarding: (p: NewLearner & { parentPin: string; shareUsage?: boolean }) => void
   updateSettings: (patch: Partial<Settings>) => void
   setCurriculum: (curriculumId: string, yearBand: string) => void
   setAge: (age: number) => void
@@ -180,6 +194,13 @@ interface Actions {
   markShared: (week: string) => void
   /** Pause or resume the whole app for whoever is using this device. */
   setLocked: (locked: boolean, note?: string) => void
+  /**
+   * Turn usage sharing on or off. Turning it on mints an install id; turning
+   * it off destroys it, so opting out is a real erasure rather than a flag.
+   */
+  setShareUsage: (on: boolean) => void
+  /** Record that a usage ping has been delivered. */
+  markPinged: (patch: { lastOpenPing?: string; activationSent?: boolean }) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -220,8 +241,11 @@ const defaultDevice = (): DeviceSettings => ({
   sound: true,
   reduceMotion: false,
   parentPin: '1234',
-  shareWeekly: false,
+  shareUsage: false,
+  installId: null,
   lastSharedWeek: null,
+  lastOpenPing: null,
+  activationSent: false,
   locked: false,
   lockNote: '',
 })
@@ -279,8 +303,11 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'sound',
   'reduceMotion',
   'parentPin',
-  'shareWeekly',
+  'shareUsage',
+  'installId',
   'lastSharedWeek',
+  'lastOpenPing',
+  'activationSent',
   'locked',
   'lockNote',
 ])
@@ -309,7 +336,16 @@ export const useStore = create<Store>()(
       return {
         ...initialState(),
 
-        completeOnboarding: ({ name, curriculumId, yearBand, age, characterId, petId, parentPin }) =>
+        completeOnboarding: ({
+          name,
+          curriculumId,
+          yearBand,
+          age,
+          characterId,
+          petId,
+          parentPin,
+          shareUsage,
+        }) =>
           set((s) => {
             const id = s.learners[0]?.id ?? newId()
             const learner: Profile = {
@@ -341,6 +377,9 @@ export const useStore = create<Store>()(
               device: {
                 ...s.device,
                 parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.device.parentPin,
+                shareUsage: Boolean(shareUsage),
+                // The id exists only if they said yes.
+                installId: shareUsage ? newId() + newId() : null,
               },
             }
           }),
@@ -375,6 +414,20 @@ export const useStore = create<Store>()(
 
         markShared: (week) =>
           set((s) => ({ device: { ...s.device, lastSharedWeek: week } })),
+
+        setShareUsage: (on) =>
+          set((s) => ({
+            device: {
+              ...s.device,
+              shareUsage: on,
+              installId: on ? (s.device.installId ?? newId() + newId()) : null,
+              activationSent: on ? s.device.activationSent : false,
+              lastOpenPing: on ? s.device.lastOpenPing : null,
+              lastSharedWeek: on ? s.device.lastSharedWeek : null,
+            },
+          })),
+
+        markPinged: (patch) => set((s) => ({ device: { ...s.device, ...patch } })),
 
         setLocked: (locked, note) =>
           set((s) => ({

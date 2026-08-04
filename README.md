@@ -26,6 +26,7 @@ npm run dev      # http://localhost:5173
 | `npm run serve` | Serve `dist/` exactly as the host will — site at `/`, app at `/play/` |
 | `npm run typecheck` | Types only |
 | `npm run smoke` | **Exercise every question generator** — see below |
+| `npm run smoke:api` | Run the API routes against an in-memory Postgres |
 | `npm run icons` | Regenerate the PWA icons |
 
 ### Deploying
@@ -123,6 +124,16 @@ These are the ones most likely to look like bugs if you don't know they were del
 - **No leaderboards or comparison with other children.** He competes with himself.
 - **Several children per device.** Progress, coins, streaks and settings are per-child; only sound, reduced motion and the grown-up code are shared. A "Who's playing?" picker appears on launch when more than one exists.
 - **Moving devices is an export and a restore.** Restoring merges by child, so a sibling already on the target device is not wiped. There is no cloud sync, deliberately.
+
+## Usage data
+
+Off by default. Setup asks in plain words whether the parent will share anonymous usage data, with the box **unticked** — a pre-ticked box is not consent, least of all for a children's product.
+
+If they agree, the app sends activations, a daily "opened" ping, per-quest counts, and a weekly summary of the worst-scoring skills, along with a random install id minted at that moment and deleted if they opt out. Never a name, an age, or anything the child typed.
+
+The id is the honest complication: it is stable between visits, so it is **pseudonymous** rather than anonymous data. That is exactly why consent is asked for rather than assumed, and why [site/privacy.html](site/privacy.html) says so in those words.
+
+`api/` holds three Vercel functions — `event`, `report` and `stats` — backed by Postgres, with the dashboard at `/admin` behind `ADMIN_TOKEN`. Postgres rather than a key-value store because the same database will carry Paystack licences and payments. See [DEPLOY.md](DEPLOY.md).
 
 ## Privacy
 

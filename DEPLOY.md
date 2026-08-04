@@ -50,14 +50,43 @@ npm run serve          # http://localhost:4200
 
 The config also sets the cache headers that matter: hashed assets are immutable for a year, but `sw.js` and the app shell must revalidate every time, or an update never reaches a device that has already installed it.
 
-### Where reports go
+### Database
 
-The weekly summary and the feedback form both POST to `/api/report`. Choose one:
+The same Postgres carries usage data now and Paystack licences later, which is why it is Postgres
+rather than a key-value store.
 
-- **Nothing to set up.** Leave `REPORT_WEBHOOK_URL` unset and every report is written to the function log — Vercel dashboard → the project → *Logs*. Fine for twenty families; not a durable store.
-- **Send them somewhere you already look.** Set `REPORT_WEBHOOK_URL` under **Settings → Environment Variables** to any URL that accepts a JSON POST: a Slack or Discord incoming webhook, a Google Apps Script bound to a Sheet, a Zapier or Make hook, or an email relay. Redeploy for it to take effect.
+1. Vercel → **Storage → Create Database → Postgres** (Neon under the hood). Or bring your own from
+   Neon or Supabase.
+2. Set **`DATABASE_URL`** to the **pooled** connection string. Vercel Postgres supplies this
+   automatically; with Neon or Supabase, take the one labelled *pooled* or *connection pooling*. A
+   serverless function can cold-start per request, and an unpooled URL exhausts the server's
+   connection slots quickly.
+3. Redeploy. Tables are created on first use — there is no migration step to remember.
 
-A Google Apps Script writing to a Sheet is probably the least effort if you want the numbers in one place you can sort.
+| Variable | Required | What it does |
+|---|---|---|
+| `DATABASE_URL` | for stats | Pooled Postgres connection string |
+| `ADMIN_TOKEN` | for the dashboard | Any long random string; guards `/api/stats` |
+| `REPORT_WEBHOOK_URL` | optional | Also POST feedback to Slack, Discord, Apps Script or an email relay |
+
+With none of them set the endpoints still return 200 and write to the function log, so a missing
+variable never breaks the app for a family.
+
+### The dashboard
+
+**`https://brainy.fortbridge.app/admin`** — enter `ADMIN_TOKEN`. It shows activations, children,
+active today and this week, one-week retention, devices and questions per day for 30 days, accuracy
+by subject, the curriculum and class split, and recent feedback.
+
+Read it as a **floor, not a total**: it only covers families who opted in. `robots.txt` excludes it
+and the page is `noindex`.
+
+### Later: Paystack
+
+The schema is deliberately ready for it. Payments will want `licences` and `payments` tables
+alongside the existing ones, plus `api/paystack/initialise.js` and `api/paystack/webhook.js`. The
+webhook must verify the `x-paystack-signature` HMAC before trusting anything, and the secret key
+must only ever live in an environment variable on the server — never in the client bundle.
 
 ## After deploying, check these
 
@@ -70,7 +99,10 @@ Worth doing on a real phone, not just a laptop.
 - [ ] Put the phone in airplane mode, reopen it — a whole quest should still play
 - [ ] The grown-up area opens with the code set during onboarding
 - [ ] `https://brainy.fortbridge.app/privacy.html` loads
-- [ ] Grown-up area → Settings → *Help improve Brainy* → **Send it now** returns "Sent. Thank you.", and the report appears in your Vercel logs or webhook
+- [ ] Setup asks about usage data and the box starts **unticked**
+- [ ] Declining it sends nothing (check the Network tab — there should be no `/api` calls at all)
+- [ ] Accepting it produces `activate` and `open` rows, and finishing a quest produces `session`
+- [ ] `/admin` loads with `ADMIN_TOKEN` and refuses a wrong one
 - [ ] The feedback form sends, and its **Copy instead** fallback works with the phone offline
 
 **iOS note.** Safari does not prompt to install; a parent has to use Share → Add to Home Screen. Worth saying so explicitly when you share the link, or most iPhone users will just use it in the browser and never get the offline behaviour.
@@ -90,6 +122,7 @@ Before any deploy:
 
 ```
 npm run smoke      # every generator, every difficulty
+npm run smoke:api  # the API routes against an in-memory Postgres
 npm run build      # typecheck is part of this
 ```
 

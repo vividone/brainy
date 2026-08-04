@@ -807,7 +807,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         {profile.age !== undefined && (
           <p className="mt-2 text-xs font-semibold text-slate-400">
             Age {profile.age} is usually {bandForAge(curriculum.id, profile.age).label} here. Change the
-            class directly if your child is ahead or repeating a year.
+            class directly to match your child's current or next class.
           </p>
         )}
         <p className="mt-2 text-xs font-semibold text-slate-400">
@@ -1006,25 +1006,26 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           topics are going badly, which is how we find questions that are wrong or badly pitched. Read
           it before you send it.
         </p>
-        {/* The one switch in the app that permits a network request. */}
+        {/* The one consent in the app. Everything that leaves the device is behind it. */}
         <div className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 p-3 mb-3">
           <div className="min-w-0">
-            <p className="font-black text-slate-800">Send it automatically each week</p>
+            <p className="font-black text-slate-800">Share anonymous usage data</p>
             <p className="text-xs font-semibold text-slate-500">
-              Off unless you turn it on. This is the only thing in Brainy that ever contacts a server,
-              and it sends exactly the summary below — no name, no identifier, no dates. We cannot tell
-              your reports apart from anybody else's, which is deliberate.
+              Off unless you turn it on. When it is on, Brainy sends how often it is opened, how many
+              questions were answered, and which topics score worst — plus a random code so the same
+              tablet is not counted twice. Never your child&apos;s name, age, or anything they typed.
+              Turning it off deletes the code.
             </p>
           </div>
           <button
             role="switch"
-            aria-checked={settings.shareWeekly}
-            aria-label="Send an anonymous summary each week"
-            onClick={() => updateSettings({ shareWeekly: !settings.shareWeekly })}
-            className={`mt-1 h-9 w-16 shrink-0 rounded-full border-2 transition ${settings.shareWeekly ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+            aria-checked={settings.shareUsage}
+            aria-label="Share anonymous usage data"
+            onClick={() => store.setShareUsage(!settings.shareUsage)}
+            className={`mt-1 h-9 w-16 shrink-0 rounded-full border-2 transition ${settings.shareUsage ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
           >
             <span
-              className={`block size-7 rounded-full bg-white shadow transition-transform ${settings.shareWeekly ? 'translate-x-7' : 'translate-x-0.5'}`}
+              className={`block size-7 rounded-full bg-white shadow transition-transform ${settings.shareUsage ? 'translate-x-7' : 'translate-x-0.5'}`}
             />
           </button>
         </div>
@@ -1061,6 +1062,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
                     week: isoWeek(),
                     app: APP_VERSION,
                     children: [summaryText],
+                    installId: useStore.getState().device.installId ?? undefined,
                   })
                   setCopied(ok ? 'Sent. Thank you.' : 'Could not send — copy it and message us instead.')
                 }}
