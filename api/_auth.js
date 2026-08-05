@@ -69,7 +69,7 @@ export async function verifyPassword(password, stored) {
 const sign = (payload, secret) =>
   crypto.createHmac('sha256', secret).update(payload).digest('base64url')
 
-export function issueSession(res, admin) {
+export function issueSession(req, res, admin) {
   const secret = sessionSecret()
   const body = Buffer.from(
     JSON.stringify({ email: admin.email, name: admin.name ?? null, exp: Date.now() + SESSION_MS }),
@@ -81,8 +81,17 @@ export function issueSession(res, admin) {
    * same-origin fetch from /admin, so there is no legitimate cross-site
    * request to break, and a form posted from another site arrives with no
    * cookie at all.
+   *
+   * `Secure` follows the actual protocol of the request. Vercel terminates TLS
+   * and forwards `x-forwarded-proto: https`, so production always gets it; a
+   * plain-HTTP origin does not, because a browser silently discards a Secure
+   * cookie over http and the only symptom is a login that appears to do
+   * nothing. Deciding this from an environment variable — which is what this
+   * did first — was guessing at something the request already states.
    */
-  const secure = process.env.NODE_ENV === 'production' || !/localhost|127\.0\.0\.1/.test(String(process.env.VERCEL_URL ?? 'x'))
+  const forwarded = String(req?.headers?.['x-forwarded-proto'] ?? '').split(',')[0].trim()
+  const protocol = forwarded || (req?.socket?.encrypted ? 'https' : 'http')
+  const secure = protocol === 'https'
   res.setHeader(
     'Set-Cookie',
     [

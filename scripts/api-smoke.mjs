@@ -65,11 +65,13 @@ const event = await import('../api/event.js')
 const report = await import('../api/report.js')
 const stats = await import('../api/stats.js')
 const forget = await import('../api/forget.js')
+const retain = await import('../api/cron/retain.js')
 const signup = await import('../api/signup.js')
 const activateRoute = await import('../api/activate.js')
 const admin = await import('../api/admin/[...path].js')
 const payInit = await import('../api/pay/initialise.js')
 const payHook = await import('../api/pay/webhook.js')
+const payRequest = await import('../api/pay/request.js')
 const cron = await import('../api/cron/expiring.js')
 
 async function call(mod, payload, { method = 'POST', url = '/', headers = {} } = {}) {
@@ -625,6 +627,117 @@ paidAmount = 500_000
 
 delete process.env.PAYSTACK_SECRET_KEY
 
+/* ------------------------------------------------------------------ *
+ * Bank transfers
+ *
+ * The path with a human in it, and the one where being wrong costs a family
+ * real money. What matters here is that submitting a claim grants nothing at
+ * all — a parent typing "I paid ten million naira" must end up with exactly
+ * what an admin says they have and not a penny more.
+ * ------------------------------------------------------------------ */
+
+console.log('\nBank transfers')
+check(
+  'hidden until an account is configured',
+  (await call(payRequest, { email: 'kemi@example.com', plan: 'annual' })).status,
+  503,
+)
+
+process.env.BANK_NAME = 'Test Bank'
+process.env.BANK_ACCOUNT_NAME = 'Fortbridge Technologies Ltd'
+process.env.BANK_ACCOUNT_NUMBER = '0123456789'
+
+check('the app is told where to pay', (await call(payInit, {}, { method: 'GET' })).body?.transfer?.enabled, true)
+check(
+  'and the account number',
+  (await call(payInit, {}, { method: 'GET' })).body?.transfer?.accountNumber,
+  '0123456789',
+)
+check('GET refused on the claim route', (await call(payRequest, {}, { method: 'GET' })).status, 405)
+check('a claim needs an email', (await call(payRequest, { plan: 'annual' })).status, 400)
+check('and a real plan', (await call(payRequest, { email: 'kemi@example.com', plan: 'gold' })).status, 400)
+
+const claimed = await call(payRequest, {
+  email: 'kemi@example.com',
+  name: 'Kemi',
+  plan: 'annual',
+  senderName: 'K ADEYEMI',
+  reference: 'TRF-9931',
+  paidOn: today,
+  proof: Buffer.from('pretend-screenshot').toString('base64'),
+  proofType: 'image/png',
+})
+check('a claim is accepted', claimed.status, 200)
+// The whole point of the flow: telling us is not paying us.
+check('but grants nothing', claimed.body?.status, 'pending')
+check('the family is told so by email', emailsTo('kemi@example.com')[0]?.subject, 'We have your payment details — checking now')
+check('and told plainly nothing is open', emailsTo('kemi@example.com')[0]?.text.includes('Nothing is unlocked yet'), true)
+check(
+  'they have no licence yet',
+  (await call(admin, {}, { method: 'GET', url: '/api/admin/families?q=kemi@example.com', headers: authed }))
+    .body?.families?.[0]?.status,
+  'pending',
+)
+check('rubbish attachments are refused', (await call(payRequest, { email: 'kemi@example.com', plan: 'annual', proof: 'not base64 %%%', proofType: 'image/png' })).status, 400)
+check(
+  'and unexpected file types',
+  (await call(payRequest, { email: 'kemi@example.com', plan: 'annual', proof: 'AAAA', proofType: 'application/zip' })).status,
+  400,
+)
+
+// Submitting twice must leave one thing for a human to look at, not two.
+await call(payRequest, { email: 'kemi@example.com', plan: 'annual', senderName: 'K ADEYEMI (again)' })
+const queue = await call(admin, {}, { method: 'GET', url: '/api/admin/transfers', headers: authed })
+check('one request per family', queue.body?.transfers?.filter((t) => t.email === 'kemi@example.com').length, 1)
+check('the newer details win', queue.body?.transfers?.[0]?.sender_name, 'K ADEYEMI (again)')
+check('the receipt is kept through a resubmit', queue.body?.transfers?.[0]?.has_proof, true)
+check('it is waiting for review', queue.body?.transfers?.[0]?.status, 'pending')
+check('and shows on the front page', (await call(admin, {}, { method: 'GET', url: '/api/admin/overview', headers: authed })).body?.transfersPending, 1)
+
+const REQUEST_ID = queue.body.transfers[0].id
+const approved = await call(admin, { id: REQUEST_ID }, { url: '/api/admin/transfers/approve', headers: authed })
+check('approving grants the licence', approved.body?.licence?.full, true)
+check('on the plan they paid for', approved.body?.licence?.plan, 'annual')
+/* Found by subject rather than by position: resubmitting the claim above sent a
+   second acknowledgement, which is right — they did resubmit. */
+const kemiReceipt = emailsTo('kemi@example.com').find((m) => m.subject.startsWith('Your Brainy licence'))
+check('and emails them the code', Boolean(kemiReceipt), true)
+check('carrying the actual code', kemiReceipt?.text.includes(approved.body.licence.code), true)
+check('acknowledged both submissions', emailsTo('kemi@example.com').filter((m) => m.subject.startsWith('We have your')).length, 2)
+check(
+  'approving twice is refused',
+  (await call(admin, { id: REQUEST_ID }, { url: '/api/admin/transfers/approve', headers: authed })).status,
+  409,
+)
+check(
+  'and it counts as money taken',
+  (await call(admin, {}, { method: 'GET', url: '/api/admin/payments', headers: authed })).body?.payments?.some(
+    (p) => p.reference === `transfer_${REQUEST_ID}`,
+  ),
+  true,
+)
+
+const declining = await call(payRequest, { email: 'bode@example.com', plan: 'lifetime' })
+check('a second family claims', declining.status, 200)
+const bodeId = (await call(admin, {}, { method: 'GET', url: '/api/admin/transfers?status=pending', headers: authed }))
+  .body?.transfers?.[0]?.id
+const declined = await call(
+  admin,
+  { id: bodeId, note: 'We could not see the transfer on our statement.' },
+  { url: '/api/admin/transfers/decline', headers: authed },
+)
+check('declining is accepted', declined.status, 200)
+const bodeNote = emailsTo('bode@example.com').find((m) => m.subject === 'About your Brainy payment')
+check('they are told why', Boolean(bodeNote), true)
+check('with the reason in it', bodeNote?.text.includes('could not see the transfer'), true)
+check(
+  'and still have no licence',
+  (await call(admin, {}, { method: 'GET', url: '/api/admin/families?q=bode@example.com', headers: authed }))
+    .body?.families?.[0]?.status,
+  'pending',
+)
+check('the queue is empty again', (await call(admin, {}, { method: 'GET', url: '/api/admin/overview', headers: authed })).body?.transfersPending, 0)
+
 console.log('\nRenewal warnings')
 check(
   'the cron refuses to run without a secret',
@@ -702,6 +815,42 @@ check(
   (await call(activateRoute, {}, { method: 'GET', url: `/api/activate?code=${FAMILY_CODE}` })).status,
   200,
 )
+
+console.log('\nRetention')
+process.env.CRON_SECRET = 'cron-secret'
+const cronHeaders = { authorization: 'Bearer cron-secret' }
+check('unauthorised refused', (await call(retain, {}, { method: 'POST', url: '/api/cron/retain' })).status, 401)
+
+// A dry run must count without deleting, and every rule must be valid SQL
+// against the real schema — the point of running it here at all.
+const dryRun = await call(retain, {}, { method: 'POST', url: '/api/cron/retain?dry=1', headers: cronHeaders })
+check('dry run allowed', dryRun.status, 200)
+check('dry run says so', dryRun.body?.dry, true)
+check('every rule ran', Object.keys(dryRun.body?.rows ?? {}).length, 10)
+
+/*
+ * The assertion that matters. A retention job that quietly deletes nothing
+ * passes every check above, so plant a genuinely old row and require that it
+ * goes — otherwise the privacy notice is making a promise nothing keeps.
+ */
+const OLD_DAY = new Date(Date.now() - 500 * 86_400_000).toISOString().slice(0, 10)
+await call(event, { installId: 'install-ancient', app: 'v1.0', day: OLD_DAY, kind: 'session', subject: 'maths', questions: 5, correct: 5, durationMs: 1000 })
+const beforePurge = await call(retain, {}, { method: 'POST', url: '/api/cron/retain?dry=1', headers: cronHeaders })
+check('spots the old event', beforePurge.body?.rows?.['usage events'], 1)
+
+const live = await call(retain, {}, { method: 'POST', url: '/api/cron/retain', headers: cronHeaders })
+check('live run allowed', live.status, 200)
+// Nothing in this harness is old enough to be caught, which is itself the
+// check that matters: a retention job that deletes today's data is a bug.
+check('deletes the old event', live.body?.rows?.['usage events'], 1)
+// The tablet that sent it was last seen the same day, so the dormant-install
+// rule correctly takes the install row with it.
+check('deletes the dormant install', live.body?.rows?.['dormant installs'], 1)
+// And nothing else: everything remaining in this harness is recent.
+check('touches nothing recent', live.body?.total, 2)
+check('nothing left to purge', (await call(retain, {}, { method: 'POST', url: '/api/cron/retain?dry=1', headers: cronHeaders })).body?.total, 0)
+const stillThere = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token' } })
+check('recent install survives', stillThere.body?.installs?.total, 1)
 
 console.log()
 if (problems.length) {

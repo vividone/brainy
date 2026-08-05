@@ -11,6 +11,30 @@ import { useState } from 'react'
 import { Btn, Card } from '../components/ui'
 import { APP_VERSION } from '../game/characters'
 import { sendReport } from '../lib/report'
+import { useStore } from '../state/store'
+
+/**
+ * Catch a child's name before it is sent, not after.
+ *
+ * The notice under the box already asks parents to leave names out, and most
+ * do. But asking is not a control, and this is the one place in Brainy where
+ * free text can carry a child's personal data off the device — which would
+ * break the promise the whole privacy position rests on. We know every name on
+ * this tablet, so we can simply check.
+ *
+ * A warning rather than a block: it is the parent's message, the match may be
+ * a coincidence ("Grace" in "with good grace"), and refusing to send feedback
+ * over a false positive would cost us the bug report. Word-boundary matched and
+ * only for names of three letters or more, so short names do not fire on every
+ * other word.
+ */
+function namesIn(message: string, names: string[]): string[] {
+  const escape = (n: string) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return names
+    .map((n) => n.trim())
+    .filter((n) => n.length >= 3)
+    .filter((n) => new RegExp(`\\b${escape(n)}\\b`, 'i').test(message))
+}
 
 const FEEDBACK_KINDS = [
   {
@@ -42,6 +66,9 @@ export function FeedbackCard({ summary }: { summary: string }) {
   const [attach, setAttach] = useState(false)
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
   const [copyNote, setCopyNote] = useState<string | null>(null)
+
+  const learners = useStore((st) => st.learners)
+  const named = namesIn(message, learners.map((l) => l.name))
 
   const chosen = FEEDBACK_KINDS.find((k) => k.id === kind)
   const canSend = Boolean(kind) && message.trim().length >= 4 && state !== 'sending'
@@ -133,6 +160,12 @@ export function FeedbackCard({ summary }: { summary: string }) {
           <p className="mt-1 text-xs font-semibold text-slate-400">
             Please leave out your child&apos;s name or anything personal — we do not need it.
           </p>
+          {named.length > 0 && (
+            <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
+              That mentions {named.join(' and ')}. We would rather not receive a child&apos;s name —
+              could you take it out? You can still send it as it is.
+            </p>
+          )}
 
           <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-slate-600">
             <input

@@ -710,7 +710,7 @@ This is a deliberate narrowing of the original "collect nothing at all" posture,
 precise about what changed. **Nothing about a child** became collectable. What became collectable is
 *an adult's contact detail, because they asked us for something that needs one* — restoring their
 access on a new tablet, or honouring a free place to a person rather than to whoever holds a code.
-Under NDPR and GDPR that email address is personal data and is treated as such: named in the privacy
+Under the NDPA and UK GDPR that email address is personal data and is treated as such: named in the privacy
 notice, never used for marketing, never passed on, and erasable on request.
 
 **Still true:** no third-party scripts, no analytics SDK, no advertising, no tracking pixels, no
@@ -723,8 +723,44 @@ properly rather than incrementally. A licence is *not* that step, and must not b
 - Parent-held accounts only; children never have credentials.
 - Verifiable parental consent before any child data is stored (COPPA if there will be US users).
 - Data minimisation: store skill ids and scores, never free text from a child.
-- NDPR registration and a published privacy policy before any paid launch in Nigeria.
+- NDPA registration where the thresholds are met, and a published privacy notice before any paid launch in Nigeria.
 - Explicit retention and deletion policy, with parent-initiated export and delete.
+
+### 12.1 The compliance position, stated once
+
+**Revised: the notice cited no law at all.** It was accurate and readable and named nothing it was
+accountable under, which is the failure mode of a privacy policy written by engineers — honest about
+practice, silent on obligation. Reviewing a competitor made the gap obvious: they cited the NDPA and
+we did not, while our actual practices were the stronger of the two.
+
+- **Controller:** Fortbridge Technologies Ltd, named in the notice, with a working address for
+  requests. *(Outstanding: RC number and registered office, marked TODO in `site/privacy.html`.)*
+- **Governing law:** the **Nigeria Data Protection Act 2023**. Not the NDPR 2019, which the earlier
+  drafts of this document cited and which the Act has since overtaken.
+- **Where UK GDPR or COPPA would give a family a stronger right than the NDPA, we apply the
+  stronger one.** Three curricula means three jurisdictions, and holding one high standard is
+  simpler to implement and to explain than tracking the minimum of each.
+- **Lawful basis is stated per purpose**, in a table: consent for anything optional, contract for a
+  licence, legal obligation for payment records, legitimate interest for the hashed IPs behind
+  code-guess rate limiting.
+- **Children (ages ~5–12, Basic 1–6) are handled by avoidance, not by consent.** Every one of them
+  is a child under all three regimes. Rather than build verifiable parental consent, we do not
+  process a child's personal data at all — no account, no name, no answer leaving the tablet. This
+  is why the "nothing about the child leaves the device" rule is a compliance boundary and not
+  merely a principle, and why it must survive any future feature.
+- **Retention periods are enforced, not aspirational.** `api/cron/retain.js` runs weekly and deletes
+  to the published schedule; the numbers in the job and the numbers in the notice are the same
+  numbers on purpose. Before this existed the notice promised deletion that nothing performed —
+  which turns an honest policy into a false statement without anybody deciding to lie.
+- **Breach:** reportable to the NDPC within 72 hours, stated in the notice, along with the blunt
+  version of what a breach could expose — a list of parents' email addresses and their licences,
+  and not one child's name, age, answer or score.
+- **Complaint routes are published** (NDPC, and the ICO for UK families), because a rights section
+  that only points back at us is not a rights section.
+- **Free text is the one leak vector**, and it is guarded at the point of entry: the feedback box
+  asks parents to leave names out, and now also checks the message against the names on that tablet
+  and warns before sending. A warning rather than a block — it is the parent's message, and refusing
+  to send over a false positive would cost us the bug report.
 
 **Content safety:** no chat, no user-generated content, no child-to-child contact, no external links in the child-facing UI, and no advertising in any tier. The parent zone is the only place that can navigate away.
 
@@ -780,9 +816,17 @@ So instead:
   a flat signal or a dead server changes nothing. The cost of that rule is that a revoked licence can
   keep working offline for a while, which is the right way round: the alternative punishes the one
   family who did nothing wrong.
-- Payment goes through **Paystack**, who hold the card details and the receipt. The amount and the
+- Card payment goes through **Paystack**, who hold the card details and the receipt. The amount and the
   reference are minted server-side, and both the webhook and the app's return-from-checkout path
   re-verify the transaction against Paystack's own API before granting anything.
+- **Bank transfer is a first-class way to pay, not a fallback.** Card penetration in Nigeria is not
+  what a Lagos developer's own wallet suggests, and a product that only accepts cards is a product
+  that quietly declines most of its market. So a parent can transfer to a named account and submit a
+  claim — plan, sending name, date, and optionally a screenshot. The claim **grants nothing**: an
+  operator confirms the money against their own statement, and approval is what creates the licence
+  and emails the code. That keeps the trust model honest in both directions — nothing a parent types
+  buys them anything, and nothing is taken on trust from us either, because every decision lands in
+  the audit log with a name against it.
 - Children are never rows. No name, no age, no answers, no progress — the link between a paying adult
   and a playing child is the code, and it stops at the device.
 

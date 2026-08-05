@@ -74,6 +74,8 @@ rather than a key-value store.
 | `PRICE_ANNUAL_MINOR` | optional | Price in **minor units** — ₦5,000 is `500000`. Default `500000` |
 | `PRICE_LIFETIME_MINOR` | optional | Default `1500000` (₦15,000) |
 | `PAYSTACK_CURRENCY` | optional | Default `NGN` |
+| `BANK_NAME`, `BANK_ACCOUNT_NAME`, `BANK_ACCOUNT_NUMBER` | to accept transfers | All three, or the option is hidden from parents entirely |
+| `BANK_INSTRUCTIONS` | optional | One line shown under the account details, e.g. *"Use your email as the narration."* |
 | `SIGNUP_COUPON` | optional | A coupon code every sign-up tries automatically — this is how the twenty free places are honoured without a human in the loop |
 | `PUBLIC_BASE_URL` | optional | Overrides the origin used in emails and the Paystack return URL. Derived from the request otherwise |
 | `RESEND_API_KEY` | to send email | `re_…` from Resend. Unset ⇒ nothing is sent and every would-be email is logged instead |
@@ -81,7 +83,7 @@ rather than a key-value store.
 | `EMAIL_REPLY_TO` | optional | Where replies go, if not the From address |
 | `OPERATOR_EMAIL` | optional | Emails **you** on every sign-up, redemption and payment |
 | `CRON_SECRET` | for renewal warnings | Any long random string. Vercel sends it as a Bearer token; without it `/api/cron/expiring` refuses to run |
-| `REPORT_WEBHOOK_URL` | optional | Also POST feedback, sign-ups and payments to Slack, Discord or Apps Script |
+| `REPORT_WEBHOOK_URL` | optional | **Outbound only, and nothing to do with Paystack.** Pushes a copy of each sign-up, payment, transfer and feedback to somewhere you already look — Slack, Discord, Apps Script. Redundant once `OPERATOR_EMAIL` is set, and it must never point back at this deployment |
 | `GA_MEASUREMENT_ID` | optional | Overrides the Google Analytics property for the **website**. Defaults to the live one in `scripts/build-site.mjs`; set it to an empty string to build with analytics off |
 
 With none of them set, the app still works: usage pings write to the function log, and maths — which
@@ -116,23 +118,64 @@ What is gated, from prd.md §14.2: **mathematics is free permanently for everybo
 class and every earlier class as revision. The other subjects need an active licence. Nothing ever
 interrupts a session that has started.
 
-Three ways a family gets access:
+Four ways a family gets access:
 
 1. **A coupon.** Make one in *Coupons* — `FAMILY-7K3M`, 20 uses, free forever — and hand it out. One
    family can only consume one use however many times they type it. Set `SIGNUP_COUPON` to that code
-   and the landing-page form claims a place automatically until they run out.
-2. **A payment.** `POST /api/pay/initialise` mints the reference and the amount server-side, sends the
-   parent to Paystack, and Paystack returns them to `/play/?ref=…`, which the app turns into a
+   and the landing-page form claims a place automatically until they run out. The *Coupons* tab has a
+   one-click **first run** button that creates the twenty-place code and tells you what to paste.
+2. **A card payment.** `POST /api/pay/initialise` mints the reference and the amount server-side, sends
+   the parent to Paystack, and Paystack returns them to `/play/?ref=…`, which the app turns into a
    licence. Both the webhook and that return path go through one function that **re-verifies the
    transaction against Paystack's API before granting anything** — a signed webhook alone is not
    trusted, and a reference this server never created grants nothing.
-3. **By hand**, in *Families* → *Give a family access*. Bank transfers, apologies, and the
-   twenty-first family you decide counts anyway.
+3. **A bank transfer**, reviewed by you — see below.
+4. **By hand**, in *Families* → *Give a family access*. Apologies, edge cases, and the twenty-first
+   family you decide counts anyway.
 
-**Set the webhook up** in the Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL:
-`https://brainy.fortbridge.app/api/pay/webhook`. It verifies `x-paystack-signature` (HMAC-SHA512 over
-the raw body) and returns 401 to anything unsigned. The secret key lives only in the environment and
-is never in the client bundle.
+### Bank transfers
+
+The realistic way a Nigerian family pays. Set the three `BANK_*` variables and the grown-up area shows
+the account details next to the card buttons; leave them unset and the option does not exist.
+
+The flow, and the one thing that matters about it:
+
+1. The parent transfers the money in their bank app, then taps **I have made the transfer** and sends
+   the plan, the name on the sending account, the date, an optional reference and an optional
+   screenshot (≤ 1.5 MB, image or PDF).
+2. `POST /api/pay/request` stores that as a **claim and grants absolutely nothing.** Nothing a parent
+   types can change what they are entitled to, which is why the endpoint is safe to leave open. They
+   get an email saying, in those words, that nothing is unlocked yet.
+3. You open **Transfers** in the dashboard. Check the amount against *your own bank statement* — the
+   figure shown is what they say they paid. The receipt they attached is fetched per row through the
+   admin guard (`Cache-Control: private, no-store`), never from a public URL.
+4. **Confirm and send the code** grants the licence, records it as a payment so it appears in the money
+   figures, and emails them the code. **Decline** asks for a reason and emails that instead — worded to
+   be answerable, because most declines are a transfer still in flight or a name that did not match.
+
+Submitting twice replaces the open claim rather than creating a second one, so there is always exactly
+one thing per family to look at. Approving twice is refused.
+
+The proof image is stored in Postgres as base64 rather than in object storage: one small file per
+paying family, wanting exactly the same access control as the row it belongs to. Adding a bucket, its
+credentials and its lifecycle rules to save a few kilobytes would be the more complicated choice.
+
+**Set the webhook up** in the Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL. It is
+a URL, not an environment variable, and either of these works — they reach the same function, the
+short one through a rewrite in `vercel.json`:
+
+```
+https://brainy.fortbridge.app/api/webhook        ← shorter, use this
+https://brainy.fortbridge.app/api/pay/webhook    ← the underlying route
+```
+
+A Vercel rewrite passes the method, headers and raw body through untouched, which matters here more
+than anywhere else: the signature is an HMAC over exactly those bytes. It verifies
+`x-paystack-signature` (HMAC-SHA512) and returns 401 to anything unsigned. The secret key lives only
+in the environment and is never in the client bundle.
+
+Do not confuse this with `REPORT_WEBHOOK_URL`, which points the other way — outbound copies to Slack
+or similar. Nothing calls that.
 
 The licence is stored on the device, so paid subjects open in airplane mode. It is re-checked about
 once a week, and **only a definite "this code does not exist" ever removes it** — a failed check, a
@@ -151,20 +194,20 @@ localhost or `*.vercel.app` hostname.
   `googletagmanager`, `google-analytics`, `gtag(` and `dataLayer`, and *fails* if any appears. It also
   fails if `admin.html` ever references the analytics file. The claim on the landing page that the app
   carries no third-party script is therefore checked rather than trusted.
-- **Nothing loads before consent.** A visitor is asked once, with two buttons the same size; until
-  they agree there is no request to Google, no cookie and no consent-mode ping. `Do Not Track` and
-  Global Privacy Control are treated as an answer, so those visitors are never asked. Declining later
-  sets Google's own `ga-disable-…` flag and deletes the `_ga*` cookies rather than telling the visitor
-  to clear their browser.
+- **It loads on every visit**, like the standard snippet. There is no consent banner.
 - **Advertising features are off** in code: no Google Signals, no ad personalisation, no remarketing.
+  Analytics, not adtech.
 
-Two consequences worth knowing before you look at the numbers. Consent-gating means the figures are a
-**floor, not a total** — the same caveat as the in-app usage data. And because localhost and preview
-deployments are excluded, the way to test the tag is a real visit to the production domain, checking
-for the `collect` request in the Network tab after clicking *Yes, that's fine*.
+Because localhost and preview deployments are excluded, the way to test the tag is a real visit to the
+production domain, watching for the `collect` request in the Network tab.
 
-Set `GA_MEASUREMENT_ID=""` to build with it off entirely; the banner disappears too, since a site with
-no cookies has no business asking about cookies.
+Set `GA_MEASUREMENT_ID=""` to build with analytics off entirely.
+
+**One thing to keep an eye on.** Analytics cookies set without asking are the part of this that EU/UK
+visitors have a right to object to, and Nigeria's NDPR takes a similar line. That is a business
+decision rather than a technical one and it is recorded here rather than argued: if the audience turns
+out to be substantially European, a consent banner is the fix, and `site/analytics.js` is the only file
+that would change. The privacy notice tells visitors plainly what runs and how to block it.
 
 ### Email, via Resend
 
@@ -227,6 +270,9 @@ Worth doing on a real phone, not just a laptop.
 - [ ] The landing page asks about analytics once, and **nothing** is requested from Google until you agree
 - [ ] `/play/` requests nothing from Google at all, before or after agreeing (check the Network tab)
 - [ ] The footer *Cookies* link reopens the question, and declining removes the `_ga*` cookies
+- [ ] `npm run preflight -- https://brainy.fortbridge.app` reports nothing broken
+- [ ] With the `BANK_*` variables set, **Access** shows the account details and the transfer form sends
+- [ ] The claim appears under **Transfers**, the receipt opens, and *Confirm* emails the code
 - [ ] With `PAYSTACK_SECRET_KEY` set, **Access** shows the prices and checkout reaches Paystack
 - [ ] Paying with a test card returns to `/play/?ref=…` and lands on "Everything is unlocked"
 - [ ] *Revoke* in *Families*, then **Check again** in the app, closes the paid subjects
@@ -252,6 +298,20 @@ npm run smoke      # every generator, every difficulty
 npm run smoke:api  # the API routes against an in-memory Postgres
 npm run build      # typecheck is part of this
 ```
+
+After it:
+
+```
+npm run preflight -- https://brainy.fortbridge.app
+```
+
+Every check is a real request to the running site, so it catches what a build cannot — an unpooled
+database URL, a Resend key pasted with a trailing space, a `SIGNUP_COUPON` naming a coupon nobody
+created. It is read-only, creates nothing and sends no email, so it is safe against production. Export
+`ADMIN_TOKEN` first and it additionally reports email delivery, free places remaining and how many
+transfers are waiting.
+
+`.env.example` lists every variable with a note on what each one switches on.
 
 ---
 

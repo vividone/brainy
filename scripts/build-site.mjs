@@ -109,6 +109,6 @@ const entries = await readdir(dist)
 console.log(`site → dist/ (${entries.join(', ')})`)
 console.log(
   measurementId
-    ? `analytics: ${measurementId}, website only, after consent`
-    : 'analytics: off (GA_MEASUREMENT_ID not set)',
+    ? `analytics: ${measurementId}, website only (never /play/ or /admin)`
+    : 'analytics: off (GA_MEASUREMENT_ID is empty)',
 )

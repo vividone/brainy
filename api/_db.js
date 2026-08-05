@@ -216,6 +216,44 @@ export async function ensureSchema() {
       unique (code, kind)
     );
 
+    /*
+     * Bank transfers, waiting to be checked by a human.
+     *
+     * The realistic way a Nigerian parent pays: they move money in their bank
+     * app and tell you they have. So this is a claim, not a payment — nothing
+     * here grants anything until somebody has looked at their statement and
+     * approved it. The row is kept afterwards either way, because "I paid and
+     * you said no" is a conversation that needs a record.
+     *
+     * The proof image lives in this table as base64 rather than in object
+     * storage. It is one small file per paying family, it wants exactly the same
+     * access control as the row it belongs to, and adding a bucket, its
+     * credentials and its lifecycle rules to save a few kilobytes of Postgres
+     * would be the more complicated choice, not the simpler one.
+     */
+    create table if not exists payment_requests (
+      id            bigserial primary key,
+      parent_id     bigint not null references parents (id),
+      plan          text not null,
+      /* What they say they paid, in minor units. Checked, never trusted. */
+      amount        bigint not null default 0,
+      currency      text,
+      /* Their bank's transfer reference, and the name on the sending account. */
+      reference     text,
+      sender_name   text,
+      paid_on       date,
+      note          text,
+      proof_type    text,
+      proof         text,
+      /* 'pending' | 'approved' | 'declined' */
+      status        text not null default 'pending',
+      reviewed_by   text,
+      reviewed_at   timestamptz,
+      decision_note text,
+      created_at    timestamptz not null default now()
+    );
+    create index if not exists payment_requests_status_idx on payment_requests (status);
+
     create table if not exists admin_users (
       id          bigserial primary key,
       email       text not null unique,

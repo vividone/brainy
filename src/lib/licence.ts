@@ -86,10 +86,20 @@ export interface PlanOffer {
   months: number | null
 }
 
+/** Where to send a bank transfer, when card checkout is not how a family pays. */
+export interface TransferDetails {
+  enabled: boolean
+  bank: string | null
+  accountName: string | null
+  accountNumber: string | null
+  instructions: string | null
+}
+
 export interface Prices {
   enabled: boolean
   currency: string
   plans: PlanOffer[]
+  transfer: TransferDetails
 }
 
 /**
@@ -107,10 +117,61 @@ export async function prices(): Promise<Prices | null> {
       enabled: Boolean(data.enabled),
       currency: (data.currency as string) ?? 'NGN',
       plans: (data.plans as PlanOffer[]) ?? [],
+      transfer: (data.transfer as TransferDetails) ?? {
+        enabled: false,
+        bank: null,
+        accountName: null,
+        accountNumber: null,
+        instructions: null,
+      },
     }
   } catch {
     return null
   }
+}
+
+/**
+ * Tell us a bank transfer has been made.
+ *
+ * Grants nothing — see api/pay/request.js. The parent is told so plainly, because
+ * an interface that implies "paid, therefore unlocked" and then does not unlock
+ * is worse than one that says "we will check and email you".
+ */
+export async function submitTransfer(input: {
+  email: string
+  plan: 'annual' | 'lifetime'
+  name?: string
+  phone?: string
+  amount?: number
+  senderName?: string
+  reference?: string
+  paidOn?: string
+  note?: string
+  /** Base64 of the receipt, without the data-URL prefix. */
+  proof?: string
+  proofType?: string
+}): Promise<{ ok: boolean; emailed?: boolean; error?: string }> {
+  try {
+    const { status, data } = await send('/api/pay/request', { method: 'POST', body: input })
+    if (status === 200 && data?.ok) return { ok: true, emailed: Boolean(data.emailed) }
+    return { ok: false, error: (data?.error as string) ?? `Server returned ${status}.` }
+  } catch {
+    return { ok: false, error: OFFLINE }
+  }
+}
+
+/** A file input's contents as base64, ready to post. */
+export function readAsBase64(file: File): Promise<{ base64: string; type: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Could not read that file.'))
+    reader.onload = () => {
+      const result = String(reader.result ?? '')
+      /* `data:image/png;base64,AAA…` — the server wants only the tail. */
+      resolve({ base64: result.slice(result.indexOf(',') + 1), type: file.type })
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
 /** `₦5,000` from 500000 kobo. */

@@ -5,10 +5,14 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/privacy", "destination": "/privacy.html" }
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/api/webhook", "destination": "/api/pay/webhook" }
   ],
   "redirects": [{ "source": "/app/:path*", "destination": "/play/:path*", "permanent": true }],
-  "crons": [{ "path": "/api/cron/expiring", "schedule": "0 9 * * *" }],
+  "crons": [
+    { "path": "/api/cron/expiring", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/retain", "schedule": "0 3 * * 1" }
+  ],
   "headers": [
     {
       "source": "/play/assets/(.*)",

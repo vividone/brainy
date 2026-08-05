@@ -17,6 +17,7 @@ import { clip, email as parseEmail, num, readJson } from '../_http.js'
 import {
   CURRENCY,
   PLANS,
+  bankDetails,
   ensureSubscription,
   findOrCreateParent,
   isPlan,
@@ -49,6 +50,8 @@ export default async function handler(req, res) {
       plans: Object.entries(PLANS)
         .filter(([, plan]) => plan.sellable)
         .map(([id, plan]) => ({ id, label: plan.label, amount: plan.amount, months: plan.months })),
+      /* Where to send a bank transfer, when card checkout is not the answer. */
+      transfer: bankDetails(),
     })
   }
 

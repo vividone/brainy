@@ -246,6 +246,7 @@
       const TABS = [
         ['overview', 'Overview'],
         ['families', 'Families'],
+        ['transfers', 'Transfers'],
         ['coupons', 'Coupons'],
         ['payments', 'Payments'],
         ['usage', 'Usage'],
@@ -388,8 +389,11 @@
               <div class="tile"><b>${fmt(placesLeft)}</b><span>Coupon places left</span></div>
             </div>
 
-            <h2>Pending and lapsed</h2>
+            <h2>Needs you</h2>
             <div class="tiles">
+              <div class="tile" style="${data.transfersPending ? 'border-color:#7c3aed;box-shadow:0 0 0 2px #ede9fe' : ''}">
+                <b>${fmt(data.transfersPending)}</b><span>Transfers to check</span>
+              </div>
               <div class="tile"><b>${fmt(byStatus.pending ?? 0)}</b><span>Signed up, no access</span></div>
               <div class="tile"><b>${fmt(byStatus.expired ?? 0)}</b><span>Expired</span></div>
               <div class="tile"><b>${fmt(byStatus.revoked ?? 0)}</b><span>Revoked</span></div>
@@ -421,11 +425,40 @@
               <table>
                 <tbody>
                   <tr><td>Checkout (Paystack)</td><td>${yes(data.paystack?.configured)}</td></tr>
+                  <tr><td>Bank transfer</td><td>${yes(data.transfer?.enabled)}</td></tr>
                   <tr><td>Email to families (Resend)</td><td>${yes(data.email?.configured)}</td></tr>
                   <tr><td>Copies to you</td><td>${yes(data.email?.operator)}</td></tr>
                   <tr><td>Renewal warnings</td><td>${yes(data.email?.reminders)}</td></tr>
+                  <tr>
+                    <td>Free places on sign-up</td>
+                    <td>${
+                      data.signupCoupon
+                        ? data.signupCoupon.missing
+                          ? '<span class="tag revoked">code missing</span>'
+                          : `<span class="tag active">${esc(data.signupCoupon.code)}</span>`
+                        : '<span class="tag expired">off</span>'
+                    }</td>
+                  </tr>
                 </tbody>
               </table>
+              ${
+                data.signupCoupon && !data.signupCoupon.missing
+                  ? `<p class="note">
+                       ${fmt(data.signupCoupon.max_uses - data.signupCoupon.uses)} of
+                       ${fmt(data.signupCoupon.max_uses)} places left. When they run out, sign-ups
+                       quietly go back to being a waiting list.
+                     </p>`
+                  : data.signupCoupon?.missing
+                    ? `<p class="note">
+                         <code>SIGNUP_COUPON</code> names <code>${esc(data.signupCoupon.code)}</code>, which
+                         does not exist — every sign-up is silently getting the waiting-list email. Create
+                         it under Coupons, or clear the variable.
+                       </p>`
+                    : `<p class="note">
+                         Set <code>SIGNUP_COUPON</code> to a coupon code and the landing-page form claims a
+                         free place automatically until they run out. Coupons → <b>first run</b>.
+                       </p>`
+              }
               ${
                 data.email?.configured
                   ? `<p class="note">Sending as <code>${esc(data.email.from ?? 'default')}</code>.</p>`
@@ -483,6 +516,8 @@
        * ---------------------------------------------------------------- */
 
       let familyQuery = ''
+      /** The code the first-run button made, so the next step survives a refresh. */
+      let firstRunNote = null
 
       VIEWS.families = async () => {
         const data = await api(`/admin/families${familyQuery ? `?q=${encodeURIComponent(familyQuery)}` : ''}`)
@@ -645,12 +680,177 @@
       }
 
       /* ---------------------------------------------------------------- *
+       * Transfers — the one tab with work in it
+       * ---------------------------------------------------------------- */
+
+      VIEWS.transfers = async () => {
+        const data = await api('/admin/transfers')
+        const box = document.createElement('div')
+        const pending = data.transfers.filter((t) => t.status === 'pending')
+
+        box.append(
+          el(`<div class="card">
+            <h3>How this works</h3>
+            <p style="margin:0;font-weight:600">
+              A parent transfers the money and tells us. <b>Nothing is granted until you approve here.</b>
+              Check the amount against your own bank statement first — the figure below is what
+              <em>they say</em> they paid. Approving grants the licence and emails them the code;
+              declining emails them a reason they can act on.
+            </p>
+          </div>`),
+        )
+
+        box.append(
+          el(`<h2>${pending.length ? `${fmt(pending.length)} waiting` : 'Nothing waiting'}</h2>`),
+        )
+
+        if (!data.transfers.length) {
+          box.append(
+            el(`<div class="card"><p class="empty">
+              No bank transfers yet. If <code>BANK_NAME</code>, <code>BANK_ACCOUNT_NAME</code> and
+              <code>BANK_ACCOUNT_NUMBER</code> are not set, the option is hidden from parents entirely.
+            </p></div>`),
+          )
+          return box
+        }
+
+        for (const t of data.transfers) {
+          const claimed = money(t.amount, t.currency ?? data.currency)
+          const card = el(`<div class="card" style="margin-bottom:1rem${t.status === 'pending' ? '' : ';opacity:0.7'}">
+            <div class="row" style="align-items:flex-start">
+              <div style="flex:2 1 260px">
+                <p style="margin:0;font-weight:800">${esc(t.email)}${t.name ? ` · ${esc(t.name)}` : ''}</p>
+                ${t.phone ? `<p class="note" style="margin:0">${esc(t.phone)}</p>` : ''}
+                <p class="note" style="margin:0.2rem 0 0">
+                  sent ${esc(when(t.created_at))}${t.code ? ` · code <span class="mono">${esc(t.code)}</span>` : ''}
+                </p>
+              </div>
+              <div style="flex:1 1 160px">
+                <p style="margin:0;font-weight:800">${planTag(t.plan)}</p>
+                <p style="margin:0.3rem 0 0;font-size:1.25rem;font-weight:900">${esc(claimed)}</p>
+                <p class="note" style="margin:0">they say they paid</p>
+              </div>
+              <div style="flex:1 1 160px">
+                <p class="note" style="margin:0">on ${esc(t.paid_on ? date(t.paid_on) : '—')}</p>
+                <p class="note" style="margin:0">from ${esc(t.sender_name ?? '—')}</p>
+                <p class="note" style="margin:0">ref ${esc(t.reference ?? '—')}</p>
+              </div>
+              <div style="flex:0 0 auto">${statusTag(t.status === 'approved' ? 'active' : t.status === 'declined' ? 'revoked' : 'pending')}</div>
+            </div>
+            ${t.note ? `<p class="note" style="margin-top:0.5rem">“${esc(t.note)}”</p>` : ''}
+            <div class="proof" style="margin-top:0.6rem"></div>
+            <div class="acts" style="margin-top:0.8rem"></div>
+            ${
+              t.status !== 'pending'
+                ? `<p class="note" style="margin-top:0.6rem">
+                     ${esc(t.status)} by ${esc(t.reviewed_by ?? '—')} ${esc(when(t.reviewed_at))}
+                     ${t.decision_note ? `· “${esc(t.decision_note)}”` : ''}
+                   </p>`
+                : ''
+            }
+          </div>`)
+
+          /* The receipt is fetched per row rather than embedded in the list —
+             twenty base64 images would be megabytes of JSON to draw a table. */
+          const proofBox = card.querySelector('.proof')
+          if (t.has_proof) {
+            if (String(t.proof_type).startsWith('image/')) {
+              const view = el('<button class="ghost sm">🧾 Show receipt</button>')
+              view.onclick = () => {
+                view.replaceWith(
+                  el(`<a href="/api/admin/proof?id=${t.id}" target="_blank" rel="noopener">
+                        <img src="/api/admin/proof?id=${t.id}" alt="Receipt"
+                             style="max-width:min(420px,100%);border-radius:12px;border:1px solid var(--line)" />
+                      </a>`),
+                )
+              }
+              proofBox.append(view)
+            } else {
+              proofBox.append(
+                el(`<a class="mono" href="/api/admin/proof?id=${t.id}" target="_blank" rel="noopener">🧾 open receipt (${esc(t.proof_type)})</a>`),
+              )
+            }
+          } else {
+            proofBox.append(el('<span class="note">No receipt attached — check the statement by name and date.</span>'))
+          }
+
+          const acts = card.querySelector('.acts')
+          if (t.status === 'pending') {
+            const approve = el('<button class="sm">✓ Confirm and send the code</button>')
+            approve.onclick = (e) => {
+              if (!confirm(`Confirm ${claimed} received from ${t.email}? This grants the licence and emails their code.`)) return
+              act(e.target, `Approved — code emailed to ${t.email}.`, () =>
+                api('/admin/transfers/approve', { method: 'POST', body: { id: t.id } }),
+              )
+            }
+            acts.append(approve)
+
+            const decline = el('<button class="danger sm">Decline</button>')
+            decline.onclick = (e) => {
+              const reason = prompt(
+                'What should we tell them? (e.g. "we cannot see the transfer yet", "the amount was short")',
+                'We could not find the transfer on our statement yet.',
+              )
+              if (reason === null) return
+              act(e.target, 'Declined — they have been emailed.', () =>
+                api('/admin/transfers/decline', { method: 'POST', body: { id: t.id, note: reason } }),
+              )
+            }
+            acts.append(decline)
+          }
+
+          box.append(card)
+        }
+
+        return box
+      }
+
+      /* ---------------------------------------------------------------- *
        * Coupons
        * ---------------------------------------------------------------- */
 
       VIEWS.coupons = async () => {
         const data = await api('/admin/coupons')
         const box = document.createElement('div')
+
+        /*
+         * First run. The twenty free places from prd.md §14.3 are a single
+         * twenty-use code plus one environment variable, and doing it by hand is
+         * exactly the kind of two-step that gets half-done — the code created and
+         * the variable forgotten, so every sign-up quietly gets a waiting-list
+         * email instead of a licence.
+         */
+        const firstRun = el(`<div class="card" style="margin-bottom:1rem;border-color:#c4b5fd">
+          <h3>First run — the twenty free places</h3>
+          <p style="margin:0 0 0.8rem;font-weight:600">
+            Creates one code with twenty uses, free forever. Then set
+            <code>SIGNUP_COUPON</code> to it in Vercel and redeploy, and the landing-page form claims a
+            place automatically until they are gone.
+          </p>
+          <button id="fr-go">Create the twenty free places</button>
+          <div id="fr-out"></div>
+        </div>`)
+        firstRun.querySelector('#fr-go').onclick = (e) =>
+          act(e.target, 'Created.', async () => {
+            const result = await api('/admin/coupons', {
+              method: 'POST',
+              body: { plan: 'free-forever', maxUses: 20, note: 'the first twenty families' },
+            })
+            await copy(result.coupon.code)
+            /*
+             * Held outside the view, because `act` refreshes the tab on success
+             * and would throw away anything written into this DOM. The next step
+             * is a variable in Vercel, and a toast that vanishes in three seconds
+             * is not where you put an instruction someone has to act on.
+             */
+            firstRunNote = result.coupon.code
+          })
+        if (firstRunNote) {
+          firstRun.querySelector('#fr-out').innerHTML =
+            `<p class="ok" style="margin-top:0.8rem">Created <b>${esc(firstRunNote)}</b> and copied it.
+             Now set <code>SIGNUP_COUPON=${esc(firstRunNote)}</code> in Vercel and redeploy.</p>`
+        }
+        box.append(firstRun)
 
         const maker = el(`<div class="card">
           <h3>Make a code</h3>

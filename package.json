@@ -11,7 +11,8 @@
     "smoke": "node scripts/smoke.mjs",
     "icons": "node scripts/make-icons.mjs",
     "serve": "node scripts/serve.mjs",
-    "smoke:api": "node scripts/api-smoke.mjs"
+    "smoke:api": "node scripts/api-smoke.mjs",
+    "preflight": "node scripts/preflight.mjs"
   },
   "dependencies": {
     "pg": "^8.22.0",

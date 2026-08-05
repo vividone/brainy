@@ -117,6 +117,15 @@ export interface DeviceSettings {
    * check never takes access away.
    */
   licence: StoredLicence | null
+  /**
+   * When a bank transfer was submitted for review, ISO, or null.
+   *
+   * Remembered only so the grown-up area can say "submitted on Tuesday, we will
+   * email your code" instead of showing the form again as though nothing had
+   * happened. It is not an entitlement and grants nothing — the licence still
+   * arrives as a code by email once a human has confirmed the money.
+   */
+  transferSubmittedAt: string | null
 }
 
 /** The merged view the screens actually consume. */
@@ -273,6 +282,7 @@ const defaultDevice = (): DeviceSettings => ({
   locked: false,
   lockNote: '',
   licence: null,
+  transferSubmittedAt: null,
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -336,6 +346,7 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'locked',
   'lockNote',
   'licence',
+  'transferSubmittedAt',
 ])
 
 /** Monday-of-week key, used for streak freezes and the weekly summary. */

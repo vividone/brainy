@@ -31,6 +31,7 @@ import {
 import {
   PLANS,
   CURRENCY,
+  bankDetails,
   ensureSubscription,
   expireIfDue,
   findOrCreateParent,
@@ -40,7 +41,12 @@ import {
   normaliseCode,
   randomCoupon,
 } from '../_licence.js'
-import { emailConfigured, sendLicence } from '../_email.js'
+import {
+  emailConfigured,
+  sendLicence,
+  sendReceipt,
+  sendTransferDeclined,
+} from '../_email.js'
 
 const LIST_LIMIT = 500
 
@@ -82,7 +88,7 @@ async function login(req, res) {
   }
 
   await query(`update admin_users set last_login = now() where id = $1`, [user.id])
-  issueSession(res, user)
+  issueSession(req, res, user)
   await audit(user.email, 'admin.login', null, null)
   return res.status(200).json({ ok: true, admin: { email: user.email, name: user.name ?? null } })
 }
@@ -169,6 +175,25 @@ async function overview(req, res) {
     limit 10
   `)
 
+  /* Bank transfers are the only thing here that needs a human today, so the
+     count belongs on the front page rather than one tab in. */
+  const waiting = await one(
+    `select count(*)::int as pending from payment_requests where status = 'pending'`,
+  )
+
+  /*
+   * Whether the free-places promise is actually wired, and how many are left.
+   * `SIGNUP_COUPON` naming a code that does not exist is a silent failure
+   * otherwise — every sign-up would quietly get the holding email instead.
+   */
+  const signupCode = normaliseCode(process.env.SIGNUP_COUPON)
+  const signupCoupon = signupCode
+    ? ((await one(`select code, plan, uses, max_uses, active from coupons where code = $1`, [signupCode])) ?? {
+        code: signupCode,
+        missing: true,
+      })
+    : null
+
   return res.status(200).json({
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -185,6 +210,9 @@ async function overview(req, res) {
       reminders: Boolean(process.env.CRON_SECRET),
     },
     paystack: { configured: Boolean(process.env.PAYSTACK_SECRET_KEY) },
+    transfer: bankDetails(),
+    transfersPending: waiting?.pending ?? 0,
+    signupCoupon,
     prices: Object.fromEntries(
       Object.entries(PLANS).map(([id, plan]) => [
         id,
@@ -289,6 +317,152 @@ async function payments(req, res) {
     limit 200
   `)
   return res.status(200).json({ ok: true, currency: CURRENCY(), payments: rows })
+}
+
+/**
+ * Bank transfers waiting to be checked, newest first.
+ *
+ * The proof image is deliberately *not* in this response — a list of twenty
+ * requests would be twenty base64 images, several megabytes of JSON to render a
+ * table. It is fetched per row by `GET proof` when somebody actually looks.
+ */
+async function transfers(req, res) {
+  const status = clip(searchParams(req).get('status'), 20)
+  const rows = await all(
+    `select r.id, r.plan, r.amount, r.currency, r.reference, r.sender_name, r.paid_on, r.note,
+            r.status, r.reviewed_by, r.reviewed_at, r.decision_note, r.created_at,
+            r.proof_type, (r.proof is not null) as has_proof,
+            p.email, p.name, p.phone, s.code, s.status as licence_status, s.plan as licence_plan
+     from payment_requests r
+     join parents p on p.id = r.parent_id
+     left join subscriptions s on s.parent_id = p.id
+     where ($1 = '' or r.status = $1)
+     order by case when r.status = 'pending' then 0 else 1 end, r.created_at desc
+     limit 200`,
+    [status ?? ''],
+  )
+  return res.status(200).json({ ok: true, currency: CURRENCY(), transfers: rows })
+}
+
+/**
+ * The receipt a parent attached.
+ *
+ * Served through the admin guard rather than from a public URL, because it is a
+ * bank document with somebody's name and account on it. `Cache-Control: private,
+ * no-store` so it does not sit in a shared proxy or a browser cache after
+ * sign-out.
+ */
+async function proof(req, res) {
+  const id = num(searchParams(req).get('id'), 1e12, 0)
+  if (!id) return res.status(400).json({ ok: false, error: 'Which request?' })
+
+  const row = await one(`select proof, proof_type from payment_requests where id = $1`, [id])
+  if (!row?.proof) return res.status(404).json({ ok: false, error: 'No receipt attached.' })
+
+  const buffer = Buffer.from(row.proof, 'base64')
+  res.setHeader('Content-Type', row.proof_type || 'application/octet-stream')
+  res.setHeader('Content-Length', String(buffer.length))
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.setHeader('Content-Disposition', 'inline')
+  return res.status(200).end(buffer)
+}
+
+/**
+ * Approve a transfer: grant the licence, then email the code.
+ *
+ * Approving is what *creates* the entitlement — the parent's claim never did —
+ * so the order matters. The grant is recorded first and the email second, because
+ * a family with access and no email can be helped in one click, while an email
+ * promising access that was never granted is a support conversation that starts
+ * with an apology.
+ */
+async function approveTransfer(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const id = num(body?.id, 1e12, 0)
+  if (!id) return res.status(400).json({ ok: false, error: 'Which request?' })
+
+  const request = await one(`select * from payment_requests where id = $1`, [id])
+  if (!request) return res.status(404).json({ ok: false, error: 'No such request.' })
+  if (request.status !== 'pending') {
+    return res.status(409).json({ ok: false, error: `That request was already ${request.status}.` })
+  }
+
+  const parent = await one(`select * from parents where id = $1`, [request.parent_id])
+  const subscription = await ensureSubscription(request.parent_id)
+
+  /* The plan they asked for, unless you override it — a family who paid for a
+     year and asked for lifetime by mistake is one dropdown away from being fixed. */
+  const plan = isPlan(clip(body?.plan, 24) ?? '') ? clip(body.plan, 24) : request.plan
+  const months = monthsFor(plan, body?.months)
+
+  const updated = await grant({
+    subscription,
+    plan,
+    months,
+    source: 'transfer',
+    note: `bank transfer ${Number(request.amount) / 100} ${request.currency ?? ''} ${request.reference ?? ''}`.trim(),
+  })
+
+  await query(
+    `update payment_requests set status = 'approved', reviewed_by = $2, reviewed_at = now(), decision_note = $3
+     where id = $1`,
+    [id, admin.email, clip(body?.note, 400)],
+  )
+
+  /* A real payment, so it belongs in the money figures alongside the card ones. */
+  await query(
+    `insert into payments (parent_id, reference, provider, plan, amount, currency, status, channel, paid_at)
+     values ($1, $2, 'transfer', $3, $4, $5, 'success', 'bank transfer', now())
+     on conflict (reference) do nothing`,
+    [request.parent_id, `transfer_${id}`, plan, request.amount, request.currency ?? CURRENCY()],
+  )
+
+  await audit(admin.email, 'transfer.approved', parent?.email ?? String(id), `${plan} · ${request.amount}`)
+
+  const licence = licencePayload(updated, parent)
+  const sent = await sendReceipt(licence, {
+    reference: request.reference || `transfer ${id}`,
+    plan,
+    amount: request.amount,
+    currency: request.currency ?? CURRENCY(),
+  })
+
+  return res.status(200).json({ ok: true, licence, emailed: Boolean(sent?.ok) })
+}
+
+/** Decline a transfer, with a reason the parent can act on. */
+async function declineTransfer(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const id = num(body?.id, 1e12, 0)
+  if (!id) return res.status(400).json({ ok: false, error: 'Which request?' })
+
+  const request = await one(`select * from payment_requests where id = $1`, [id])
+  if (!request) return res.status(404).json({ ok: false, error: 'No such request.' })
+  if (request.status !== 'pending') {
+    return res.status(409).json({ ok: false, error: `That request was already ${request.status}.` })
+  }
+
+  const parent = await one(`select * from parents where id = $1`, [request.parent_id])
+  const reason = clip(body?.note, 400)
+
+  await query(
+    `update payment_requests set status = 'declined', reviewed_by = $2, reviewed_at = now(), decision_note = $3
+     where id = $1`,
+    [id, admin.email, reason],
+  )
+  await audit(admin.email, 'transfer.declined', parent?.email ?? String(id), reason ?? null)
+
+  const sent = await sendTransferDeclined(
+    {
+      email: parent?.email,
+      name: parent?.name,
+      plan: request.plan,
+      planLabel: PLANS[request.plan]?.label,
+    },
+    reason,
+  )
+
+  return res.status(200).json({ ok: true, emailed: Boolean(sent?.ok) })
 }
 
 async function auditLog(req, res) {
@@ -547,6 +721,15 @@ export default async function handler(req, res) {
         return await auditLog(req, res)
       case 'GET licence':
         return await lookup(req, res)
+      case 'GET transfers':
+        return await transfers(req, res)
+      case 'GET proof':
+        return await proof(req, res)
+
+      case 'POST transfers/approve':
+        return await approveTransfer(req, admin, res)
+      case 'POST transfers/decline':
+        return await declineTransfer(req, admin, res)
 
       case 'POST coupons':
         return await createCoupon(req, admin, res)

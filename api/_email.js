@@ -295,6 +295,80 @@ Your code, unchanged: ${licence.code}${SIGN_OFF}`,
 }
 
 /**
+ * "We have your transfer details" — sent the moment a claim is submitted.
+ *
+ * Its whole job is to stop a parent who has just moved real money wondering
+ * whether it went into a void. So it is explicit that nothing is unlocked *yet*,
+ * says roughly how long the check takes, and never implies otherwise.
+ */
+export function sendTransferReceived(request) {
+  const greeting = request.name ? `Hello ${request.name},` : 'Hello,'
+  const amount = money(request.amount, request.currency)
+
+  return send({
+    to: request.email,
+    tag: 'transfer-received',
+    subject: 'We have your payment details — checking now',
+    text: `${greeting}
+
+Thank you. We have your transfer details for ${request.planLabel ?? request.plan} (${amount}).
+
+Nothing is unlocked yet: someone has to see the money arrive in the account first. That is usually the
+same day, and at most a couple of days. As soon as it is confirmed we will email your access code,
+and typing it into the grown-up area opens every subject.
+
+If anything looks wrong — the wrong amount, or a transfer that has not left your bank — just reply to
+this email and we will sort it out.
+
+In the meantime maths stays free and open, as always.${SIGN_OFF}`,
+    html: wrap(
+      'We have your payment details',
+      `${p(esc(greeting))}
+       ${p(`Thank you. We have your transfer details for <b>${esc(request.planLabel ?? request.plan)}</b> (${esc(amount)}).`)}
+       ${p('<b>Nothing is unlocked yet</b> — someone has to see the money arrive in the account first. That is usually the same day, and at most a couple of days. As soon as it is confirmed we will email your access code, and typing it into the grown-up area opens every subject.')}
+       ${p('If anything looks wrong — the wrong amount, or a transfer that has not left your bank — just reply to this email and we will sort it out.')}
+       ${p('In the meantime maths stays free and open, as always.')}`,
+    ),
+  })
+}
+
+/**
+ * A transfer we could not find.
+ *
+ * Written to be answerable rather than final: most declines are a transfer still
+ * in flight or a name that does not match, and the parent is the only person who
+ * can clear that up. Never accusatory — somebody who has just been told "we
+ * cannot see your money" is worried, not suspected.
+ */
+export function sendTransferDeclined(request, reason) {
+  const greeting = request.name ? `Hello ${request.name},` : 'Hello,'
+
+  return send({
+    to: request.email,
+    tag: 'transfer-declined',
+    subject: 'About your Brainy payment',
+    text: `${greeting}
+
+We have looked for your transfer for ${request.planLabel ?? request.plan} and could not confirm it yet.
+
+${reason ? `What we found: ${reason}\n\n` : ''}This is usually something simple — a transfer still in
+transit, an amount that came through short, or a sending name we could not match to you. Reply to this
+email with anything that helps us find it and we will look again. If the money did leave your account
+and we cannot locate it, tell us and we will keep looking rather than leave you out of pocket.
+
+Nothing has been taken from you by us, and maths stays free and open in the meantime.${SIGN_OFF}`,
+    html: wrap(
+      'About your payment',
+      `${p(esc(greeting))}
+       ${p(`We have looked for your transfer for <b>${esc(request.planLabel ?? request.plan)}</b> and could not confirm it yet.`)}
+       ${reason ? p(`<b>What we found:</b> ${esc(reason)}`) : ''}
+       ${p('This is usually something simple — a transfer still in transit, an amount that came through short, or a sending name we could not match to you. Reply to this email with anything that helps us find it and we will look again. If the money did leave your account and we cannot locate it, tell us and we will keep looking rather than leave you out of pocket.')}
+       ${p('Nothing has been taken from you by us, and maths stays free and open in the meantime.')}`,
+    ),
+  })
+}
+
+/**
  * Tell the operator, by email, when there is nothing to look at a dashboard for.
  *
  * Separate from `REPORT_WEBHOOK_URL` because not everybody runs Slack, and a

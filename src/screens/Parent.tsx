@@ -31,8 +31,10 @@ import {
   checkout,
   formatMoney,
   prices,
+  readAsBase64,
   revalidate,
   signUp,
+  submitTransfer,
   type Prices,
 } from '../lib/licence'
 import { useEntitlement } from '../state/entitlement'
@@ -986,6 +988,16 @@ function AccessTab() {
         )}
       </Card>
 
+      {/* ---- Paying by bank transfer ---- */}
+      {offer?.transfer.enabled && !full && (
+        <TransferCard
+          offer={offer}
+          email={email}
+          emailValid={emailValid}
+          onSent={() => setMessage({ good: true, text: 'Sent. We will check it and email your code.' })}
+        />
+      )}
+
       {message && (
         <p
           className={`rounded-2xl p-4 font-bold ${message.good ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}
@@ -1040,6 +1052,241 @@ function AccessTab() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+/**
+ * Paying by bank transfer.
+ *
+ * The realistic way a Nigerian family pays: move the money in the bank app, then
+ * tell somebody. Two things this screen has to get right, because getting them
+ * wrong costs a parent real money and real trust:
+ *
+ *  - **It must not imply that submitting unlocks anything.** It says, before and
+ *    after sending, that a person checks first and the code comes by email.
+ *  - **The account details must be impossible to mistype.** They are shown large,
+ *    with a copy button on the account number, because a digit wrong in a
+ *    transfer is a phone call to a bank, not a retry.
+ */
+function TransferCard({
+  offer,
+  email,
+  emailValid,
+  onSent,
+}: {
+  offer: Prices
+  email: string
+  emailValid: boolean
+  onSent: () => void
+}) {
+  const submittedAt = useStore((s) => s.device.transferSubmittedAt)
+  const updateSettings = useStore((s) => s.updateSettings)
+  const [open, setOpen] = useState(false)
+  const [plan, setPlan] = useState<'annual' | 'lifetime'>('annual')
+  const [senderName, setSenderName] = useState('')
+  const [reference, setReference] = useState('')
+  const [paidOn, setPaidOn] = useState(() => new Date().toISOString().slice(0, 10))
+  const [proof, setProof] = useState<{ name: string; base64: string; type: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const chosen = offer.plans.find((p) => p.id === plan) ?? offer.plans[0]
+
+  const submit = async () => {
+    setBusy(true)
+    setProblem(null)
+    const result = await submitTransfer({
+      email: email.trim(),
+      plan,
+      amount: chosen?.amount,
+      senderName: senderName.trim() || undefined,
+      reference: reference.trim() || undefined,
+      paidOn,
+      proof: proof?.base64,
+      proofType: proof?.type,
+    })
+    setBusy(false)
+    if (!result.ok) return setProblem(result.error ?? 'Could not send that.')
+    updateSettings({ transferSubmittedAt: new Date().toISOString() })
+    setOpen(false)
+    setProof(null)
+    onSent()
+  }
+
+  return (
+    <Card className="p-5 border-slate-200">
+      <h2 className="font-black text-slate-900 mb-1">Or pay by bank transfer</h2>
+      <p className="text-sm font-semibold text-slate-500 mb-3">
+        Transfer the amount to the account below, then tell us — someone checks it against the account
+        and emails your access code, usually the same day.
+      </p>
+
+      <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-400">{offer.transfer.bank}</p>
+        <p className="mt-0.5 font-black text-slate-900">{offer.transfer.accountName}</p>
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          <span className="text-2xl font-black tracking-wider text-slate-900 tabular-nums">
+            {offer.transfer.accountNumber}
+          </span>
+          <Btn
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(offer.transfer.accountNumber ?? '')
+                setCopied(true)
+              } catch {
+                setCopied(false)
+              }
+            }}
+          >
+            {copied ? '✓ Copied' : '📋 Copy'}
+          </Btn>
+        </div>
+        <p className="mt-2 text-sm font-bold text-slate-600">
+          {offer.plans
+            .map((p) => `${p.label} — ${formatMoney(p.amount, offer.currency)}`)
+            .join(' · ')}
+        </p>
+        {offer.transfer.instructions && (
+          <p className="mt-2 text-sm font-semibold text-slate-500">{offer.transfer.instructions}</p>
+        )}
+      </div>
+
+      {submittedAt && !open && (
+        <div className="mt-3 rounded-2xl bg-amber-50 border-2 border-amber-200 p-4">
+          <p className="font-black text-amber-900">We are checking your transfer</p>
+          <p className="text-sm font-semibold text-amber-800 mt-0.5">
+            Sent {friendlyDate(new Date(submittedAt).getTime()).toLowerCase()}. Your code arrives by
+            email once the money is confirmed — then type it into the box above. Nothing is unlocked
+            until then.
+          </p>
+          <Btn variant="secondary" size="sm" className="mt-2" onClick={() => setOpen(true)}>
+            Send the details again
+          </Btn>
+        </div>
+      )}
+
+      {!open && !submittedAt && (
+        <Btn size="md" className="mt-3" disabled={!emailValid} onClick={() => setOpen(true)}>
+          I have made the transfer
+        </Btn>
+      )}
+      {!emailValid && !submittedAt && (
+        <p className="mt-2 text-xs font-bold text-slate-400">
+          Add your email address above first — the code goes there.
+        </p>
+      )}
+
+      {open && (
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="font-black text-slate-800 text-sm mb-1">Which plan did you pay for?</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {offer.plans.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPlan(p.id)}
+                  className={`min-h-12 rounded-2xl border-2 px-3 font-black text-sm transition
+                    ${p.id === plan ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
+                >
+                  {p.label} · {formatMoney(p.amount, offer.currency)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="block font-black text-slate-800 text-sm mb-1">Name on the account</span>
+              <input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value.slice(0, 80))}
+                placeholder="who the transfer came from"
+                className="w-full h-12 rounded-2xl border-2 border-slate-300 px-3 font-semibold outline-none focus:border-slate-900"
+              />
+            </label>
+            <label className="block">
+              <span className="block font-black text-slate-800 text-sm mb-1">Date paid</span>
+              <input
+                type="date"
+                value={paidOn}
+                onChange={(e) => setPaidOn(e.target.value)}
+                className="w-full h-12 rounded-2xl border-2 border-slate-300 px-3 font-semibold outline-none focus:border-slate-900"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="block font-black text-slate-800 text-sm mb-1">
+              Transfer reference <span className="font-semibold text-slate-400">(optional)</span>
+            </span>
+            <input
+              value={reference}
+              onChange={(e) => setReference(e.target.value.slice(0, 80))}
+              placeholder="whatever your bank called it"
+              className="w-full h-12 rounded-2xl border-2 border-slate-300 px-3 font-semibold outline-none focus:border-slate-900"
+            />
+          </label>
+
+          <div>
+            <p className="font-black text-slate-800 text-sm mb-1">
+              Screenshot of the receipt <span className="font-semibold text-slate-400">(optional)</span>
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                /* Checked here as well as on the server, so a parent finds out
+                   before waiting for an upload to fail. */
+                if (file.size > 1_500_000) {
+                  return setProblem('That file is a bit big — anything under 1.5 MB is fine.')
+                }
+                setProblem(null)
+                const { base64, type } = await readAsBase64(file)
+                setProof({ name: file.name, base64, type })
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Btn variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+                📎 Attach
+              </Btn>
+              {proof && <span className="text-sm font-bold text-slate-600">{proof.name}</span>}
+              {proof && (
+                <Btn variant="secondary" size="sm" onClick={() => setProof(null)}>
+                  Remove
+                </Btn>
+              )}
+            </div>
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              Helps us find it faster, but the name and date are usually enough.
+            </p>
+          </div>
+
+          {problem && <p className="rounded-2xl bg-rose-50 p-3 font-bold text-rose-800">{problem}</p>}
+
+          <div className="flex flex-wrap gap-2">
+            <Btn size="md" disabled={busy} onClick={submit}>
+              {busy ? 'Sending…' : 'Send for checking'}
+            </Btn>
+            <Btn variant="secondary" size="md" onClick={() => setOpen(false)}>
+              Cancel
+            </Btn>
+          </div>
+          <p className="text-xs font-semibold text-slate-400">
+            Sending this does not unlock anything by itself. A person confirms the money first, then your
+            code arrives by email.
+          </p>
+        </div>
+      )}
+    </Card>
   )
 }
 

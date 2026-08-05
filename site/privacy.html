@@ -34,6 +34,10 @@
       p, li { color: #37325c; font-weight: 550; }
       ul { padding-left: 1.2rem; }
       a { color: var(--violet-700); }
+      table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+      th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line, #e2e8f0); vertical-align: top; }
+      th { font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+      .scroll { overflow-x: auto; }
       .callout {
         background: #f5f3ff;
         border: 2px solid var(--violet-100);
@@ -58,9 +62,88 @@
         anonymous usage data; the box starts unticked, and if you leave it that way nothing is ever
         sent. Nothing about your child ever leaves the tablet, on any plan.
         <br /><br />
-        This <em>website</em> is a separate thing from the app, and is treated separately: it can use
-        Google Analytics to count visits, but only if you agree when asked. See
+        This <em>website</em> is a separate thing from the app, and is treated separately: these pages
+        use Google Analytics to count visits. The app does not, and cannot. See
         <a href="#analytics">Google Analytics</a> below.
+      </div>
+
+      <h2>Who we are, and the law we work under</h2>
+      <p>
+        Brainy is made by <strong>Fortbridge Technologies Ltd</strong>, a company registered in
+        Nigeria. For the purposes of data protection law, Fortbridge Technologies Ltd is the
+        <strong>data controller</strong> for everything described in this notice. You can reach us
+        about anything on this page at
+        <a href="mailto:brainy@fortbridge.app">brainy@fortbridge.app</a>, and we aim to answer within
+        seven days.
+      </p>
+      <!--
+        TODO before launch: NDPA 2023 expects a controller to be identifiable. Insert the RC number
+        and registered office below. Deliberately left blank rather than filled with a guess.
+      -->
+      <p>
+        We work to the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, which is the law
+        that governs us. Brainy is also used by families following the British and American
+        curricula, so where the <strong>UK GDPR</strong> or the American
+        <strong>COPPA</strong> rules would give someone a stronger right than the NDPA does, we
+        apply the stronger one rather than the minimum. It is simpler to hold one high standard than
+        three different ones.
+      </p>
+      <p>
+        Brainy is built for children in <strong>Basic 1 to Basic 6</strong> and their equivalents,
+        roughly ages 5 to 12. Every one of them is a child in the eyes of all three of those laws.
+        That is the reason for the central design decision described throughout this notice: the
+        child has no account, and nothing about the child is sent to us at all. Where a law requires
+        verifiable parental consent before a child's personal data may be processed, we do not rely
+        on obtaining that consent — we avoid the processing.
+      </p>
+
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">Why we are allowed to hold what we hold</h3>
+      <p>
+        Every kind of data has to have a lawful basis behind it. Ours, in full:
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>What</th><th>Whose</th><th>Lawful basis</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Anything about your child</td>
+              <td>—</td>
+              <td><strong>Not collected.</strong> No basis is needed because there is no processing</td>
+            </tr>
+            <tr>
+              <td>Usage counts, weekly summary</td>
+              <td>The device</td>
+              <td><strong>Consent</strong> — the unticked box during setup, withdrawable any time</td>
+            </tr>
+            <tr>
+              <td>Feedback you send</td>
+              <td>Yours</td>
+              <td><strong>Consent</strong> — you chose to write to us</td>
+            </tr>
+            <tr>
+              <td>Your email, name and phone on a licence</td>
+              <td>Yours</td>
+              <td><strong>Contract</strong> — we cannot give you access without a way to restore it</td>
+            </tr>
+            <tr>
+              <td>Payment records</td>
+              <td>Yours</td>
+              <td><strong>Contract</strong>, then <strong>legal obligation</strong> — tax and accounting</td>
+            </tr>
+            <tr>
+              <td>Hashed IP on a failed access code</td>
+              <td>Yours</td>
+              <td><strong>Legitimate interest</strong> — stopping someone guessing at codes</td>
+            </tr>
+            <tr>
+              <td>Visits to this website</td>
+              <td>Yours</td>
+              <td><strong>Consent</strong> — the cookie banner, off until you accept</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <h2>What we collect</h2>
@@ -212,6 +295,12 @@
         <li>
           For a purchase: the amount, the currency, a payment reference and whether it succeeded
         </li>
+        <li>
+          If you pay by bank transfer: the name on the sending account, the date, the reference you gave
+          us, and the receipt you attached if you chose to attach one. We need those to find your
+          payment on our statement. Only we can see them — they are never on a public address — and you
+          can ask us to delete the receipt once your code has arrived.
+        </li>
       </ul>
       <p>
         We do <strong>not</strong> store card details — we never see them. Nothing about your child is
@@ -235,14 +324,7 @@
         people actually read, so we know what is worth writing and what is being skipped. It is the
         ordinary business of running a website, and we would rather do it openly than guess.
       </p>
-      <p>
-        <strong>Nothing loads until you agree.</strong> On your first visit you are asked, with two
-        buttons the same size. Until you choose "yes" there is no request to Google, no cookie and no
-        measurement of any kind — not a "cookieless ping", not a consent signal, nothing. If your
-        browser already sends <em>Do Not Track</em> or <em>Global Privacy Control</em>, we take that as
-        your answer and never ask.
-      </p>
-      <p>If you do agree, Google Analytics sets a cookie and receives, for this website only:</p>
+      <p>Google Analytics sets a cookie and receives, for this website only:</p>
       <ul>
         <li>Which pages you looked at, and when</li>
         <li>Roughly where in the world you are, from your IP address, which Google truncates</li>
@@ -262,10 +344,12 @@
         dashboard is excluded too.
       </p>
       <p>
-        <strong>Changing your mind:</strong> <a href="#" data-analytics-choice>reopen the question</a>
-        from here or from the "Cookies" link in the footer of any page, and choose again. Choosing "no"
-        stops the measurement immediately <em>and deletes the analytics cookies already set</em> — you
-        do not have to go into your browser settings to undo it.
+        <strong>Opting out.</strong> Nothing here is required for the website to work, so you can block
+        it without losing anything. Any tracker-blocking extension stops it, as does Google's own
+        <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer">opt-out add-on</a>;
+        clearing your browser data removes the cookies already set, and blocking third-party scripts for
+        this site prevents new ones. If you would rather not be counted at all, we would rather you
+        blocked it than felt watched.
       </p>
 
       <h2>Third parties</h2>
@@ -277,8 +361,8 @@
       <p>Three third parties are involved, and not one of them on a child's tablet:</p>
       <ul>
         <li>
-          <strong>Google Analytics</strong> measure this website, and only if you agreed — see the
-          section above.
+          <strong>Google Analytics</strong> measure these website pages — see the section above. Not
+          the app.
         </li>
         <li>
           <strong>Resend</strong> deliver our email — your access code, a payment confirmation, and a
@@ -316,22 +400,73 @@
       </p>
       <p>
         Anything you do choose to send — usage data, summaries, feedback — is stored in our own
-        database and is not shared with, or sold to, anyone. We do not use a third-party analytics
-        service.
+        database and is not shared with, or sold to, anyone. No third-party analytics service is
+        involved in any of it — Google Analytics runs on these website pages only, never in the app,
+        and the two are never joined.
       </p>
 
       <h2>How long we keep it</h2>
       <p>
-        Usage data is kept for as long as it is useful for improving Brainy and then deleted, or
-        until you delete it yourself from the grown-up area, whichever comes first. Because it
-        carries no name or contact details, it cannot be traced back to a family in any case.
-        Feedback that includes an email address is kept only until the conversation is finished.
+        These are real periods, not intentions. A scheduled job runs every week and deletes anything
+        past them; the numbers below and the numbers in that job are deliberately the same, so this
+        table cannot quietly drift away from what actually happens.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>What</th><th>Kept for</th><th>Why that long</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Usage counts</td><td>13 months</td><td>Long enough to compare one school year with the last, and no longer</td></tr>
+            <tr><td>Weekly summaries</td><td>13 months</td><td>The same window as the events they summarise</td></tr>
+            <tr><td>Your reply address on feedback</td><td>12 months</td><td>Longer than any support conversation. Then the address is erased and the message stays</td></tr>
+            <tr><td>The feedback message itself</td><td>2 years</td><td>By then it describes a version of the app that no longer exists</td></tr>
+            <tr><td>A tablet's record, once dormant</td><td>13 months after it last appeared</td><td>A device not seen for over a year has stopped being a user</td></tr>
+            <tr><td>Failed access-code attempts</td><td>30 days</td><td>Rate limiting needs days. These are hashed, never the IP itself</td></tr>
+            <tr><td>An uploaded bank transfer receipt</td><td>13 months</td><td>The payment record stays for accounting; the picture of your banking app does not</td></tr>
+            <tr><td>Abandoned checkouts</td><td>30 days</td><td>A payment not completed within a month was abandoned</td></tr>
+            <tr><td>Payment records</td><td>7 years</td><td>Tax and accounting rules require it. This one we cannot shorten</td></tr>
+            <tr><td>Your licence and email</td><td>While the licence lives</td><td>It is what proves your access exists. For a free-forever family that is indefinite, which is the point of the promise</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        You do not have to wait for any of it. Turning off <strong>Share anonymous usage data</strong>
+        or using <strong>Delete everything</strong> in the grown-up area erases the usage records
+        immediately. Ask us and we will delete a licence record too — that ends the access it was
+        holding, so we will say so before we do it rather than quietly closing subjects your child is
+        using.
+      </p>
+
+      <h2>Where your data is processed</h2>
+      <p>
+        Our website, the app and our small server all run on <strong>Vercel</strong>, and our
+        database is hosted by a managed Postgres provider. Their servers may be outside Nigeria and
+        outside the UK, which means the little we hold — your email address, a licence, a payment
+        reference — may be processed abroad.
+      </p>
+      <!--
+        TODO before launch: NDPA 2023 s.41-43 governs cross-border transfers. Name the database
+        provider and its region here once chosen, and confirm the destination is adequate or that
+        the contract carries standard contractual clauses.
+      -->
+      <p>
+        Where that happens we rely on the safeguards the NDPA requires for transfers out of Nigeria,
+        and on our contracts with those providers, which bind them to process data only on our
+        instructions and never for their own purposes. Nothing about a child is included, because
+        nothing about a child ever leaves the tablet in the first place.
+      </p>
+
+      <h2>If something goes wrong</h2>
+      <p>
+        If we ever suffer a breach that puts personal data at risk, we will report it to the
+        <strong>Nigeria Data Protection Commission within 72 hours</strong> of becoming aware, as the
+        NDPA requires, and we will tell the people affected directly where there is a real risk to
+        them. We would rather say so plainly than manage it quietly.
       </p>
       <p>
-        Sign-up and licence records are kept while the licence is live, because they are what proves it
-        exists — and for a free-forever family that is indefinitely, which is the point of the promise.
-        Payment records are kept for as long as tax and accounting rules require. Ask us and we will
-        delete a licence record; it ends the access it was holding, so we will say so before we do it.
+        The blunt version of what a breach could expose: a list of parents' email addresses and which
+        licence each holds. Not one child's name, age, answer or score, because we do not have them.
       </p>
 
       <h2>If this changes</h2>
@@ -362,6 +497,36 @@
         a question, contact us at the address below.
       </p>
 
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">Your rights in full</h3>
+      <p>
+        Under the NDPA — and the UK GDPR where it applies to you — you have the right to be told
+        what we hold about you, to get a copy of it, to have it corrected, to have it erased, to
+        object to what we are doing with it, to restrict it while a dispute is resolved, and to take
+        it elsewhere in a portable form. You also have the right not to be subject to a decision made
+        purely by a machine that significantly affects you; we make no such decisions.
+      </p>
+      <p>
+        Exercising any of them costs nothing and takes one email. We will not ask you to prove who
+        you are beyond replying from the address we already hold, because demanding a copy of
+        somebody's ID in order to honour a privacy request collects more than the request itself.
+      </p>
+
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">If you are not satisfied</h3>
+      <p>
+        Please tell us first — we would rather fix it. But you do not have to come to us at all, and
+        you can complain directly to a regulator:
+      </p>
+      <ul>
+        <li>
+          In Nigeria, the <strong>Nigeria Data Protection Commission (NDPC)</strong> —
+          <a href="https://ndpc.gov.ng" rel="noopener">ndpc.gov.ng</a>
+        </li>
+        <li>
+          In the UK, the <strong>Information Commissioner's Office (ICO)</strong> —
+          <a href="https://ico.org.uk" rel="noopener">ico.org.uk</a>
+        </li>
+      </ul>
+
       <h2>Contact</h2>
       <p>
         Fortbridge Technologies Ltd<br />
@@ -371,8 +536,7 @@
 
     <footer>
       <div class="wrap">
-        Brainy is powered by <strong>Fortbridge Technologies Ltd</strong>. ·
-        <a href="#" data-analytics-choice>Change your analytics choice</a>
+        Brainy is powered by <strong>Fortbridge Technologies Ltd</strong>.
       </div>
     </footer>
 

@@ -45,6 +45,28 @@ export const PLANS = {
 
 export const CURRENCY = () => (process.env.PAYSTACK_CURRENCY || 'NGN').toUpperCase()
 
+/**
+ * The account a parent can transfer to, if one is configured.
+ *
+ * Card checkout is not how most Nigerian families pay. A bank transfer is, and
+ * refusing to accept the normal method because it needs a human to check it
+ * would lose more families than it saves effort. Details come from the
+ * environment so they are not in the repository, and `enabled` is simply whether
+ * enough of them are set to be useful.
+ */
+export function bankDetails() {
+  const name = clip(process.env.BANK_NAME, 80)
+  const accountName = clip(process.env.BANK_ACCOUNT_NAME, 80)
+  const accountNumber = clip(process.env.BANK_ACCOUNT_NUMBER, 40)
+  return {
+    enabled: Boolean(name && accountName && accountNumber),
+    bank: name,
+    accountName,
+    accountNumber,
+    instructions: clip(process.env.BANK_INSTRUCTIONS, 400),
+  }
+}
+
 export const isPlan = (plan) => Object.hasOwn(PLANS, plan)
 
 /*

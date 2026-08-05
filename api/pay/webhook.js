@@ -1,6 +1,12 @@
 /**
  * Paystack calling us back.
  *
+ * Reachable at both `/api/pay/webhook` and the shorter `/api/webhook` — the
+ * second is a rewrite in vercel.json, so whichever is registered in the Paystack
+ * dashboard works and changing your mind later does not mean a missed payment.
+ * A rewrite passes the method, headers and raw body through untouched, which
+ * matters here more than anywhere: the signature is computed over those bytes.
+ *
  * Two checks, in this order, and neither is optional:
  *
  *  1. The `x-paystack-signature` HMAC over the raw body must match. Without it
