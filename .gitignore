@@ -11,3 +11,9 @@ dist-ssr
 
 # Build output (site + app)
 dist/
+
+# Throwaway debugging scripts. One of these was committed by accident; they are
+# written at the repo root because that is where a quick node run is easiest,
+# which is exactly why they need catching here.
+/.*.mjs
+/scratch*
