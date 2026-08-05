@@ -15,8 +15,8 @@
  * here to read — it never left the tablet.
  */
 
-import { NoDatabase, all, audit, explain, one, query } from '../_db.js'
-import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from '../_http.js'
+import { NoDatabase, all, audit, explain, one, query } from './_db.js'
+import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from './_http.js'
 import {
   clearSession,
   issueSession,
@@ -27,7 +27,7 @@ import {
   seedAdmin,
   sessionSecret,
   verifyPassword,
-} from '../_auth.js'
+} from './_auth.js'
 import {
   PLANS,
   CURRENCY,
@@ -40,13 +40,13 @@ import {
   licencePayload,
   normaliseCode,
   randomCoupon,
-} from '../_licence.js'
+} from './_licence.js'
 import {
   emailConfigured,
   sendLicence,
   sendReceipt,
   sendTransferDeclined,
-} from '../_email.js'
+} from './_email.js'
 
 const LIST_LIMIT = 500
 
@@ -512,6 +512,42 @@ async function createCoupon(req, admin, res) {
   return res.status(200).json({ ok: true, coupon: row })
 }
 
+/**
+ * Delete a coupon outright.
+ *
+ * Refused once anybody has redeemed it, and that is the whole design. A
+ * redeemed coupon is the paper trail behind somebody's access: `subscriptions`
+ * records which code granted it and `redemptions` records who used it, so
+ * removing the row would leave a family holding access nothing explains — and
+ * for a first-twenty family that access is meant to be permanent. Deactivating
+ * stops all future use and costs nothing, so that is what we offer instead.
+ *
+ * An unused coupon has no such history and is simply a mistake to be tidied
+ * away.
+ */
+async function deleteCoupon(req, admin, res) {
+  const body = await readJson(req, 8 * 1024).catch(() => ({}))
+  const code = normaliseCode(body?.code)
+  if (!code) return res.status(400).json({ ok: false, error: 'Which code?' })
+
+  const row = await one(`select * from coupons where code = $1`, [code])
+  if (!row) return res.status(404).json({ ok: false, error: 'No such code.' })
+
+  const claimed = await one(`select count(*)::int as n from redemptions where coupon_code = $1`, [code])
+  const granted = await one(`select count(*)::int as n from subscriptions where coupon_code = $1`, [code])
+  const used = (claimed?.n ?? 0) + (granted?.n ?? 0)
+  if (used > 0 || (row.uses ?? 0) > 0) {
+    return res.status(409).json({
+      ok: false,
+      error: `${code} has already been used, so deleting it would leave a family with access nothing explains. Switch it off instead — that stops any further use.`,
+    })
+  }
+
+  await query(`delete from coupons where code = $1`, [code])
+  await audit(admin.email, 'coupon.deleted', code, `plan ${row.plan}, ${row.max_uses} uses, never claimed`)
+  return res.status(200).json({ ok: true, deleted: code })
+}
+
 async function setCouponActive(req, admin, res) {
   const body = await readJson(req, 8 * 1024).catch(() => ({}))
   const code = normaliseCode(body?.code)
@@ -696,7 +732,22 @@ async function lookup(req, res) {
  * ------------------------------------------------------------------ */
 
 export default async function handler(req, res) {
-  const parts = pathParts(req, 'admin/')
+  /*
+   * The sub-route arrives as ?path=coupons/active, put there by the rewrite in
+   * vercel.json.
+   *
+   * This used to be a `[...path].js` catch-all, which read well and did not
+   * work: Vercel routed one segment to it and answered its own 404 for
+   * anything deeper, so every two-part route — coupons/active, licence/grant,
+   * transfers/approve — was dead in production while passing every local test,
+   * because the failure was in the platform's routing and never reached our
+   * code. An explicit rewrite onto an ordinary file depends on nothing clever.
+   *
+   * pathParts is still the fallback so a direct hit on /api/admin/... keeps
+   * working, which is what `vercel dev` and the smoke test do.
+   */
+  const declared = searchParams(req).get('path')
+  const parts = declared ? declared.split('/').filter(Boolean) : pathParts(req, 'admin/')
   const route = `${req.method} ${parts.join('/')}`
 
   try {
@@ -735,6 +786,8 @@ export default async function handler(req, res) {
         return await createCoupon(req, admin, res)
       case 'POST coupons/active':
         return await setCouponActive(req, admin, res)
+      case 'POST coupons/delete':
+        return await deleteCoupon(req, admin, res)
       case 'POST licence/grant':
         return await grantAccess(req, admin, res)
       case 'POST licence/extend':

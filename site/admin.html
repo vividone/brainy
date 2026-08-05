@@ -958,6 +958,24 @@
               api('/admin/coupons/active', { method: 'POST', body: { code: c.code, active: !c.active } }),
             )
           acts.append(toggle)
+
+          /*
+           * Only offered for a coupon nobody has claimed. Once it has been
+           * used it is the record behind somebody's access, and the server
+           * refuses anyway — showing a button that always fails would be
+           * worse than not showing one.
+           */
+          if (!c.uses && !c.claims) {
+            const del = el('<button class="ghost sm">Delete</button>')
+            del.onclick = (e) => {
+              if (!confirm(`Delete ${c.code}? It has never been used, so nothing depends on it.`)) return
+              act(e.target, 'Code deleted.', () =>
+                api('/admin/coupons/delete', { method: 'POST', body: { code: c.code } }),
+              )
+            }
+            acts.append(del)
+          }
+
           tbody.append(tr)
         }
 

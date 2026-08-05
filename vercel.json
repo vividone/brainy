@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "trailingSlash": false,
+  "_comment": "Do NOT set cleanUrls or trailingSlash. Both canonicalise /play/ to /play, which falls outside the service worker's /play/ scope, and Chrome then silently stops offering to install the app. See DEPLOY.md.",
   "rewrites": [
+    { "source": "/api/admin/(.*)", "destination": "/api/admin?path=$1" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/api/webhook", "destination": "/api/pay/webhook" }

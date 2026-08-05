@@ -68,7 +68,7 @@ const forget = await import('../api/forget.js')
 const retain = await import('../api/cron/retain.js')
 const signup = await import('../api/signup.js')
 const activateRoute = await import('../api/activate.js')
-const admin = await import('../api/admin/[...path].js')
+const admin = await import('../api/admin.js')
 const payInit = await import('../api/pay/initialise.js')
 const payHook = await import('../api/pay/webhook.js')
 const payRequest = await import('../api/pay/request.js')
@@ -858,6 +858,38 @@ check(
   (await call(activateRoute, {}, { method: 'GET', url: `/api/activate?code=${FAMILY_CODE}` })).status,
   200,
 )
+
+console.log('\nAdmin routing and coupon deletion')
+/*
+ * Production routes two-part admin paths through a rewrite that arrives as
+ * ?path=coupons/active. That form was never exercised here, which is exactly
+ * how a platform-level 404 on every two-part admin route survived to
+ * production while this suite stayed green.
+ */
+check(
+  'resolves the rewritten ?path= form',
+  (await call(admin, { code: 'NOPE-NOPE', active: false }, { url: '/api/admin?path=coupons/active', headers: authed })).status,
+  404,
+)
+check(
+  'and still resolves a direct path',
+  (await call(admin, { code: 'NOPE-NOPE', active: false }, { url: '/api/admin/coupons/active', headers: authed })).status,
+  404,
+)
+check(
+  'unknown route is our 404, not a blank one',
+  (await call(admin, {}, { url: '/api/admin?path=no/such/thing', headers: authed })).body?.error?.startsWith('No admin route'),
+  true,
+)
+
+const SPARE = 'SPARE-DELETE-ME'
+check('a spare coupon to delete', (await call(admin, { code: SPARE, plan: 'annual' }, { url: '/api/admin/coupons', headers: authed })).status, 200)
+check('an unused one deletes', (await call(admin, { code: SPARE }, { url: '/api/admin?path=coupons/delete', headers: authed })).status, 200)
+check('and is gone', (await call(admin, {}, { method: 'GET', url: '/api/admin/coupons', headers: authed })).body?.coupons?.some((c) => c.code === SPARE), false)
+check('deleting it twice 404s', (await call(admin, { code: SPARE }, { url: '/api/admin?path=coupons/delete', headers: authed })).status, 404)
+// The one that matters: a claimed coupon is the record behind somebody's access.
+check('a used coupon is protected', (await call(admin, { code: COUPON }, { url: '/api/admin?path=coupons/delete', headers: authed })).status, 409)
+check('and survives the attempt', (await call(admin, {}, { method: 'GET', url: '/api/admin/coupons', headers: authed })).body?.coupons?.some((c) => c.code === COUPON), true)
 
 console.log('\nRetention')
 process.env.CRON_SECRET = 'cron-secret'

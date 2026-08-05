@@ -356,7 +356,13 @@ The link is all they need — no store, no install, no account. Something like:
 
 ## Two things that are easy to break
 
-**Do not turn on `cleanUrls` in `vercel.json`.** It canonicalises `/play/` to
+**Do not set `cleanUrls` *or* `trailingSlash` in `vercel.json`.** Both do the
+same damage. `trailingSlash: false` was added while removing `cleanUrls` and
+reintroduced the exact bug it was meant to fix — caught only by
+`npm run preflight` against the real deployment, because the local static
+server does not canonicalise trailing slashes the way Vercel does. After any
+change to `vercel.json`, deploy and run preflight; a passing local test proves
+nothing about this. It canonicalises `/play/` to
 `/play`, and `/play` sits outside the service worker's `/play/` scope. Chrome
 then finds no controlling worker and silently stops offering to install the
 app — no error, the "Install" option just never appears. `/admin` and
