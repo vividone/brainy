@@ -333,6 +333,75 @@ export async function ensureSchema() {
       created_at  timestamptz not null default now()
     );
     create index if not exists code_attempts_idx on code_attempts (created_at);
+
+    /*
+     * Parent sign-in: a six-digit code, emailed.
+     *
+     * Only a hash of the code is stored, for the same reason a password is
+     * hashed — a leaked table must not be a set of working sign-ins. `attempts`
+     * is what stops a six-digit space being walked in a few seconds, and it is
+     * counted per code rather than per caller so it cannot be reset by changing
+     * network.
+     *
+     * There is no password anywhere in this design. Parents on a shared tablet
+     * forget passwords, and a reset flow is just this table with more steps.
+     */
+    create table if not exists auth_codes (
+      id          bigserial primary key,
+      email       text not null,
+      code_hash   text not null,
+      attempts    int  not null default 0,
+      consumed_at timestamptz,
+      expires_at  timestamptz not null,
+      created_at  timestamptz not null default now()
+    );
+    create index if not exists auth_codes_email_idx on auth_codes (email);
+
+    /*
+     * One row per signed-in device, so a token can be revoked without ending
+     * every other device a family owns — the tablet that was lost, not the one
+     * still in use. Again only a hash: this is a bearer credential.
+     *
+     * `label` is whatever the client reported about itself, for the parent to
+     * recognise ("Chrome on Android"). Never a device fingerprint.
+     */
+    create table if not exists device_tokens (
+      id          bigserial primary key,
+      parent_id   bigint not null references parents (id),
+      token_hash  text not null unique,
+      label       text,
+      created_at  timestamptz not null default now(),
+      last_seen   timestamptz not null default now(),
+      revoked_at  timestamptz
+    );
+    create index if not exists device_tokens_parent_idx on device_tokens (parent_id);
+
+    /*
+     * Children, but only for accounts that asked us to keep them.
+     *
+     * This table stays EMPTY unless a parent has ticked the progress opt-in. An
+     * account on its own uploads nothing about a child — that is the promise in
+     * site/privacy.html and it has to be true in the schema's behaviour, not
+     * just in the copy. The id is the one the client already generated, so a
+     * learner keeps its identity across devices without a mapping table.
+     *
+     * `deleted_at` is a soft delete: a parent who removes a child by accident on
+     * one tablet has thirty days before the row goes, and until then the other
+     * tablet does not silently resurrect it.
+     */
+    create table if not exists learners (
+      id            text primary key,
+      parent_id     bigint not null references parents (id),
+      name          text,
+      age           int,
+      curriculum_id text,
+      year_band     text,
+      colour        text,
+      created_at    timestamptz not null default now(),
+      updated_at    timestamptz not null default now(),
+      deleted_at    timestamptz
+    );
+    create index if not exists learners_parent_idx on learners (parent_id);
   `)
     .catch((err) => {
       ready = undefined

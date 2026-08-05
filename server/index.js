@@ -72,9 +72,20 @@ export function build() {
    */
   app.register(helmet, { contentSecurityPolicy: false, crossOriginResourcePolicy: false })
 
-  /* Railway's healthcheck. Deliberately does not touch the database: a database
-     blip should not cause the platform to kill and restart a working process. */
-  app.get('/healthz', async () => ({ ok: true, service: 'brainy-api' }))
+  /*
+   * Railway's healthcheck. Deliberately does not touch the database: a database
+   * blip should not cause the platform to kill and restart a working process.
+   *
+   * `no-store` matters more than it looks. Without it an edge cache will happily
+   * hold a 200 for this path — including one served by a *previous* deployment —
+   * so the healthcheck reports a process that may not be running and `curl` shows
+   * you the wrong thing entirely while you try to work out why. A cached
+   * healthcheck is worse than none.
+   */
+  app.get('/healthz', async (request, reply) => {
+    reply.header('Cache-Control', 'no-store')
+    return { ok: true, service: 'brainy-api', commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null }
+  })
 
   for (const { url, methods, handler, bodyLimit } of ROUTES) {
     app.route({ method: methods, url, bodyLimit, handler: asRoute(handler) })

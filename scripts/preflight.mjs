@@ -57,12 +57,30 @@ console.log(`\nBrainy preflight — ${target}\n`)
  * The pages
  * ------------------------------------------------------------------ */
 
+/*
+ * Which half of the deployment is this?
+ *
+ * The site and the API are two origins now: Vercel serves the pages and proxies
+ * `/api/*` to Railway. Pointed at the API host, every page check below is a
+ * meaningless 404 — and reporting four failures for "this origin was never
+ * supposed to serve pages" trains people to ignore the output, which is worse
+ * than not checking.
+ */
+const home = await get('/')
+const servesPages = home.status === 200 && /<html/i.test(home.text)
+
+if (!servesPages) {
+  console.log('Pages')
+  console.log('  · this origin serves no pages — checking it as an API-only host')
+  console.log('    (run it against https://brainy.fortbridge.app as well, for the site)')
+}
+
+if (servesPages) {
 console.log('Pages')
 {
-  const home = await get('/')
-  home.status === 200 && home.text.includes('Brainy')
+  home.text.includes('Brainy')
     ? pass('landing page', `${home.status}`)
-    : fail('landing page', `${home.status}`)
+    : fail('landing page', 'served, but does not look like Brainy')
 
   const play = await get('/play/')
   play.status === 200 ? pass('the app at /play/', `${play.status}`) : fail('the app at /play/', `${play.status}`)
@@ -88,6 +106,7 @@ console.log('Pages')
   const leaked = /googletagmanager|gtag\(/.test(playHtml.text)
   if (leaked) fail('no Google script in the app', 'FOUND ONE — the app must stay clean')
   else pass('no Google script in the app', 'as promised')
+}
 }
 
 /* ------------------------------------------------------------------ *
