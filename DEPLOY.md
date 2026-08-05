@@ -46,44 +46,139 @@ npm run serve          # http://localhost:4200
 7. Wait for the certificate. **HTTPS is not optional** — service workers, and so offline and
    add-to-home-screen, only work over HTTPS.
 
-`api/report.js` is picked up automatically as a serverless function at `/api/report`. There is nothing to wire up.
+**Vercel no longer runs the API.** It serves the pages and proxies `/api/*` to a Fastify service on
+Railway — see *The API service* below. After that move, the only variable Vercel needs is
+`GA_MEASUREMENT_ID`; every secret lives on Railway.
 
 The config also sets the cache headers that matter: hashed assets are immutable for a year, but `sw.js` and the app shell must revalidate every time, or an update never reaches a device that has already installed it.
+
+## The API service
+
+```
+browser ──▶ brainy.fortbridge.app          Vercel: pages, /play/, /admin
+                    │  /api/*
+                    ▼
+            api-brainy.fortbridge.app      Railway: Fastify (server/)
+                    │  private network
+                    ▼
+            postgres.railway.internal      Railway: Postgres, no public port
+```
+
+The API used to be Vercel serverless functions. It moved for one reason: Vercel has no fixed egress
+IPs, so reaching Postgres from there meant leaving the database open to the internet behind only a
+password. Running inside Railway means `postgres.railway.internal` and **public networking switched
+off**. The framework choice was incidental; the network topology was the point.
+
+Everything stays on one origin because Vercel proxies `/api/*`, so the admin cookie keeps
+`SameSite=Strict`, there is no CORS, and no client code knows the API moved.
+
+### Setting it up
+
+**The same repository serves both.** Vercel builds `dist/` from it and Railway runs `server/` from it.
+Nothing needs splitting out.
+
+1. Railway → **New Service → GitHub repo**, **in the same project as the Postgres** — that is what
+   makes the private hostname available. Leave the root directory as `/`.
+2. `railway.json` in the repo sets the start command (`node server/index.js`) and the healthcheck
+   (`/healthz`). It also skips the frontend build, which Railway would otherwise run on every deploy
+   for a service that never serves it.
+3. **Settings → Watch Paths**, so a change to the marketing copy does not redeploy the API:
+
+   ```
+   server/**
+   package.json
+   package-lock.json
+   railway.json
+   ```
+
+4. Set the variables (the table below). For `DATABASE_URL`, use Railway's own reference syntax rather
+   than pasting a string — it then stays correct when credentials rotate:
+
+   ```
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   ```
+
+   That resolves to the **private** `postgres.railway.internal` URL, which is the one you want.
+   Do **not** set `PORT`; Railway provides it.
+5. Railway → Settings → Networking → **Custom Domain** → `api-brainy.fortbridge.app`, and add the
+   CNAME it shows you wherever `fortbridge.app` DNS lives. A domain you own is stable and independent
+   of Railway's generated name, which is why `vercel.json` names it rather than an `up.railway.app`
+   host. Wait for the certificate.
+6. **Verify the API on its own domain, before touching Vercel:**
+
+   ```
+   curl https://api-brainy.fortbridge.app/healthz
+   npm run preflight -- https://api-brainy.fortbridge.app
+   ```
+
+7. Deploy Vercel. `vercel.json` already proxies `/api/*` to that host.
+8. Delete every server secret from Vercel. It then needs only `GA_MEASUREMENT_ID`.
+9. Railway Postgres → **Settings → Networking → Public Networking OFF**.
+
+**Point Paystack at the API directly**, not through the proxy:
+`https://api-brainy.fortbridge.app/api/webhook`. The signature is an HMAC over the exact bytes, so the
+fewer things between Paystack and the handler the better — and a webhook that keeps working when the
+front end is mid-deploy is worth having. Vercel's cron jobs stay as they are: they call their own
+deployment's `/api/cron/*`, which proxies through and carries the `Authorization` header.
+
+**Optional build slimming.** Nixpacks runs `npm ci`, which installs Vite, Tailwind and TypeScript that
+this service never uses. Setting the Railway variable `NIXPACKS_INSTALL_CMD=npm ci --omit=dev` skips
+them. Safe because everything `server/` imports — `fastify`, `@fastify/helmet`, `pg` — is a production
+dependency; it is worth knowing that this is the reason that must stay true.
+
+**Two traps.** Vercel checks the filesystem *before* rewrites, so the proxy only works because there
+is no longer an `api/` directory — which also means the cutover cannot be gradual. And if you ever
+roll back to serverless, re-enable public networking **first**, or the restored functions cannot reach
+the database.
+
+Running it locally:
+
+```
+npm start                       # the API on :8080, needs DATABASE_URL
+npm run smoke:server            # boots it against an in-memory Postgres and drives it over HTTP
+```
 
 ### Database
 
 One Postgres carries usage data, parent sign-ups, licences and payments, which is why it is Postgres
 rather than a key-value store.
 
-1. Vercel → **Storage → Create Database → Postgres** (Neon under the hood). Or bring your own from
-   Neon, Supabase or Railway.
-2. Set **`DATABASE_URL`** to a connection string this deployment can actually reach, and prefer a
-   **pooled** one where the provider offers it. A serverless function can cold-start per request, and
-   an unpooled URL exhausts the server's connection slots quickly. Per provider:
+Because the API now runs *inside* Railway, use the **private** connection string — the one Railway
+itself calls `DATABASE_URL`, with host `postgres.railway.internal`. Then switch **Public Networking
+off**: the database becomes unreachable from anywhere except the API service, which is the whole
+point of the topology above.
 
-   | Provider | Use | Not |
-   |---|---|---|
-   | Vercel Postgres | supplied automatically | — |
-   | Neon / Supabase | the string labelled *pooled* or *connection pooling* | the direct one |
-   | **Railway** | **`DATABASE_PUBLIC_URL`** — host like `xyz.proxy.rlwy.net`, high port | `DATABASE_URL`, which is `postgres.railway.internal` |
+Tables are created at startup — there is no migration step to remember, and a `DATABASE_URL` that
+does not work is a failed boot rather than a puzzle in the logs an hour later.
 
-3. Redeploy. Tables are created on first use — there is no migration step to remember.
+TLS handling, in `server/lib/db.js`:
 
-**The Railway trap, because it costs an afternoon.** Railway puts its *private* string in a variable
-called `DATABASE_URL`, and `postgres.railway.internal` resolves only from inside Railway's own network.
-Copy it to Vercel and every request fails with `getaddrinfo ENOTFOUND postgres.railway.internal` — a DNS
-error, which sends you looking at DNS rather than at the hostname. Use **`DATABASE_PUBLIC_URL`** from
-the same Variables tab; if it is absent, switch on Settings → Networking → **Public Networking** first.
-`explain()` in `api/_db.js` now names this specific case, so the dashboard says what to do rather than
-quoting a resolver error.
+| Host | TLS |
+|---|---|
+| `*.internal` | none — private network, and those images usually have no certificate |
+| localhost | none |
+| anything public | **certificate verified**; `DATABASE_SSL_NO_VERIFY=1` is the deliberate opt-out |
 
-Railway has no pooled endpoint of its own. The pool here is capped at one connection per function
-instance, which is fine at this scale; if it ever runs out, put a pgbouncer in front rather than raising
-the cap.
+That last row used to be `rejectUnauthorized: false`, which encrypts without authenticating — fine on a
+private network, but it was being used across the public internet, where anything in the middle could
+present its own certificate and read the credentials.
+
+If you ever see `getaddrinfo ENOTFOUND postgres.railway.internal`, whatever threw it is **not running
+inside Railway** — `explain()` says so in those words rather than quoting a resolver error. Use
+`DATABASE_PUBLIC_URL` for anything hosted elsewhere, which means turning public networking back on.
+
+The pool holds ten connections (`DATABASE_POOL_MAX`), which is right for one long-lived process. The
+old value of one was a serverless constraint, not a preference.
+
+### Which variables go where
+
+Everything below lives on the **Railway service**, with two exceptions: `GA_MEASUREMENT_ID` stays on
+**Vercel** because it is baked in at build time, and `PORT` is set by Railway itself. After the cutover
+Vercel holds no secrets at all — one place has the database credentials and the Paystack key.
 
 | Variable | Required | What it does |
 |---|---|---|
-| `DATABASE_URL` | for everything server-side | Pooled Postgres connection string |
+| `DATABASE_URL` | for everything server-side | The **private** Postgres URL. Use `${{Postgres.DATABASE_URL}}` |
 | `ADMIN_EMAIL` | to sign in to `/admin` | The admin account's address |
 | `ADMIN_PASSWORD` | to sign in to `/admin` | At least 10 characters. **This pair is the password reset** — change it here and the login changes |
 | `ADMIN_SESSION_SECRET` | recommended | Any long random string; signs the admin session cookie. Falls back to a value derived from `ADMIN_TOKEN` |

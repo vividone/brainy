@@ -13,8 +13,8 @@
  */
 
 import crypto from 'node:crypto'
-import { addMonths, one, query } from './_db.js'
-import { clip, num } from './_http.js'
+import { addMonths, one, query } from './db.js'
+import { clip, num } from './http.js'
 
 /**
  * The plans, and what they cost in minor units.

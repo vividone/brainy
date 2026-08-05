@@ -223,7 +223,7 @@ default, difficulty adapts silently, long questions read aloud automatically.
 
 ### The problem to design around
 
-[api/_db.js](api/_db.js) states the current principle plainly:
+[server/lib/db.js](server/lib/db.js) states the current principle plainly:
 
 > *A parent is the only person with an identity here. Children are never rows: no
 > name, no age, no answers. The link between a paying adult and a playing child is
@@ -239,7 +239,7 @@ and a breach plan.
 The server stores ciphertext it cannot read. Children still are not rows.
 
 1. **Account.** Parent email + password. Reuse the machinery already in
-   [api/_auth.js](api/_auth.js): `scrypt` hashing, signed short-lived cookies,
+   [server/lib/auth.js](server/lib/auth.js): `scrypt` hashing, signed short-lived cookies,
    and the `code_attempts` rate limiter. A `parents` row already exists.
 2. **Payload.** Exactly what `exportSave()` already produces — which deliberately
    strips `installId` and the consent flags.
@@ -259,7 +259,7 @@ The server stores ciphertext it cannot read. Children still are not rows.
    the moment.*
 
 New routes: `api/sync/push.js`, `api/sync/pull.js`, `api/account/*`. Extend
-[api/forget.js](api/forget.js) to erase an account's blobs.
+[server/routes/forget.js](server/routes/forget.js) to erase an account's blobs.
 
 **State the cost honestly in the UI:** a forgotten password with a lost recovery
 code means the cloud copy is unreadable. That is the price of the server not

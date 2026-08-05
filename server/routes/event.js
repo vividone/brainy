@@ -10,8 +10,8 @@
  * their own day rather than a UTC one.
  */
 
-import { query } from './_db.js'
-import { clip, num, readJson } from './_http.js'
+import { query } from '../lib/db.js'
+import { clip, num, readJson } from '../lib/http.js'
 
 const KINDS = new Set(['activate', 'open', 'session'])
 const MAX_BODY = 16 * 1024

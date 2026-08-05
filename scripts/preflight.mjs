@@ -156,7 +156,7 @@ async function checkApi() {
   const alias = await get('/api/webhook', unsigned)
   if (alias.status === webhook.status) pass('/api/webhook alias', `matches (${alias.status})`)
   else if (alias.status === 404) {
-    fail('/api/webhook alias', 'not routed — the rewrite in vercel.json is missing')
+    fail('/api/webhook alias', 'not routed — check the entry in server/routes.js')
   } else fail('/api/webhook alias', `${alias.status}, but /api/pay/webhook gave ${webhook.status}`)
 
   const cron = await get('/api/cron/expiring')

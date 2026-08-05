@@ -1,15 +1,15 @@
 /**
  * Postgres access shared by the API routes.
  *
- * Chosen over Redis because the same database has to carry Paystack
- * licences, payments and webhook state later, and migrating analytics off a
- * key-value store once real money depends on it would be the wrong order to
- * do things in.
+ * Chosen over Redis because the same database carries licences, payments and
+ * webhook state as well as analytics, and migrating off a key-value store once
+ * real money depended on it would have been the wrong order to do things in.
  *
- * Point DATABASE_URL at a **pooled** connection string — Neon, Vercel
- * Postgres and Supabase all provide one. A serverless function can be
- * cold-started per request, so an unpooled connection exhausts the server's
- * slots quickly under any real traffic.
+ * The preferred `DATABASE_URL` is now a **private** one — `postgres.railway.internal`
+ * or equivalent — reachable only from inside the host's own network, so the
+ * database needs no internet-facing port at all. That is why this API stopped
+ * being serverless: functions with no fixed egress address cannot use a private
+ * database.
  */
 
 import pg from 'pg'
@@ -18,33 +18,59 @@ let pool
 let ready
 
 /**
- * Whether to negotiate TLS, and how.
+ * How many connections one process may hold.
  *
- * TLS on by default for anything not local, because the alternative on a hosted
- * database is credentials in clear text. Certificates are not verified: managed
- * providers routinely serve certs signed by their own authority, and a verify
- * failure here would present as "the database is down".
+ * `1` was right for serverless, where a function could cold-start per request and
+ * a larger pool per instance multiplied into exhausting the server's slots. A
+ * single long-lived process is the opposite case: it wants a real pool, and there
+ * is exactly one of it.
+ */
+const POOL_MAX = Number(process.env.DATABASE_POOL_MAX ?? 10)
+
+/**
+ * Whether to negotiate TLS, and whether to believe the certificate.
  *
- * `sslmode=disable` in the URL is honoured, because some Postgres images — a few
- * Railway templates among them — are built without TLS support at all, and
- * insisting on it produces "the server does not support SSL connections" and a
- * long search for a problem that is one query parameter.
+ * Three cases, in order of how much they are trusted:
+ *
+ *  - **A private network** (`*.railway.internal`, `*.internal`) — no TLS. The
+ *    traffic never leaves the host's own network, and the provider's Postgres
+ *    image usually has no certificate to offer anyway. Demanding TLS here fails
+ *    with "the server does not support SSL connections".
+ *  - **Localhost** — no TLS, for the same reason plus obviousness.
+ *  - **Anything else** — TLS with the certificate **verified**. This used to pass
+ *    `rejectUnauthorized: false`, which encrypts but authenticates nothing: an
+ *    attacker positioned between here and a database exposed on the public
+ *    internet could present any certificate and read the credentials. Verification
+ *    is the default now, and `DATABASE_SSL_NO_VERIFY=1` is the deliberate,
+ *    documented way to accept a provider whose chain does not validate.
+ *
+ * `sslmode=disable` in the URL is still honoured, because some Postgres images are
+ * built without TLS support and that error message sends people looking in
+ * entirely the wrong place.
  */
 function sslFor(url) {
   if (/[?&]sslmode=disable/.test(url)) return false
+  if (/@[^/@]*\.internal[:/]/.test(url)) return false
   if (/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url)) return false
-  return { rejectUnauthorized: false }
+  if (process.env.DATABASE_SSL_NO_VERIFY === '1') return { rejectUnauthorized: false }
+  return { rejectUnauthorized: true }
 }
 
 export function db() {
   if (!process.env.DATABASE_URL) return null
   pool ??= new pg.Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 1,
-    idleTimeoutMillis: 10_000,
+    max: POOL_MAX,
+    idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 8_000,
     ssl: sslFor(process.env.DATABASE_URL),
   })
+  /*
+   * A pooled client can die between uses — a network blip, a database restart.
+   * `pg` emits that on the pool, and an unhandled 'error' event takes the whole
+   * process down with it. Logged and swallowed; the next acquire makes a new one.
+   */
+  pool.on('error', (err) => console.error('[brainy:db] idle client error', err.message))
   return pool
 }
 

@@ -15,8 +15,8 @@
  * here to read — it never left the tablet.
  */
 
-import { NoDatabase, all, audit, explain, one, query } from './_db.js'
-import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from './_http.js'
+import { NoDatabase, all, audit, explain, one, query } from '../lib/db.js'
+import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from '../lib/http.js'
 import {
   clearSession,
   issueSession,
@@ -27,7 +27,7 @@ import {
   seedAdmin,
   sessionSecret,
   verifyPassword,
-} from './_auth.js'
+} from '../lib/auth.js'
 import {
   PLANS,
   CURRENCY,
@@ -40,13 +40,13 @@ import {
   licencePayload,
   normaliseCode,
   randomCoupon,
-} from './_licence.js'
+} from '../lib/licence.js'
 import {
   emailConfigured,
   sendLicence,
   sendReceipt,
   sendTransferDeclined,
-} from './_email.js'
+} from '../lib/email.js'
 
 const LIST_LIMIT = 500
 
@@ -98,8 +98,8 @@ function logout(req, res) {
   return res.status(200).json({ ok: true })
 }
 
-function me(req, res) {
-  const session = readSession(req)
+async function me(req, res) {
+  const session = await readSession(req)
   if (!session) return res.status(401).json({ ok: false, error: 'Not signed in.' })
   return res.status(200).json({ ok: true, admin: session })
 }
@@ -756,7 +756,7 @@ export default async function handler(req, res) {
     if (route === 'POST logout') return logout(req, res)
     if (route === 'GET me') return me(req, res)
 
-    const admin = requireAdmin(req, res)
+    const admin = await requireAdmin(req, res)
     if (!admin) return
 
     switch (route) {

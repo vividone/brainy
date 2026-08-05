@@ -11,10 +11,10 @@
  * no signal must not lose access because a server could not be asked.
  */
 
-import { NoDatabase, explain, one } from './_db.js'
-import { clip, email as parseEmail, num, readJson, searchParams } from './_http.js'
-import { noteAttempt, rateLimited } from './_auth.js'
-import { sendLicence, sendToOperator } from './_email.js'
+import { NoDatabase, explain, one } from '../lib/db.js'
+import { clip, email as parseEmail, num, readJson, searchParams } from '../lib/http.js'
+import { noteAttempt, rateLimited } from '../lib/auth.js'
+import { sendLicence, sendToOperator } from '../lib/email.js'
 import {
   ensureSubscription,
   expireIfDue,
@@ -25,8 +25,8 @@ import {
   redeemCoupon,
   resolveCode,
   subscriptionWithParent,
-} from './_licence.js'
-import { settle } from './_pay.js'
+} from '../lib/licence.js'
+import { settle } from '../lib/pay.js'
 
 /**
  * Failed code attempts allowed from one caller in fifteen minutes.

@@ -23,8 +23,8 @@
  * platform keeps in its own access logs.
  */
 
-import { query } from './_db.js'
-import { clip as clipOrNull, readJson } from './_http.js'
+import { query } from '../lib/db.js'
+import { clip as clipOrNull, readJson } from '../lib/http.js'
 
 const MAX_BODY = 64 * 1024
 

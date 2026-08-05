@@ -13,11 +13,11 @@
  *  - grant twice for the same reference.
  */
 
-import { one, query } from './_db.js'
-import { PLANS, expireIfDue, grant, licencePayload } from './_licence.js'
-import { verify } from './_paystack.js'
-import { notify } from './_http.js'
-import { sendReceipt, sendToOperator } from './_email.js'
+import { one, query } from './db.js'
+import { PLANS, expireIfDue, grant, licencePayload } from './licence.js'
+import { verify } from './paystack.js'
+import { notify } from './http.js'
+import { sendReceipt, sendToOperator } from './email.js'
 
 export async function settle(reference) {
   const payment = await one(`select * from payments where reference = $1`, [reference])

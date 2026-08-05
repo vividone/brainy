@@ -53,7 +53,10 @@ adapter.Pool.prototype.query = function (text, params) {
 pg.Pool = adapter.Pool
 
 process.env.DATABASE_URL = 'postgres://memory/brainy'
-process.env.ADMIN_TOKEN = 'test-token'
+/* Long enough to be accepted: a machine credential with full admin power is
+   refused below 32 characters rather than quietly allowed. */
+process.env.ADMIN_TOKEN = 'test-token-long-enough-to-be-allowed'
+process.env.ADMIN_SESSION_SECRET = 'smoke-session-secret-not-derived-from-the-token'
 process.env.ADMIN_EMAIL = 'boss@example.com'
 process.env.ADMIN_PASSWORD = 'a-long-enough-password'
 delete process.env.REPORT_WEBHOOK_URL
@@ -61,18 +64,18 @@ delete process.env.REPORT_WEBHOOK_URL
 // handle: the smoke test turns the key on later to exercise the webhook.
 delete process.env.PAYSTACK_SECRET_KEY
 
-const event = await import('../api/event.js')
-const report = await import('../api/report.js')
-const stats = await import('../api/stats.js')
-const forget = await import('../api/forget.js')
-const retain = await import('../api/cron/retain.js')
-const signup = await import('../api/signup.js')
-const activateRoute = await import('../api/activate.js')
-const admin = await import('../api/admin.js')
-const payInit = await import('../api/pay/initialise.js')
-const payHook = await import('../api/pay/webhook.js')
-const payRequest = await import('../api/pay/request.js')
-const cron = await import('../api/cron/expiring.js')
+const event = await import('../server/routes/event.js')
+const report = await import('../server/routes/report.js')
+const stats = await import('../server/routes/stats.js')
+const forget = await import('../server/routes/forget.js')
+const retain = await import('../server/routes/cron/retain.js')
+const signup = await import('../server/routes/signup.js')
+const activateRoute = await import('../server/routes/activate.js')
+const admin = await import('../server/routes/admin.js')
+const payInit = await import('../server/routes/pay/initialise.js')
+const payHook = await import('../server/routes/pay/webhook.js')
+const payRequest = await import('../server/routes/pay/request.js')
+const cron = await import('../server/routes/cron/expiring.js')
 
 async function call(mod, payload, { method = 'POST', url = '/', headers = {} } = {}) {
   const req = Object.assign(Readable.from([Buffer.from(JSON.stringify(payload))]), {
@@ -127,7 +130,7 @@ check('weekly stored', (await call(report, { type: 'weekly', app: 'v1.0', week: 
 console.log('\nDashboard')
 check('no token refused', (await call(stats, {}, { method: 'GET', url: '/api/stats' })).status, 401)
 
-const ok = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token' } })
+const ok = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token-long-enough-to-be-allowed' } })
 check('with token', ok.status, 200)
 
 if (ok.body?.ok) {
@@ -157,7 +160,7 @@ check('events gone', gone.body?.deleted?.events, 3)
 check('feedback gone', gone.body?.deleted?.feedback, 1)
 check('weekly summary gone', gone.body?.deleted?.summaries, 1)
 
-const after = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token' } })
+const after = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token-long-enough-to-be-allowed' } })
 check('dashboard forgets them', after.body?.installs?.total, 1)
 check('their feedback is gone', after.body?.feedback?.length, 0)
 check('but the other family stays', after.body?.split?.length, 1)
@@ -193,7 +196,7 @@ check('signing up twice is harmless', (await call(signup, { email: 'ada@example.
  */
 console.log('\nWhen the database is unreachable')
 {
-  const { explain } = await import('../api/_db.js')
+  const { explain } = await import('../server/lib/db.js')
   const real = process.env.DATABASE_URL
 
   process.env.DATABASE_URL = 'postgres://u:p@postgres.railway.internal:5432/railway'
@@ -263,7 +266,7 @@ check(
 )
 check(
   'token still works for machines',
-  (await call(admin, {}, { method: 'GET', url: '/api/admin/overview', headers: { 'x-admin-token': 'test-token' } })).status,
+  (await call(admin, {}, { method: 'GET', url: '/api/admin/overview', headers: { 'x-admin-token': 'test-token-long-enough-to-be-allowed' } })).status,
   200,
 )
 
@@ -499,7 +502,7 @@ globalThis.fetch = async (url, init) => {
 
   /*
    * Paystack, stubbed at the two calls that matter. Verification is the only
-   * thing trusted to mean "paid" (api/_pay.js), so a double stubbed here is what
+   * thing trusted to mean "paid" (server/lib/pay.js), so a double stubbed here is what
    * makes the whole payment path testable without a live key.
    */
   if (target.startsWith('https://api.paystack.co/transaction/initialize')) {
@@ -924,7 +927,7 @@ check('deletes the dormant install', live.body?.rows?.['dormant installs'], 1)
 // And nothing else: everything remaining in this harness is recent.
 check('touches nothing recent', live.body?.total, 2)
 check('nothing left to purge', (await call(retain, {}, { method: 'POST', url: '/api/cron/retain?dry=1', headers: cronHeaders })).body?.total, 0)
-const stillThere = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token' } })
+const stillThere = await call(stats, {}, { method: 'GET', url: '/api/stats', headers: { 'x-admin-token': 'test-token-long-enough-to-be-allowed' } })
 check('recent install survives', stillThere.body?.installs?.total, 1)
 
 console.log()

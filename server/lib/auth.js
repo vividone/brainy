@@ -14,8 +14,8 @@
 
 import crypto from 'node:crypto'
 import { promisify } from 'node:util'
-import { audit, one, query } from './_db.js'
-import { clip, email as parseEmail, ipHash } from './_http.js'
+import { audit, one, query } from './db.js'
+import { clip, email as parseEmail, ipHash } from './http.js'
 
 const scrypt = promisify(crypto.scrypt)
 
@@ -24,24 +24,41 @@ const SESSION_HOURS = 12
 /** Short enough that a shared laptop is not a standing invitation. */
 const SESSION_MS = SESSION_HOURS * 60 * 60 * 1000
 const MIN_PASSWORD = 10
+/** A machine credential with full admin power should not be guessable. */
+const MIN_TOKEN = 32
 /** Failed logins allowed from one caller before it stops answering. */
 const LOGIN_LIMIT = 10
 const LOGIN_WINDOW_MIN = 15
 
 /**
- * The key that signs session cookies.
+ * The key that signs session cookies. `ADMIN_SESSION_SECRET` and nothing else.
  *
- * Derived from `ADMIN_TOKEN` when a dedicated secret is not set, so an
- * existing deployment keeps working — but derived, not reused verbatim, so the
- * value that guards machine access is not itself a cookie-forging key.
+ * This used to fall back to a value derived from `ADMIN_TOKEN`, which quietly made
+ * one secret do two jobs: authenticate machine callers *and* sign cookies. Leaking
+ * it therefore granted admin access **and** the ability to mint sessions for any
+ * address, including ones created later. Separating them means a leaked
+ * `ADMIN_TOKEN` is a credential to rotate rather than a key to forge with.
+ *
+ * Returns null when unset, and every guard fails closed on null.
  */
 export function sessionSecret() {
-  const explicit = process.env.ADMIN_SESSION_SECRET
-  if (explicit) return explicit
-  const token = process.env.ADMIN_TOKEN
-  if (!token) return null
-  return crypto.createHash('sha256').update(`brainy-session:${token}`).digest('base64url')
+  return process.env.ADMIN_SESSION_SECRET || null
 }
+
+/**
+ * A short fingerprint of the password a session was issued against.
+ *
+ * Carried in the cookie and re-checked on every request, so **changing
+ * `ADMIN_PASSWORD` invalidates every existing session**. Before this, a stolen
+ * cookie stayed valid for its full twelve hours and there was nothing an operator
+ * could do about it — the one action anybody reaches for after a laptop goes
+ * missing did not help.
+ *
+ * It is a hash of a hash: `pw_hash` is already a scrypt digest, so this reveals
+ * nothing useful even to somebody holding the cookie.
+ */
+const fingerprint = (pwHash) =>
+  crypto.createHash('sha256').update(String(pwHash ?? '')).digest('base64url').slice(0, 12)
 
 /* ------------------------------------------------------------------ *
  * Passwords
@@ -72,7 +89,13 @@ const sign = (payload, secret) =>
 export function issueSession(req, res, admin) {
   const secret = sessionSecret()
   const body = Buffer.from(
-    JSON.stringify({ email: admin.email, name: admin.name ?? null, exp: Date.now() + SESSION_MS }),
+    JSON.stringify({
+      email: admin.email,
+      name: admin.name ?? null,
+      /* Ties the session to the password it was issued against — see fingerprint(). */
+      pw: fingerprint(admin.pw_hash),
+      exp: Date.now() + SESSION_MS,
+    }),
   ).toString('base64url')
   const value = `${body}.${sign(body, secret)}`
 
@@ -121,8 +144,15 @@ function readCookie(req, name) {
   return null
 }
 
-/** The signed-in admin, or null. Never throws on a malformed cookie. */
-export function readSession(req) {
+/**
+ * The signed-in admin, or null. Never throws on a malformed cookie.
+ *
+ * Async because of the last check: the account is looked up so the session can be
+ * compared against the *current* password. That is one indexed read per admin
+ * request — nothing on a persistent process with a connection pool, and it buys
+ * real revocation. Deleting the account row logs them out too.
+ */
+export async function readSession(req) {
   const secret = sessionSecret()
   if (!secret) return null
   const raw = readCookie(req, COOKIE)
@@ -135,13 +165,24 @@ export function readSession(req) {
   const b = Buffer.from(expected)
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null
 
+  let payload
   try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
-    if (!payload?.email || !payload?.exp || payload.exp < Date.now()) return null
-    return { email: payload.email, name: payload.name ?? null }
+    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
   } catch {
     return null
   }
+  if (!payload?.email || !payload?.exp || payload.exp < Date.now()) return null
+
+  /*
+   * The signature only proves we issued this cookie, not that it still ought to
+   * work. A session outlives a password change otherwise, which is exactly the
+   * moment somebody most wants it not to.
+   */
+  const account = await one(`select pw_hash from admin_users where email = $1`, [payload.email])
+  if (!account) return null
+  if (payload.pw !== fingerprint(account.pw_hash)) return null
+
+  return { email: payload.email, name: payload.name ?? null }
 }
 
 /**
@@ -150,30 +191,38 @@ export function readSession(req) {
  * Answers the request itself when the caller is not allowed in, and returns
  * null — so a handler is one `if (!admin) return` away from being safe.
  */
-export function requireAdmin(req, res) {
+export async function requireAdmin(req, res) {
   const secret = sessionSecret()
   if (!secret) {
     res.status(503).json({
       ok: false,
-      error: 'Neither ADMIN_SESSION_SECRET nor ADMIN_TOKEN is set on this deployment.',
+      error: 'ADMIN_SESSION_SECRET is not set on this deployment, so nobody can sign in.',
     })
     return null
   }
 
   /*
-   * A machine credential alongside the cookie, for curl and cron. It is the
-   * same trust level as the cookie key it derives from, so it buys convenience
-   * without widening what an attacker needs.
+   * A machine credential alongside the cookie, for curl, cron and the preflight
+   * check. It grants everything a signed-in admin can do, so it is held to a
+   * length that cannot be guessed — a short one is refused rather than quietly
+   * accepted, because "it works" is otherwise indistinguishable from "it is safe".
    */
   const token = process.env.ADMIN_TOKEN
   const given = req.headers?.['x-admin-token']
-  if (token && typeof given === 'string' && given.length === token.length) {
-    if (crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
+  if (token && typeof given === 'string') {
+    if (token.length < MIN_TOKEN) {
+      res.status(503).json({
+        ok: false,
+        error: `ADMIN_TOKEN is too short to be a credential — use at least ${MIN_TOKEN} characters, or unset it.`,
+      })
+      return null
+    }
+    if (given.length === token.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
       return { email: 'machine', name: 'machine token' }
     }
   }
 
-  const session = readSession(req)
+  const session = await readSession(req)
   if (!session) {
     res.status(401).json({ ok: false, error: 'Not signed in.' })
     return null

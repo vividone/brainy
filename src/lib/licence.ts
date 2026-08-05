@@ -133,7 +133,7 @@ export async function prices(): Promise<Prices | null> {
 /**
  * Tell us a bank transfer has been made.
  *
- * Grants nothing — see api/pay/request.js. The parent is told so plainly, because
+ * Grants nothing — see server/routes/pay/request.js. The parent is told so plainly, because
  * an interface that implies "paid, therefore unlocked" and then does not unlock
  * is worse than one that says "we will check and email you".
  */

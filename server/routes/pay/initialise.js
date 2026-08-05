@@ -1,7 +1,7 @@
 /**
  * Start a checkout.
  *
- * The amount is decided here, from the plan table in api/_licence.js, and never
+ * The amount is decided here, from the plan table in server/lib/licence.js, and never
  * read from the request — a price in a request body is a price a browser can
  * edit. The reference is minted here too, so nothing can later be settled
  * against a transaction this server did not start.
@@ -12,8 +12,8 @@
  */
 
 import crypto from 'node:crypto'
-import { NoDatabase, explain, query } from '../_db.js'
-import { clip, email as parseEmail, num, readJson } from '../_http.js'
+import { NoDatabase, explain, query } from '../../lib/db.js'
+import { clip, email as parseEmail, num, readJson } from '../../lib/http.js'
 import {
   CURRENCY,
   PLANS,
@@ -21,9 +21,9 @@ import {
   ensureSubscription,
   findOrCreateParent,
   isPlan,
-} from '../_licence.js'
-import { initialise, secretKey } from '../_paystack.js'
-import { noteAttempt, rateLimited } from '../_auth.js'
+} from '../../lib/licence.js'
+import { initialise, secretKey } from '../../lib/paystack.js'
+import { noteAttempt, rateLimited } from '../../lib/auth.js'
 
 const baseUrl = (req) => {
   const configured = process.env.PUBLIC_BASE_URL

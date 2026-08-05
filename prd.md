@@ -748,7 +748,7 @@ we did not, while our actual practices were the stronger of the two.
   process a child's personal data at all — no account, no name, no answer leaving the tablet. This
   is why the "nothing about the child leaves the device" rule is a compliance boundary and not
   merely a principle, and why it must survive any future feature.
-- **Retention periods are enforced, not aspirational.** `api/cron/retain.js` runs weekly and deletes
+- **Retention periods are enforced, not aspirational.** `server/routes/cron/retain.js` runs weekly and deletes
   to the published schedule; the numbers in the job and the numbers in the notice are the same
   numbers on purpose. Before this existed the notice promised deletion that nothing performed —
   which turns an honest policy into a false statement without anybody deciding to lie.

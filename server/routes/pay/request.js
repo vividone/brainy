@@ -15,9 +15,9 @@
  * wondering whether their money went into a void.
  */
 
-import { NoDatabase, explain, one, query } from '../_db.js'
-import { clip, email as parseEmail, num, readJson } from '../_http.js'
-import { noteAttempt, rateLimited } from '../_auth.js'
+import { NoDatabase, explain, one, query } from '../../lib/db.js'
+import { clip, email as parseEmail, num, readJson } from '../../lib/http.js'
+import { noteAttempt, rateLimited } from '../../lib/auth.js'
 import {
   CURRENCY,
   PLANS,
@@ -25,8 +25,8 @@ import {
   ensureSubscription,
   findOrCreateParent,
   isPlan,
-} from '../_licence.js'
-import { sendTransferReceived, sendToOperator } from '../_email.js'
+} from '../../lib/licence.js'
+import { sendTransferReceived, sendToOperator } from '../../lib/email.js'
 
 /*
  * A phone screenshot of a bank receipt is a few hundred kilobytes; base64 adds a

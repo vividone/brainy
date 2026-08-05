@@ -18,7 +18,7 @@
  * well; email is the copy they can find again in a month, not the only copy.
  */
 
-import { audit } from './_db.js'
+import { audit } from './db.js'
 
 const ENDPOINT = 'https://api.resend.com/emails'
 const TIMEOUT_MS = 10_000

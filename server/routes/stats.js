@@ -10,13 +10,13 @@
  * session works and the token remains available for curl and cron.
  */
 
-import { explain, query } from './_db.js'
-import { requireAdmin } from './_auth.js'
+import { explain, query } from '../lib/db.js'
+import { requireAdmin } from '../lib/auth.js'
 
 const DAYS = 30
 
 export default async function handler(req, res) {
-  if (!requireAdmin(req, res)) return
+  if (!(await requireAdmin(req, res))) return
 
   try {
     const installs = await query(`

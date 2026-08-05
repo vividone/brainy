@@ -19,14 +19,16 @@ export const num = (value, max, fallback = 0) => {
 /**
  * Read the body as raw bytes.
  *
- * Vercel's Node runtime parses JSON bodies for you, which is convenient
- * everywhere except signature verification: once `req.body` exists the stream
- * is spent, and a re-serialised object is not guaranteed to be byte-identical
- * to what was signed. So try the platform's own raw copy first, then the
- * stream, and only fall back to re-serialising.
+ * Signature verification needs the exact bytes: once a framework has parsed the
+ * body the stream is spent, and a re-serialised object is not guaranteed to be
+ * byte-identical to what was signed. `server/index.js` therefore keeps the buffer
+ * on `req.rawBody`, which is the first branch below and the one that runs in
+ * production.
  *
- * The fallback is why the Paystack webhook also re-verifies the transaction
- * against Paystack's API before granting anything — see api/pay/webhook.js.
+ * The remaining branches are for callers that pass a plain stream — the handler
+ * smoke test does — and the last one re-serialises as a final resort. That
+ * fallback is why the Paystack webhook *also* re-verifies the transaction against
+ * Paystack's API before granting anything: see server/routes/pay/webhook.js.
  */
 export async function readRaw(req, limit = 64 * 1024) {
   if (req.rawBody) return Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(String(req.rawBody))
@@ -76,18 +78,30 @@ export function searchParams(req) {
  */
 export function ipHash(req, key) {
   const forwarded = req.headers?.['x-forwarded-for']
-  const ip = String(Array.isArray(forwarded) ? forwarded[0] : (forwarded ?? '')).split(',')[0].trim()
+  const ip =
+    String(Array.isArray(forwarded) ? forwarded[0] : (forwarded ?? '')).split(',')[0].trim() ||
+    /*
+     * The socket address, when there is no proxy header.
+     *
+     * This used to return null in that case, which meant every rate limit in the
+     * product silently counted nobody — a caller could hammer sign-ups or guess at
+     * access codes forever, and the only symptom was limits that never fired. It
+     * failed open on the one platform detail nobody thinks to check.
+     */
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    ''
   if (!ip) return null
   return crypto.createHmac('sha256', key).update(ip).digest('base64url').slice(0, 22)
 }
 
 /**
- * Tell the operator something happened, if they have wired somewhere to tell.
+ * Push a copy of something outward, if the operator has wired somewhere to push to.
  *
- * There is no mail sender in this project, so a new sign-up or a payment would
- * otherwise sit in a table until somebody opened the dashboard. `REPORT_WEBHOOK_URL`
- * already exists for feedback; this reuses it. Never allowed to fail the
- * request it describes.
+ * Outbound only, and nothing to do with Paystack's inbound webhook. It predates
+ * Resend, when a sign-up would otherwise sit in a table until somebody opened the
+ * dashboard; `OPERATOR_EMAIL` covers that now, so this is for people who would
+ * rather it arrived in Slack. Never allowed to fail the request it describes.
  */
 export async function notify(event, detail) {
   const url = process.env.REPORT_WEBHOOK_URL

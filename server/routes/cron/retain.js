@@ -20,8 +20,8 @@
  *    whole point of the promise. Deleted on request instead.
  */
 
-import { NoDatabase, explain, query } from '../_db.js'
-import { searchParams } from '../_http.js'
+import { NoDatabase, explain, query } from '../../lib/db.js'
+import { searchParams } from '../../lib/http.js'
 import crypto from 'node:crypto'
 
 const DAY = 86_400_000

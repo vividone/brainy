@@ -14,7 +14,7 @@
  * of quests — which is a deletion, not a disclosure.
  */
 
-import { explain, query } from './_db.js'
+import { explain, query } from '../lib/db.js'
 
 /*
  * `installs` keys the id as its primary key; the rest carry it as a column.

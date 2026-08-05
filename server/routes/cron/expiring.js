@@ -7,7 +7,7 @@
  * app is broken.
  *
  * Deliberately not a general "expire licences" job: expiry is evaluated lazily
- * whenever a licence is looked at (see api/_licence.js), so nothing here has to
+ * whenever a licence is looked at (see server/lib/licence.js), so nothing here has to
  * run for the rules to be right. If this job never fires, the only thing lost is
  * the courtesy of a warning.
  *
@@ -15,10 +15,10 @@
  * that row, so the next year gets its own warning.
  */
 
-import { NoDatabase, all, explain, query } from '../_db.js'
-import { sendExpiring } from '../_email.js'
-import { licencePayload } from '../_licence.js'
-import { searchParams } from '../_http.js'
+import { NoDatabase, all, explain, query } from '../../lib/db.js'
+import { sendExpiring } from '../../lib/email.js'
+import { licencePayload } from '../../lib/licence.js'
+import { searchParams } from '../../lib/http.js'
 import crypto from 'node:crypto'
 
 /** How much notice a parent gets. */

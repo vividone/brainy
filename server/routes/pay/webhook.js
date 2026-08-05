@@ -12,7 +12,7 @@
  *  1. The `x-paystack-signature` HMAC over the raw body must match. Without it
  *     this endpoint is a public "give me a licence" button.
  *  2. The reference is then verified server-to-server against Paystack before
- *     anything is granted (see api/_pay.js). Belt and braces on purpose: the
+ *     anything is granted (see server/lib/pay.js). Belt and braces on purpose: the
  *     raw body is not guaranteed to survive the platform's own JSON parsing
  *     byte-for-byte, and a signature check that silently degrades must not be
  *     the only thing standing between a stranger and a free licence.
@@ -22,10 +22,10 @@
  * be able to act on returns 200 so it stops.
  */
 
-import { NoDatabase } from '../_db.js'
-import { notify, readRaw } from '../_http.js'
-import { signatureValid, secretKey } from '../_paystack.js'
-import { settle } from '../_pay.js'
+import { NoDatabase } from '../../lib/db.js'
+import { notify, readRaw } from '../../lib/http.js'
+import { signatureValid, secretKey } from '../../lib/paystack.js'
+import { settle } from '../../lib/pay.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

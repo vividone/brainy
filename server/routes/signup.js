@@ -12,10 +12,10 @@
  * leaves it `pending`; a coupon or a payment is what makes it `active`.
  */
 
-import { NoDatabase, explain } from './_db.js'
-import { clip, email as parseEmail, notify, num, readJson } from './_http.js'
-import { noteAttempt, rateLimited } from './_auth.js'
-import { sendLicence, sendPending, sendToOperator } from './_email.js'
+import { NoDatabase, explain } from '../lib/db.js'
+import { clip, email as parseEmail, notify, num, readJson } from '../lib/http.js'
+import { noteAttempt, rateLimited } from '../lib/auth.js'
+import { sendLicence, sendPending, sendToOperator } from '../lib/email.js'
 import {
   ensureSubscription,
   expireIfDue,
@@ -25,7 +25,7 @@ import {
   recordDevice,
   redeemCoupon,
   resolveCode,
-} from './_licence.js'
+} from '../lib/licence.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
