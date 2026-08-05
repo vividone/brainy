@@ -56,12 +56,30 @@ One Postgres carries usage data, parent sign-ups, licences and payments, which i
 rather than a key-value store.
 
 1. Vercel → **Storage → Create Database → Postgres** (Neon under the hood). Or bring your own from
-   Neon or Supabase.
-2. Set **`DATABASE_URL`** to the **pooled** connection string. Vercel Postgres supplies this
-   automatically; with Neon or Supabase, take the one labelled *pooled* or *connection pooling*. A
-   serverless function can cold-start per request, and an unpooled URL exhausts the server's
-   connection slots quickly.
+   Neon, Supabase or Railway.
+2. Set **`DATABASE_URL`** to a connection string this deployment can actually reach, and prefer a
+   **pooled** one where the provider offers it. A serverless function can cold-start per request, and
+   an unpooled URL exhausts the server's connection slots quickly. Per provider:
+
+   | Provider | Use | Not |
+   |---|---|---|
+   | Vercel Postgres | supplied automatically | — |
+   | Neon / Supabase | the string labelled *pooled* or *connection pooling* | the direct one |
+   | **Railway** | **`DATABASE_PUBLIC_URL`** — host like `xyz.proxy.rlwy.net`, high port | `DATABASE_URL`, which is `postgres.railway.internal` |
+
 3. Redeploy. Tables are created on first use — there is no migration step to remember.
+
+**The Railway trap, because it costs an afternoon.** Railway puts its *private* string in a variable
+called `DATABASE_URL`, and `postgres.railway.internal` resolves only from inside Railway's own network.
+Copy it to Vercel and every request fails with `getaddrinfo ENOTFOUND postgres.railway.internal` — a DNS
+error, which sends you looking at DNS rather than at the hostname. Use **`DATABASE_PUBLIC_URL`** from
+the same Variables tab; if it is absent, switch on Settings → Networking → **Public Networking** first.
+`explain()` in `api/_db.js` now names this specific case, so the dashboard says what to do rather than
+quoting a resolver error.
+
+Railway has no pooled endpoint of its own. The pool here is capped at one connection per function
+instance, which is fine at this scale; if it ever runs out, put a pgbouncer in front rather than raising
+the cap.
 
 | Variable | Required | What it does |
 |---|---|---|

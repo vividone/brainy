@@ -48,6 +48,18 @@
       button.danger { background: #fff; color: var(--red); border: 2px solid #fecaca; }
       button.sm { height: 34px; padding: 0 0.7rem; border-radius: 9px; font-size: 0.8rem; }
 
+      /* A password field with a reveal button tucked inside it. */
+      .reveal { position: relative; }
+      .reveal input { padding-right: 3rem; }
+      .reveal button {
+        position: absolute; inset-block: 0; right: 0; width: 3rem; height: 100%;
+        padding: 0; background: none; border: 0; color: var(--muted);
+        font-size: 1.05rem; line-height: 1; cursor: pointer;
+      }
+      .reveal button:hover { color: var(--ink); }
+      .reveal button[aria-pressed='true'] { color: var(--violet); }
+      .reveal button:focus-visible { outline: 2px solid var(--violet); outline-offset: -2px; border-radius: 10px; }
+
       .gate { max-width: 380px; margin: 12vh auto; }
       .gate h1 { text-align: center; }
       .gate .sub { text-align: center; }
@@ -200,16 +212,26 @@
       function signIn(message) {
         root.innerHTML = ''
         const box = el(`<div class="gate">
-          <h1>Brainy admin</h1>
-          <p class="sub">Sign in to see sign-ups, licences and payments.</p>
+          <h1>Brainy Admin</h1>
+          <p class="sub">Management Portal for Licences and Payments.</p>
           <div id="msg"></div>
           <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" /></div>
-          <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" /></div>
+          <!--
+            A reveal toggle, because a mistyped long password is indistinguishable
+            from a wrong one and this login has no "forgot password" to fall back
+            on — the answer would be editing an environment variable and
+            redeploying. The eye is inside the field rather than beside it so the
+            layout does not shift when it appears.
+          -->
+          <div class="field">
+            <label for="pw">Password</label>
+            <div class="reveal">
+              <input id="pw" type="password" autocomplete="current-password" />
+              <button type="button" id="pw-see" aria-controls="pw" aria-pressed="false" aria-label="Show password" title="Show password">👁</button>
+            </div>
+          </div>
           <button id="go" style="width:100%;margin-top:0.4rem">Sign in</button>
-          <p class="note">
-            The account comes from <code>ADMIN_EMAIL</code> and <code>ADMIN_PASSWORD</code> on the
-            deployment. Changing them there changes this login — that is the password reset.
-          </p>
+         
         </div>`)
         root.append(box)
         if (message) box.querySelector('#msg').append(el(`<p class="err" style="margin-bottom:0.8rem">${esc(message)}</p>`))
@@ -217,6 +239,21 @@
         const email = box.querySelector('#email')
         const pw = box.querySelector('#pw')
         const go = box.querySelector('#go')
+
+        const see = box.querySelector('#pw-see')
+        see.onclick = () => {
+          const shown = pw.type === 'text'
+          pw.type = shown ? 'password' : 'text'
+          see.setAttribute('aria-pressed', String(!shown))
+          see.setAttribute('aria-label', shown ? 'Show password' : 'Hide password')
+          see.title = shown ? 'Show password' : 'Hide password'
+          see.textContent = shown ? '👁' : '🙈'
+          /* Keep the caret where it was: toggling `type` moves it to the end in
+             some browsers, which is disorienting mid-word. */
+          const at = pw.selectionStart
+          pw.focus()
+          if (at !== null) pw.setSelectionRange(at, at)
+        }
 
         const submit = async () => {
           go.disabled = true

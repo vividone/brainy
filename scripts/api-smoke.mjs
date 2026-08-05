@@ -185,6 +185,49 @@ check('access code minted', /^BRN-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(joined.body?.li
 check('email is normalised', joined.body?.licence?.email, 'ada@example.com')
 check('signing up twice is harmless', (await call(signup, { email: 'ada@example.com' })).status, 200)
 
+/*
+ * The database error messages, because the whole point of them is being read by
+ * a human at the moment something is broken — and a message that quotes a DNS
+ * resolver at somebody who pasted the wrong Railway variable sends them looking
+ * in the wrong place entirely.
+ */
+console.log('\nWhen the database is unreachable')
+{
+  const { explain } = await import('../api/_db.js')
+  const real = process.env.DATABASE_URL
+
+  process.env.DATABASE_URL = 'postgres://u:p@postgres.railway.internal:5432/railway'
+  const railway = explain(Object.assign(new Error('getaddrinfo ENOTFOUND postgres.railway.internal'), { code: 'ENOTFOUND' }))
+  check('names the Railway private host', railway.includes('DATABASE_PUBLIC_URL'), true)
+  check('and where to find it', railway.includes('proxy.rlwy.net'), true)
+
+  process.env.DATABASE_URL = 'postgres://u:p@db.some-host.internal:5432/app'
+  check(
+    'any .internal host is explained',
+    explain(Object.assign(new Error('nope'), { code: 'ENOTFOUND' })).includes('private to your database provider'),
+    true,
+  )
+
+  process.env.DATABASE_URL = 'postgres://u:p@real.example.com:5432/app'
+  check(
+    'a plain DNS failure still says so',
+    explain(Object.assign(new Error('getaddrinfo ENOTFOUND real.example.com'), { code: 'ENOTFOUND' })).includes('Cannot resolve'),
+    true,
+  )
+  check(
+    'a wrong password is named',
+    explain(Object.assign(new Error('auth failed'), { code: '28P01' })).includes('Password authentication failed'),
+    true,
+  )
+  check(
+    'a TLS-less server is explained',
+    explain(new Error('The server does not support SSL connections')).includes('sslmode=disable'),
+    true,
+  )
+
+  process.env.DATABASE_URL = real
+}
+
 console.log('\nAdmin sign-in')
 check(
   'wrong password refused',

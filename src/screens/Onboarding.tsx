@@ -17,11 +17,13 @@ import { Mascot } from '../components/Mascot'
 import { Btn, Card, Screen } from '../components/ui'
 import { useStore } from '../state/store'
 import { sfx } from '../lib/sound'
+import { activate, signUp } from '../lib/licence'
 
 const STEPS = [
   { key: 'welcome', title: 'Welcome' },
   { key: 'child', title: 'About your child' },
   { key: 'class', title: 'Curriculum and class' },
+  { key: 'account', title: 'Your account' },
   { key: 'pin', title: 'Your grown-up code' },
   { key: 'buddy', title: 'Over to them' },
 ] as const
@@ -32,6 +34,26 @@ export function Onboarding() {
   const restoreRef = useRef<HTMLInputElement>(null)
   const [restoreNote, setRestoreNote] = useState<string | null>(null)
   const curricula = listCurricula()
+
+  const setLicence = useStore((st) => st.setLicence)
+  const licence = useStore((st) => st.device.licence)
+  const installId = useStore((st) => st.device.installId)
+
+  /* Registration */
+  const [parentEmail, setParentEmail] = useState('')
+  const [parentName, setParentName] = useState('')
+  const [haveCode, setHaveCode] = useState(false)
+  const [accessCode, setAccessCode] = useState('')
+  const [accountBusy, setAccountBusy] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
+  /*
+   * Set only when the server could not be reached. Registration is the path,
+   * not a suggestion — but Brainy is sold on working without a connection, and
+   * refusing to finish setup would lock out exactly the families in
+   * poor-coverage areas the product is for. They get in, and the grown-up area
+   * keeps asking until it is done.
+   */
+  const [deferred, setDeferred] = useState(false)
 
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
@@ -53,10 +75,12 @@ export function Onboarding() {
   const effectiveBand = bandOverride ?? suggested?.id ?? ''
   const firstName = name.trim() || 'your child'
 
+  const registered = Boolean(licence)
   const canContinue = [
     true,
     name.trim().length > 0 && age !== null,
     Boolean(effectiveBand),
+    registered || deferred,
     /^\d{4}$/.test(pin),
     true,
   ][step]
@@ -277,6 +301,156 @@ export function Onboarding() {
         {/* ---- 3. PIN ---- */}
         {step === 3 && (
           <div>
+            {registered ? (
+              <div className="rounded-2xl border-3 border-emerald-300 bg-emerald-50 p-4">
+                <p className="font-black text-emerald-900">You are all set.</p>
+                <p className="mt-1 font-semibold text-emerald-800">
+                  Your access code is <b className="tracking-wider">{licence?.code}</b>. We have
+                  emailed it to you as well — keep it somewhere safe. It is how you move to a new
+                  tablet without losing anything.
+                </p>
+              </div>
+            ) : haveCode ? (
+              <div>
+                <label htmlFor="code" className="block font-bold text-brand-700 mb-2">
+                  Your access code
+                </label>
+                <input
+                  id="code"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase().slice(0, 24))}
+                  placeholder="BRAINY-XXXX"
+                  autoComplete="off"
+                  className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-2xl
+                    font-black tracking-widest text-brand-900 placeholder:text-brand-200
+                    focus:border-brand-500 outline-none"
+                />
+                <p className="mt-2 text-sm font-semibold text-brand-500">
+                  From an earlier tablet, or from the email we sent when you signed up.
+                </p>
+                <Btn
+                  size="lg"
+                  full
+                  className="mt-3"
+                  disabled={accessCode.trim().length < 4 || accountBusy}
+                  onClick={async () => {
+                    setAccountBusy(true)
+                    setAccountError(null)
+                    const result = await activate({
+                      code: accessCode.trim(),
+                      email: parentEmail.trim() || undefined,
+                      installId,
+                    })
+                    setAccountBusy(false)
+                    if (result.ok && result.licence) setLicence(result.licence)
+                    else setAccountError(result.error ?? 'That code was not accepted.')
+                  }}
+                >
+                  {accountBusy ? 'Checking…' : 'Use this code'}
+                </Btn>
+                <button
+                  onClick={() => { setHaveCode(false); setAccountError(null) }}
+                  className="mt-3 w-full text-sm font-bold text-brand-500 hover:underline"
+                >
+                  I do not have a code — register instead
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold text-brand-600 mb-3">
+                  This is your account, not {firstName}&apos;s. {firstName} never signs in to
+                  anything — we only need a way to reach you and to give your access back if this
+                  tablet is ever lost or replaced.
+                </p>
+                <label htmlFor="p-email" className="block font-bold text-brand-700 mb-2">
+                  Your email
+                </label>
+                <input
+                  id="p-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={parentEmail}
+                  onChange={(e) => setParentEmail(e.target.value.slice(0, 120))}
+                  placeholder="you@example.com"
+                  className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
+                    font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
+                />
+                <label htmlFor="p-name" className="mt-3 block font-bold text-brand-700 mb-2">
+                  Your name <span className="font-semibold text-brand-400">(optional)</span>
+                </label>
+                <input
+                  id="p-name"
+                  value={parentName}
+                  onChange={(e) => setParentName(e.target.value.slice(0, 60))}
+                  placeholder="So we know what to call you"
+                  className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
+                    font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
+                />
+
+                <Btn
+                  size="lg"
+                  full
+                  className="mt-4"
+                  disabled={!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(parentEmail.trim()) || accountBusy}
+                  onClick={async () => {
+                    setAccountBusy(true)
+                    setAccountError(null)
+                    const result = await signUp({
+                      email: parentEmail.trim(),
+                      name: parentName.trim() || undefined,
+                      children: 1,
+                      installId,
+                    })
+                    setAccountBusy(false)
+                    if (result.ok && result.licence) setLicence(result.licence)
+                    else setAccountError(result.error ?? 'We could not create your account.')
+                  }}
+                >
+                  {accountBusy ? 'Creating your account…' : 'Create my account'}
+                </Btn>
+
+                <p className="mt-3 text-sm font-semibold text-brand-500">
+                  No card needed. Maths is free for everybody; while free places remain, your
+                  account opens the rest too.
+                </p>
+
+                <button
+                  onClick={() => { setHaveCode(true); setAccountError(null) }}
+                  className="mt-3 w-full text-sm font-bold text-brand-500 hover:underline"
+                >
+                  I already have an access code
+                </button>
+              </div>
+            )}
+
+            {accountError && (
+              <div className="mt-3 rounded-2xl bg-amber-50 p-4">
+                <p className="font-bold text-amber-900">{accountError}</p>
+                {/*
+                  Only offered once a request has actually failed. Presenting a
+                  way past this screen before then would make registering look
+                  optional, which is the thing this step exists to change.
+                */}
+                <button
+                  onClick={() => setDeferred(true)}
+                  className="mt-2 text-sm font-bold text-amber-900 underline"
+                >
+                  Carry on for now and finish this later
+                </button>
+              </div>
+            )}
+            {deferred && !registered && (
+              <p className="mt-3 rounded-2xl bg-brand-50 p-3 text-sm font-bold text-brand-700">
+                No problem — {firstName} can start now. The grown-up area will remind you to finish
+                registering.
+              </p>
+            )}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div>
             <label htmlFor="pin" className="block font-bold text-brand-700 mb-2">
               Choose a 4-digit code
             </label>
@@ -327,7 +501,7 @@ export function Onboarding() {
         )}
 
         {/* ---- 4. Hand over ---- */}
-        {step === 4 && !done && (
+        {step === 5 && !done && (
           <div className="space-y-5">
             <div>
               <p className="font-bold text-brand-700 mb-2">
@@ -378,7 +552,7 @@ export function Onboarding() {
           </div>
         )}
 
-        {step === 4 && done && (
+        {step === 5 && done && (
           <div className="text-center py-4">
             <div className="mx-auto size-32">
               <Mascot characterId={characterId} petId={petId} mood="celebrate" variant="buddy" float className="w-full h-full" />

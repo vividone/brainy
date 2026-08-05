@@ -762,6 +762,34 @@ we did not, while our actual practices were the stronger of the two.
   and warns before sending. A warning rather than a block — it is the parent's message, and refusing
   to send over a false positive would cost us the bug report.
 
+### 12.2 Registration is the parent's, and only the parent's
+
+**Revised: setup now registers the grown-up.** The landing page used to lead with *no sign-up*, and
+maths was playable indefinitely without one. Two things were wrong with that. A free-forever place
+cannot be honoured to a person you never captured — only to whoever is holding a code. And a product
+that intends to sell subscriptions cannot advertise that no account is needed.
+
+Setup gained a fourth step, **Your account**, between the class and the grown-up code: email,
+optionally a name, and a "Create my account" that calls `/api/signup`. It is worded explicitly as
+*this is your account, not your child's*, because that distinction is the whole privacy position and
+a parent reading "register" will reasonably assume the worst.
+
+- **The child still registers for nothing.** No credentials, no row, no name leaving the tablet.
+  Adding parent registration changed who has an account, not whether a child does — see §12.1, which
+  this must never be allowed to erode.
+- **Registration is the path, not a suggestion.** There is no skip on the screen. `Next` is disabled
+  until an account exists.
+- **Except when the network fails, and then it yields.** If the request cannot reach us, the parent
+  is told, offered "carry on for now", and the grown-up area then shows a *Finish registering*
+  prompt on every tab until it is done. Refusing to complete setup offline would break the promise
+  the product is sold on and would lock out precisely the poor-coverage families it is for. The
+  escape hatch appears only *after* a real failure — offering it up front would make registering
+  look optional, which is the thing this change exists to fix.
+- **Paying is still separate from registering.** Registering creates a `pending` subscription and
+  grants nothing on its own; a coupon, a free place or a payment is what makes it `active`. Maths
+  remains free for everybody and needs no card at any point. "Register, subscribe, pay when
+  necessary" — in that order, and the third step often never happens.
+
 **Content safety:** no chat, no user-generated content, no child-to-child contact, no external links in the child-facing UI, and no advertising in any tier. The parent zone is the only place that can navigate away.
 
 ---
@@ -942,4 +970,5 @@ is not lost and the same ground is not re-argued.
 | 12 | Static host, any provider | **Vercel**, app at `/play/` | One platform for the site and the functions. And `cleanUrls` must stay off, or the PWA silently stops being installable (§10.1) |
 | 13 | Single child per device | **Multi-child**, with per-child everything | Siblings share tablets. Shipped in phase 6 rather than waiting for cloud sync |
 | 14 | Cloud sync for a new device | **Export and restore a file** | Sync moves a child's data off their tablet, which is the one thing §12 protects. A file does the job now and defers that properly to phase 7 |
-| 15 | No way out | **Remove a child; delete everything** | A product handed to other families needs a real exit, not a settings page that only adds |
+| 15 | Maths playable with no sign-up at all | **The parent registers at setup** — the child never does | "No registration required" contradicted a subscription business, and a free place cannot be held for a person you never captured. Registration is the parent's; the child still has no account and never will |
+| 16 | No way out | **Remove a child; delete everything** | A product handed to other families needs a real exit, not a settings page that only adds |

@@ -64,6 +64,9 @@ const DIFFICULTY_CHOICES: { value: Difficulty | null; label: string }[] = [
 export function Parent({ onBack }: { onBack: () => void }) {
   const [unlocked, setUnlocked] = useState(false)
   const [tab, setTab] = useState<Tab>('progress')
+  // Subscribed, not read once: the banner has to disappear the moment
+  // registration succeeds on the Access tab.
+  const licence = useStore((st) => st.device.licence)
 
   const profile = useProfile()
   const { byDay, history, totals, streak } = useLearnerData()
@@ -185,6 +188,28 @@ export function Parent({ onBack }: { onBack: () => void }) {
           </button>
         ))}
       </div>
+
+      {/*
+        Shown on every tab until registration is done.
+
+        A parent only reaches this state by setup failing to reach the server,
+        so it is a genuinely unfinished job rather than a nag — and the reason
+        it matters is concrete: without an account there is no way to give this
+        family their access back if the tablet is lost, and no way to honour a
+        free place to a person rather than to whoever is holding the device.
+      */}
+      {!licence && tab !== 'access' && (
+        <button
+          onClick={() => setTab('access')}
+          className="mt-4 w-full rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-left"
+        >
+          <p className="font-black text-amber-900">Finish registering</p>
+          <p className="mt-0.5 text-sm font-semibold text-amber-800">
+            Setup could not reach us, so this device has no account yet. Without one we cannot
+            restore your access if the tablet is lost. Tap to finish — it takes a moment.
+          </p>
+        </button>
+      )}
 
       {/* ---- Progress ---- */}
       {tab === 'progress' && (
@@ -1316,6 +1341,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
   )
   const fileRef = useRef<HTMLInputElement>(null)
   const [pinDraft, setPinDraft] = useState(settings.parentPin)
+  const [showPin, setShowPin] = useState(false)
 
   const download = () => {
     const blob = new Blob([store.exportSave()], { type: 'application/json' })
@@ -1540,14 +1566,47 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
       </Card>
 
       <Card className="p-5 border-slate-200">
-        <h2 className="font-black text-slate-900 mb-2">Grown-up code</h2>
+        <h2 className="font-black text-slate-900 mb-1">Grown-up code</h2>
+        {/*
+          Hidden by default.
+
+          This field is filled with the *current* code, which is genuinely useful
+          — parents forget it — but it meant opening Settings displayed the code
+          in plain sight at the one moment a curious child is most likely to be
+          watching. The whole point of the code is that they do not know it.
+
+          Not hidden while it is first chosen during setup: there, showing the
+          digits is what stops a typo becoming a parent locked out of their own
+          settings, and there is no existing secret to leak.
+        */}
+        <p className="text-xs font-semibold text-slate-400 mb-3">
+          Tap the eye to check or change it. Kept hidden so a child glancing over your shoulder does not
+          end up with the run of the settings.
+        </p>
         <div className="flex gap-2">
-          <input
-            value={pinDraft}
-            onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            inputMode="numeric"
-            className="h-14 w-40 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black tracking-[0.4em]"
-          />
+          <div className="relative">
+            <input
+              value={pinDraft}
+              onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              type={showPin ? 'text' : 'password'}
+              inputMode="numeric"
+              autoComplete="off"
+              aria-label="Grown-up code"
+              className="h-14 w-44 rounded-2xl border-2 border-slate-300 pl-4 pr-12 text-2xl font-black
+                tracking-[0.4em] text-slate-900 outline-none focus:border-slate-900"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPin((v) => !v)}
+              aria-pressed={showPin}
+              aria-label={showPin ? 'Hide the code' : 'Show the code'}
+              title={showPin ? 'Hide the code' : 'Show the code'}
+              className="absolute right-0 top-0 grid h-14 w-11 place-items-center rounded-r-2xl text-lg
+                text-slate-400 hover:text-slate-700"
+            >
+              {showPin ? '🙈' : '👁'}
+            </button>
+          </div>
           <Btn
             variant="secondary"
             size="md"

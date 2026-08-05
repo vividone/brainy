@@ -17,6 +17,25 @@ import pg from 'pg'
 let pool
 let ready
 
+/**
+ * Whether to negotiate TLS, and how.
+ *
+ * TLS on by default for anything not local, because the alternative on a hosted
+ * database is credentials in clear text. Certificates are not verified: managed
+ * providers routinely serve certs signed by their own authority, and a verify
+ * failure here would present as "the database is down".
+ *
+ * `sslmode=disable` in the URL is honoured, because some Postgres images — a few
+ * Railway templates among them — are built without TLS support at all, and
+ * insisting on it produces "the server does not support SSL connections" and a
+ * long search for a problem that is one query parameter.
+ */
+function sslFor(url) {
+  if (/[?&]sslmode=disable/.test(url)) return false
+  if (/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url)) return false
+  return { rejectUnauthorized: false }
+}
+
 export function db() {
   if (!process.env.DATABASE_URL) return null
   pool ??= new pg.Pool({
@@ -24,7 +43,7 @@ export function db() {
     max: 1,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
-    ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+    ssl: sslFor(process.env.DATABASE_URL),
   })
   return pool
 }
@@ -307,6 +326,32 @@ export function explain(err) {
   const code = err?.code
   const msg = err?.message ?? String(err)
   if (!process.env.DATABASE_URL) return 'DATABASE_URL is not set on this deployment.'
+
+  /*
+   * The mistake that costs an afternoon, named so it costs a minute instead.
+   *
+   * Railway hands you two connection strings and puts the private one in
+   * `DATABASE_URL`. `postgres.railway.internal` resolves only from inside
+   * Railway's own network, so anything hosted elsewhere — Vercel, a laptop —
+   * gets ENOTFOUND and a message about DNS, which sends you looking at the
+   * wrong thing entirely. Render, Fly and Heroku all have a version of this.
+   */
+  const url = process.env.DATABASE_URL
+  if (/\.railway\.internal/.test(url) || /\.railway\.internal/.test(msg)) {
+    return (
+      'DATABASE_URL points at postgres.railway.internal, which only resolves inside Railway’s own ' +
+      'network — so nothing hosted elsewhere can reach it. In Railway, open the Postgres service → ' +
+      'Variables and copy DATABASE_PUBLIC_URL instead (the host looks like xyz.proxy.rlwy.net with a ' +
+      'high port number). If it is not there, enable Settings → Networking → Public Networking first.'
+    )
+  }
+  if (/\.internal(:|\/|$)/.test(url)) {
+    return (
+      'DATABASE_URL uses a .internal hostname, which is private to your database provider’s network ' +
+      'and unreachable from this deployment. Use the public or external connection string instead.'
+    )
+  }
+
   if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
     return `Cannot resolve the database host — check DATABASE_URL. (${msg})`
   }
@@ -317,6 +362,13 @@ export function explain(err) {
   if (code === '28P01') return 'Password authentication failed — DATABASE_URL has the wrong credentials.'
   if (code === '3D000') return 'That database does not exist — check the name in DATABASE_URL.'
   if (code === '42501') return 'The database user is not allowed to create tables.'
+  if (/does not support SSL/i.test(msg)) {
+    return (
+      'That Postgres was built without TLS support, so it refuses an encrypted connection. Append ' +
+      '?sslmode=disable to DATABASE_URL — but only on a private network or a proxy you trust, because ' +
+      'it sends the password in clear text.'
+    )
+  }
   if (/self.signed|certificate/i.test(msg)) return `TLS problem reaching the database. (${msg})`
   return msg
 }
