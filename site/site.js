@@ -44,7 +44,7 @@ form.addEventListener('submit', async (e) => {
       button.textContent = 'Claim a free place'
       say(
         (data && data.error) ||
-          'Something went wrong our end. Try again in a moment, or just open Brainy — maths is free without any of this.',
+          'Something went wrong our end. Try again in a moment, or just open Brainy. Maths is free without any of this.',
         'bad',
       )
       return
@@ -56,12 +56,12 @@ form.addEventListener('submit', async (e) => {
     /* Only mention the inbox when the server actually sent something. */
     const emailed = data.emailed
       ? ' We have emailed it to you as well.'
-      : ' Write it down — this is the only place it is shown.'
+      : ' Write it down, because this is the only place it is shown.'
 
     if (data.licence && data.licence.full) {
       /* A free place was still going, and it has been claimed. */
       say(
-        `<b>You have a place — everything is unlocked.</b><br>Open Brainy, tap the grown-up
+        `<b>You have a place, and everything is unlocked.</b><br>Open Brainy, tap the grown-up
          button, then <b>Access</b>, and enter this code:
          <span class="code">${String(data.licence.code).replace(/[<>&]/g, '')}</span><br>
          Keep it somewhere safe: it is how you unlock another tablet later.${emailed}`,
@@ -69,7 +69,7 @@ form.addEventListener('submit', async (e) => {
       )
     } else {
       say(
-        `<b>Thank you — we have your details.</b><br>The free places are taken for now, so we will
+        `<b>Thank you. We have your details.</b><br>The free places are taken for now, so we will
          write to you before anything changes.${data.emailed ? ' There is a confirmation in your inbox.' : ''}
          Maths is yours to use in the meantime, free and with no limit.`,
         'good',

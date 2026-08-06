@@ -143,7 +143,7 @@ that gave way.
 4. **Short by default.** The default session is 10 questions. Playing more is a choice the child makes, never a requirement.
 5. **The child never sees a setting.** Difficulty, curriculum, sound, and time limits are all parent-side.
 6. **Every question is readable aloud.** Tap the speaker, hear the question. Non-negotiable at this age.
-7. **Nothing about the child leaves the device.** No analytics beacons, no third-party scripts, no fonts from a CDN, and no name, age, answer or score ever transmitted. This is a children's app; the safest data policy is having no data. The only things that ever go anywhere are a grown-up's own decisions — opt-in usage counts, and the email address behind a licence (§12, §14.1).
+7. **Nothing about the child leaves the device.** No analytics beacons, no third-party scripts, no fonts from a CDN, and no name, age, answer or score ever transmitted. This is a children's app; the safest data policy is having no data. What does go anywhere is a grown-up's business: usage counts under a random install id, on by default and off in one tap, and the email address behind a licence (§12, §14.1).
 8. **Offline-first.** The tablet in the back of a car with no signal is a real use case.
 
 ---
@@ -721,11 +721,12 @@ nothing would say so. `scripts/server-smoke.mjs` asserts the rejection.
 The line those three sit on: the difference between *how far have they got* — which a parent needs back
 on a new tablet — and *a log of what this child has been doing*, which is not ours to hold.
 
-**What does leave the device, and only because a grown-up chose it:**
+**What does leave the device:**
 
-| What | Whose | Consent |
+| What | Whose | Basis |
 |---|---|---|
-| Usage counts and the weekly summary (§12 below) | The device, via a random install id | Off by default; an unticked box during setup, reversible any time, and switching it off deletes the id **and** asks the server to erase the rows |
+| A child's first name, age, class and scores | The child's | **Contract.** On from the start, because restoring a family on a new tablet is what the account is for. Stated in the notice and at setup; off in one tap, which deletes what was kept. The refusals in the whitelist above are unchanged and are what keeps this narrow |
+| Usage counts and the weekly summary (§12 below) | The device, via a random install id | **On by default**, stated during setup with the box ticked, and off in one tap; legitimate interest rather than consent, because a pre-ticked box is not consent. Switching it off deletes the id **and** asks the server to erase the rows |
 | A parent's email address, and their name and phone if given | The parent's own | Only by claiming a free place, entering a code or paying — never for maths, which needs no sign-up |
 | Payment amount, currency, reference | The parent's own | Only on a purchase. Card details go to Paystack and never to us |
 
@@ -747,7 +748,7 @@ stops "we'll do it properly" being the whole plan.
 | Condition | How it was met |
 |---|---|
 | Parent-held accounts only; children never have credentials | A child has no login and no way to reach one. The account is the grown-up's, reached by a code emailed to them |
-| Verifiable parental consent before any child data is stored | A distinct switch, off by default, that creating an account does not turn on. `learners` and `learner_state` stay empty until it is |
+| Verifiable parental consent before any child data is stored | **Revised.** The switch is on from the start, on a **contract** basis rather than consent: the account exists to put a family back on the next tablet, which is not possible without it. Off by default failed the families it was meant to protect — they registered, installed, and were asked to create their child again, which is how this was found. Every act is still the parent's: they open the account, they type the name and age, no child can sign in, and one tap deletes what is held. An explicit off survives a fresh sign-in, asserted in `scripts/server-smoke.mjs` |
 | Data minimisation: skill ids and scores, never free text | The whitelist above, enforced on both sides, with the server rejecting the rest |
 | A published privacy notice before any paid launch | `site/privacy.html` names what is kept, what is refused, and the cost of refusing it |
 | Explicit retention, with parent-initiated deletion | Withdrawing consent deletes immediately; one child can be forgotten alone; a dormant account's progress goes after two years. The numbers are the same numbers in `server/routes/cron/retain.js` |
@@ -976,7 +977,7 @@ The primary metric for v1 is simply: **does he choose to play it without being a
 
 **Settled since the first draft:** the name (*Brainy*), second-child support (shipped, phase 6),
 how a child moves between devices (an export file, §10.4), and whether to collect usage data at all
-(yes, opt-in and erasable — §12).
+(yes, default-on, switchable off, and erasable — §12).
 
 ---
 

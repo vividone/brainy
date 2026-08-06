@@ -224,9 +224,19 @@ export async function requireParent(req, res) {
  * requires no write to establish. Nothing in the codebase may write to `learners`
  * without consulting this first.
  */
+/**
+ * What this account has decided about keeping a child's progress.
+ *
+ * No row means no decision has been made, and the default is **on**: the point
+ * of the account is that a new tablet, or the same tablet after installing it to
+ * the home screen, picks up where the child left off, and a default of off meant
+ * every family discovered that the hard way. An explicit `false` is a parent
+ * saying no, and it is honoured for ever, including for a device that has just
+ * signed in and would otherwise start uploading again.
+ */
 export async function prefsFor(parentId) {
   const row = await one(`select keep_progress from account_prefs where parent_id = $1`, [parentId])
-  return { keepProgress: Boolean(row?.keep_progress) }
+  return { keepProgress: row ? Boolean(row.keep_progress) : true }
 }
 
 export async function setKeepProgress(parentId, on) {

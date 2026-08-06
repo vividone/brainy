@@ -18,9 +18,11 @@ import {
 import type { Difficulty } from '../engine/types'
 import { Btn, Card, IconBtn, Modal, Pill, ProgressBar, Screen } from '../components/ui'
 import { Mascot } from '../components/Mascot'
+import { InstallCard } from '../components/InstallCard'
 import { PinGate } from '../components/PinGate'
 import { APP_VERSION, CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
+import { installState } from '../lib/install'
 import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
 import { buildAnalytics, buildSharableSummary, type Analytics } from '../state/analytics'
@@ -804,8 +806,9 @@ function KeepProgressSwitch({ token }: { token: string }) {
           <div className="min-w-0">
             <p className="font-black text-slate-800">Keep their progress in my account</p>
             <p className="mt-1 text-sm font-semibold text-slate-600">
-              So a new tablet, or this one after installing it to the home screen, picks up exactly
-              where they left off. We keep <b>mastery scores, stars, coins, streak and badges</b>.
+              On, so a new tablet — or this one after installing it to the home screen — picks up
+              exactly where they left off. We keep their <b>first name, age, class, mastery scores,
+              stars, coins, streak and badges</b>.
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-500">
               We never keep the questions they got wrong, a day-by-day record of when they played, or
@@ -1034,6 +1037,119 @@ function AccountCard() {
   )
 }
 
+/**
+ * For the family who set up in a browser before the install gate existed, or
+ * who took the "set up in this browser instead" route past it.
+ *
+ * The install is not a nicety for them: on iOS the home-screen app cannot read
+ * anything this tab saved, so the icon opens on a blank first run. The order
+ * that works is keep-progress on, install, sign in — and the order that loses a
+ * month of stars is install, then panic. So this says the order out loud, and
+ * only appears while it is still relevant.
+ */
+function MoveToHomeScreenCard() {
+  const [state, setState] = useState(installState)
+  useEffect(() => installState().subscribe(() => setState(installState())), [])
+  const keepProgress = useStore((s) => s.device.keepProgress)
+  const setKeep = useStore((s) => s.setKeepProgress)
+  const token = useStore((s) => s.device.authToken)
+  const store = useStore()
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<{ good: boolean; text: string } | null>(null)
+
+  if (state.installed) return null
+
+  /* The file route: the same export the Your-data card offers, named for the job
+     so a parent can find it in Files afterwards. No upload, no account needed. */
+  const downloadBackup = () => {
+    const blob = new Blob([store.exportSave()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `brainy-move-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setNote({
+      good: true,
+      text: 'Saved. In the installed app, tap "Restore a backup" on the first screen and choose that file.',
+    })
+  }
+
+  /* The account route: one tap, and it is the same switch as below rather than a
+     second hidden mechanism. Turning it on here uploads at once so the progress
+     is waiting by the time they sign in on the icon. */
+  const bringAcross = async () => {
+    if (!token) {
+      return setNote({
+        good: false,
+        text: 'Sign in first, in the card above, and this becomes one tap.',
+      })
+    }
+    setBusy(true)
+    setNote(null)
+    const result = await setKeepProgressOnServer(token, true)
+    if (!result.ok) {
+      setBusy(false)
+      return setNote({ good: false, text: result.error ?? 'Could not do that just now.' })
+    }
+    setKeep(true)
+    await syncNow({ force: true })
+    setBusy(false)
+    setNote({
+      good: true,
+      text: 'Done. Their progress is in your account, so signing in on the icon brings it across.',
+    })
+  }
+
+  return (
+    <Card className="p-5 border-brand-300 bg-brand-50">
+      <h2 className="font-black text-brand-900 mb-1">Move Brainy to the home screen</h2>
+      <p className="text-sm font-semibold text-brand-700">
+        You are using Brainy in a browser tab. The home-screen app is faster, opens full screen and
+        works with no internet. On an iPhone or iPad it also starts with <b>its own storage</b> and
+        cannot read what this tab saved, so bring their work across before you switch.
+      </p>
+
+      <div className="mt-3 space-y-2">
+        {keepProgress ? (
+          <p className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">
+            ✓ Their progress is already in your account. Install below, open it from the icon, and tap
+            Sign in.
+          </p>
+        ) : (
+          <>
+            <Btn size="md" full disabled={busy} onClick={() => void bringAcross()}>
+              {busy ? 'Bringing it across…' : 'Bring their progress across'}
+            </Btn>
+            <p className="text-xs font-semibold text-brand-500">
+              Turns on <b>Keep their progress in my account</b> and uploads it now: first name, age,
+              class, mastery scores, stars, coins, streak and badges. Never the questions they got
+              wrong, never a day-by-day record, never anything they typed. Off again in one tap below,
+              which deletes it.
+            </p>
+          </>
+        )}
+        <button
+          onClick={downloadBackup}
+          className="min-h-11 text-sm font-bold text-brand-500 underline decoration-2 underline-offset-2"
+        >
+          Or move it with a file instead, and upload nothing
+        </button>
+      </div>
+
+      {note && (
+        <p className={`mt-3 text-sm font-bold ${note.good ? 'text-emerald-700' : 'text-rose-700'}`}>
+          {note.text}
+        </p>
+      )}
+
+      <div className="mt-3">
+        <InstallCard />
+      </div>
+    </Card>
+  )
+}
+
 function AccessTab() {
   const { full, licence } = useEntitlement()
   const setLicence = useStore((s) => s.setLicence)
@@ -1155,6 +1271,8 @@ function AccessTab() {
     <div className="mt-4 space-y-4">
       {/* ---- Who they are signed in as ---- */}
       <AccountCard />
+
+      <MoveToHomeScreenCard />
 
       {/* ---- What they have ---- */}
       <Card className={`p-5 ${full ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200'}`}>
@@ -1607,6 +1725,271 @@ function TransferCard({
   )
 }
 
+/** 1234, 0000, 1111 … and 4321. The four a child tries first, and 1234 is the one we ship with. */
+const GUESSABLE = new Set([
+  '1234',
+  '4321',
+  '0000',
+  '1111',
+  '2222',
+  '3333',
+  '4444',
+  '5555',
+  '6666',
+  '7777',
+  '8888',
+  '9999',
+  '1212',
+  '2580',
+])
+
+/**
+ * Changing the grown-up code, which is the day a child works out the old one.
+ *
+ * The field this replaces was prefilled with the live code and had a reveal eye
+ * beside it, so the most common way to change the code was also a way to display
+ * it — and a child watching over a shoulder learns it at exactly that moment.
+ * Three changes fall out of that:
+ *
+ * - Nothing is prefilled. Seeing the current code is a separate, deliberate tap,
+ *   and it hides itself again after a few seconds rather than sitting on screen.
+ * - The new code is typed twice. There is no recovery route from a typo — a
+ *   mistyped code locks the parent out of their own settings, on a device whose
+ *   whole point is that it works offline — so confirming is not friction, it is
+ *   the only safety net there is.
+ * - The obvious codes are refused, with a suggestion instead of a scolding. A
+ *   parent replacing a code their child guessed will otherwise reach for 1111.
+ */
+function ChangeCodeCard() {
+  const current = useStore((s) => s.device.parentPin)
+  const updateSettings = useStore((s) => s.updateSettings)
+
+  const [open, setOpen] = useState(false)
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const [reveal, setReveal] = useState(false)
+  const [peek, setPeek] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  /* A revealed code should not be left on screen for the next person holding
+     the tablet, so it puts itself away. */
+  useEffect(() => {
+    if (!peek) return
+    const t = window.setTimeout(() => setPeek(false), 8000)
+    return () => window.clearTimeout(t)
+  }, [peek])
+
+  const digits = (value: string) => value.replace(/\D/g, '').slice(0, 4)
+  const complete = /^\d{4}$/.test(next)
+  const guessable = complete && GUESSABLE.has(next)
+  const mismatch = again.length === 4 && again !== next
+  const unchanged = complete && next === current
+  const canSave = complete && again === next && !guessable && !unchanged
+
+  const suggest = () => {
+    let code = ''
+    do {
+      code = String(Math.floor(Math.random() * 10_000)).padStart(4, '0')
+    } while (GUESSABLE.has(code) || code === current)
+    setNext(code)
+    setAgain(code)
+    setReveal(true)
+  }
+
+  const close = () => {
+    setOpen(false)
+    setNext('')
+    setAgain('')
+    setReveal(false)
+  }
+
+  const Field = ({
+    id,
+    label,
+    value,
+    onChange,
+  }: {
+    id: string
+    label: string
+    value: string
+    onChange: (v: string) => void
+  }) => (
+    <div>
+      <label htmlFor={id} className="block text-xs font-black uppercase tracking-wide text-slate-400 mb-1">
+        {label}
+      </label>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(digits(e.target.value))}
+        type={reveal ? 'text' : 'password'}
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="••••"
+        className="h-14 w-44 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black
+          tracking-[0.4em] text-slate-900 outline-none focus:border-slate-900"
+      />
+    </div>
+  )
+
+  return (
+    <Card className="p-5 border-slate-200">
+      <h2 className="font-black text-slate-900 mb-1">Grown-up code</h2>
+      <p className="text-xs font-semibold text-slate-400 mb-3">
+        Four digits, guarding this area. Change it the moment your child works it out, and they will.
+      </p>
+
+      {!open ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-2xl font-black tracking-[0.4em] text-slate-800">
+            {peek ? current : '••••'}
+          </span>
+          <Btn variant="secondary" size="md" onClick={() => setPeek((v) => !v)}>
+            {peek ? '🙈 Hide' : '👁 Show mine'}
+          </Btn>
+          <Btn size="md" onClick={() => setOpen(true)}>
+            Change code
+          </Btn>
+          {saved && <span className="text-sm font-bold text-emerald-700">Saved. The old code no longer works.</span>}
+          {current === '1234' && (
+            <p className="w-full rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
+              This is still the code Brainy ships with. Any child who has seen another tablet will try it
+              first.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            <Field id="pin-new" label="New code" value={next} onChange={setNext} />
+            <Field id="pin-again" label="Again, to be sure" value={again} onChange={setAgain} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" size="sm" onClick={() => setReveal((v) => !v)}>
+              {reveal ? '🙈 Hide digits' : '👁 Show digits'}
+            </Btn>
+            <Btn variant="secondary" size="sm" onClick={suggest}>
+              🎲 Suggest one
+            </Btn>
+          </div>
+
+          {guessable && (
+            <p className="text-sm font-bold text-amber-700">
+              That is one of the first codes a child tries. Pick another, or tap Suggest one.
+            </p>
+          )}
+          {unchanged && <p className="text-sm font-bold text-slate-500">That is the code you already have.</p>}
+          {mismatch && <p className="text-sm font-bold text-rose-700">The two do not match.</p>}
+
+          <p className="text-xs font-semibold text-slate-400">
+            Write it somewhere. There is no way to reset it from here: the code lives on this tablet, not
+            in your account, which is also why nobody but you can read it.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Btn
+              size="md"
+              disabled={!canSave}
+              onClick={() => {
+                updateSettings({ parentPin: next })
+                setSaved(true)
+                close()
+              }}
+            >
+              Save the new code
+            </Btn>
+            <Btn variant="secondary" size="md" onClick={close}>
+              Cancel
+            </Btn>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Questions the child said were wrong, for a grown-up to look at.
+ *
+ * The child taps "I think this is wrong" during a quest and it lands here.
+ * Nothing has left the tablet at that point, and nothing does until this card
+ * is used: the parent reads the question, decides whether it really is broken
+ * or whether their child misread it, and only then sends it. That ordering is
+ * the whole point. It is also the more useful report for us, because it arrives
+ * with a grown-up's judgement attached.
+ */
+function FlaggedCard() {
+  const flagged = useStore((s) => s.device.flagged)
+  const resolveFlag = useStore((s) => s.resolveFlag)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(null)
+
+  const open = useMemo(() => flagged.filter((f) => !f.sent), [flagged])
+  if (open.length === 0) return null
+
+  return (
+    <Card className="p-5 border-amber-300 bg-amber-50">
+      <h2 className="font-black text-amber-900 mb-1">
+        {open.length === 1 ? 'A question your child flagged' : `${open.length} questions your child flagged`}
+      </h2>
+      <p className="text-sm font-semibold text-amber-800 mb-3">
+        They tapped &ldquo;I think this is wrong&rdquo; during a quest. Nothing has been sent. Have a
+        look, and send us the ones that really are wrong: a report with a grown-up&apos;s eye on it is
+        the most useful thing we get.
+      </p>
+
+      <div className="space-y-3">
+        {open.map((f) => (
+          <div key={f.id} className="rounded-2xl border-2 border-amber-200 bg-white p-3">
+            <p className="text-xs font-black uppercase tracking-wide text-amber-500">
+              {f.learnerName} · {friendlyDate(f.at)}
+            </p>
+            <p className="mt-1 font-bold text-slate-800">{f.prompt}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              They answered <b className="text-slate-700">{f.given}</b>. Brainy wanted{' '}
+              <b className="text-slate-700">{f.expected}</b>.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Btn
+                size="sm"
+                disabled={busy === f.id}
+                onClick={async () => {
+                  setBusy(f.id)
+                  setNote(null)
+                  const ok = await sendReport({
+                    type: 'feedback',
+                    app: APP_VERSION,
+                    category: 'wrong',
+                    /* No name and no date: the question, the answer given and the
+                       expected one are all we need to fix it. */
+                    message: [
+                      'Flagged by the child during a quest.',
+                      `skill: ${f.skillId}`,
+                      `question: ${f.prompt}`,
+                      `they answered: ${f.given}`,
+                      `expected: ${f.expected}`,
+                    ].join('\n'),
+                  })
+                  setBusy(null)
+                  if (ok) resolveFlag(f.id, true)
+                  else setNote('Could not send that just now. It is still here, so try again later.')
+                }}
+              >
+                {busy === f.id ? 'Sending…' : 'Send this to us'}
+              </Btn>
+              <Btn variant="secondary" size="sm" onClick={() => resolveFlag(f.id, false)}>
+                It was fine
+              </Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+      {note && <p className="mt-3 text-sm font-bold text-rose-700">{note}</p>}
+    </Card>
+  )
+}
+
 function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }) {
   const store = useStore()
   const profile = useProfile()
@@ -1632,8 +2015,6 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
     APP_VERSION,
   )
   const fileRef = useRef<HTMLInputElement>(null)
-  const [pinDraft, setPinDraft] = useState(settings.parentPin)
-  const [showPin, setShowPin] = useState(false)
 
   const download = () => {
     const blob = new Blob([store.exportSave()], { type: 'application/json' })
@@ -1857,58 +2238,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         </Row>
       </Card>
 
-      <Card className="p-5 border-slate-200">
-        <h2 className="font-black text-slate-900 mb-1">Grown-up code</h2>
-        {/*
-          Hidden by default.
-
-          This field is filled with the *current* code, which is genuinely useful
-          — parents forget it — but it meant opening Settings displayed the code
-          in plain sight at the one moment a curious child is most likely to be
-          watching. The whole point of the code is that they do not know it.
-
-          Not hidden while it is first chosen during setup: there, showing the
-          digits is what stops a typo becoming a parent locked out of their own
-          settings, and there is no existing secret to leak.
-        */}
-        <p className="text-xs font-semibold text-slate-400 mb-3">
-          Tap the eye to check or change it. Kept hidden so a child glancing over your shoulder does not
-          end up with the run of the settings.
-        </p>
-        <div className="flex gap-2">
-          <div className="relative">
-            <input
-              value={pinDraft}
-              onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              type={showPin ? 'text' : 'password'}
-              inputMode="numeric"
-              autoComplete="off"
-              aria-label="Grown-up code"
-              className="h-14 w-44 rounded-2xl border-2 border-slate-300 pl-4 pr-12 text-2xl font-black
-                tracking-[0.4em] text-slate-900 outline-none focus:border-slate-900"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPin((v) => !v)}
-              aria-pressed={showPin}
-              aria-label={showPin ? 'Hide the code' : 'Show the code'}
-              title={showPin ? 'Hide the code' : 'Show the code'}
-              className="absolute right-0 top-0 grid h-14 w-11 place-items-center rounded-r-2xl text-lg
-                text-slate-400 hover:text-slate-700"
-            >
-              {showPin ? '🙈' : '👁'}
-            </button>
-          </div>
-          <Btn
-            variant="secondary"
-            size="md"
-            disabled={!/^\d{4}$/.test(pinDraft) || pinDraft === settings.parentPin}
-            onClick={() => updateSettings({ parentPin: pinDraft })}
-          >
-            Save
-          </Btn>
-        </div>
-      </Card>
+      <ChangeCodeCard />
 
       {/*
         Pausing the app.
@@ -1968,7 +2298,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           <div className="min-w-0">
             <p className="font-black text-slate-800">Share anonymous usage data</p>
             <p className="text-xs font-semibold text-slate-500">
-              Off unless you turn it on. When it is on, Brainy sends how often it is opened, how many
+              On by default, and off in one tap. Brainy sends how often it is opened, how many
               questions were answered, and which topics score worst, plus a random code so the same
               tablet is not counted twice. Never your child&apos;s name, age, or anything they typed.
               Turning it off deletes the code and asks us to delete what was already sent.
@@ -2058,13 +2388,16 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         )}
       </Card>
 
+      <FlaggedCard />
+
       <FeedbackCard summary={summaryText} />
 
       <Card className="p-5 border-slate-200">
         <h2 className="font-black text-slate-900 mb-1">Your data</h2>
         <p className="text-sm font-semibold text-slate-500 mb-3">
-          Everything is stored on this device only. Nothing is uploaded, and there is no account, no
-          tracking and no advertising.
+          Their answers, their report and everything they typed are on this device only. What we hold
+          in your account is your email, your licence and their scores, and the switch above turns that
+          off and deletes it. No advertising, ever.
         </p>
         <div className="flex flex-wrap gap-2">
           <Btn variant="secondary" size="md" onClick={download}>

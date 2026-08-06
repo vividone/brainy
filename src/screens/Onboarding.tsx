@@ -123,7 +123,7 @@ export function Onboarding() {
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(true)
   /* Unticked on purpose. A pre-ticked box is not consent. */
-  const [shareUsage, setShareUsage] = useState(false)
+  const [shareUsage, setShareUsage] = useState(true)
   const [done, setDone] = useState(false)
 
   const curriculum = curricula.find((c) => c.id === curriculumId) ?? curricula[0]
@@ -340,9 +340,11 @@ export function Onboarding() {
             ) : (
               <>
                 <p className="font-semibold text-brand-600">
-                  This account is yours, not {firstName}&apos;s. It is how your access comes back if this
-                  tablet is lost, replaced, or you add a second one, and it is the only personal detail
-                  Brainy stores. There is no password: we email you a six-digit code.
+                  This account is yours, not {firstName}&apos;s. It is how your access and their
+                  progress come back if this tablet is lost, replaced, or you add a second one. We keep
+                  their first name, age and scores in it for exactly that reason, never the questions
+                  they got wrong or anything they type, and you can switch it off in the grown-up area
+                  whenever you like. There is no password: we email you a six-digit code.
                 </p>
 
                 <div>
@@ -730,7 +732,7 @@ export function Onboarding() {
             </p>
 
             {/*
-              The usage-data consent, asked plainly and left unticked. Separate
+              Usage sharing, stated plainly with the box already ticked. Separate
               from the account: signing in tells us who to email, this decides
               whether anonymous counts are collected at all.
             */}
@@ -752,7 +754,8 @@ export function Onboarding() {
                     {firstName}&apos;s name, age, or anything they type.
                   </span>
                   <span className="block text-sm font-semibold text-brand-500 mt-1">
-                    Entirely optional, and you can change it any time in the grown-up area.
+                    On unless you untick it, and you can switch it off any time in the grown-up area.
+                    Switching it off deletes the code and the counts kept under it.
                   </span>
                 </span>
               </label>
@@ -878,9 +881,9 @@ export function Onboarding() {
 
       {step === 0 && (
         <p className="mt-4 text-center text-xs font-semibold text-brand-400">
-          Your child&apos;s work, their answers, progress and report, stays in this browser on this
-          device. The account holds your email address and what you are entitled to, and nothing about
-          your child unless you later ask us to keep it.
+          Their answers and their report stay in this browser on this device and are never uploaded.
+          The account holds your email, what you are entitled to, and their scores, so a new tablet
+          picks up where they left off. One tap in the grown-up area stops that and deletes it.
         </p>
       )}
     </Screen>

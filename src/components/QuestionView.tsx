@@ -46,6 +46,17 @@ const STATE_CLASS: Record<string, string> = {
   selected: 'bg-brand-100 border-brand-600 text-brand-900',
   right: 'bg-emerald-100 border-emerald-600 text-emerald-900',
   wrong: 'bg-rose-100 border-rose-500 text-rose-900 opacity-80',
+  /*
+   * "This was one of the answers, and you did not tap it."
+   *
+   * Only tap-many needs it, and it exists because without it the reveal was
+   * unreadable: every correct option went solid green whether the child had
+   * tapped it or not, so a child who picked three of the four right words saw
+   * four green tiles and the words "Not quite" and concluded the app was
+   * broken. The tick and cross below say what they actually did; this says
+   * what they left out.
+   */
+  missed: 'bg-white border-dashed border-emerald-500 text-emerald-800',
 }
 
 function ChoiceCard({
@@ -295,7 +306,9 @@ export function QuestionView({ item, response, onChange, onSubmit, status, revea
                   ? 'selected'
                   : 'idle'
                 : isRight
-                  ? 'right'
+                  ? on
+                    ? 'right'
+                    : 'missed'
                   : on
                     ? 'wrong'
                     : 'idle'
@@ -314,6 +327,12 @@ export function QuestionView({ item, response, onChange, onSubmit, status, revea
                 >
                   {o.label}
                   {on && !revealed && <span className="absolute top-1 right-2 text-lg">✔</span>}
+                  {revealed && on && <span className="absolute top-1 right-2 text-lg">{isRight ? '✔' : '✗'}</span>}
+                  {revealed && !on && isRight && (
+                    <span className="absolute bottom-1 inset-x-0 text-[0.65rem] font-black uppercase tracking-wide text-emerald-700">
+                      missed
+                    </span>
+                  )}
                 </button>
               )
             })}

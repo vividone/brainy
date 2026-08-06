@@ -39,7 +39,10 @@
       "Bash(node scripts/sample.mjs ng.maths.data.central-tendency ng.maths.data.probability ng.maths.measure.temperature ng.maths.shapes.angle-pairs)",
       "Bash(grep -vE \":[0-9]+:\\\\s*\\(\\\\*|//|/\\\\*\\)\")",
       "Bash(node --check server/lib/email.js)",
-      "Bash(grep -iB4 \"receipt goes out\\\\|family is told\")"
+      "Bash(grep -iB4 \"receipt goes out\\\\|family is told\")",
+      "Bash(grep -vE \":\\\\s*\\(\\\\*|//|/\\\\*\\)\")",
+      "Bash(node --check server/lib/accounts.js)",
+      "Bash(npx eslint *)"
     ]
   }
 }

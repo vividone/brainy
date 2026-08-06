@@ -411,10 +411,12 @@ export async function ensureSchema() {
      * a column would need an ALTER, which means a migration story this project
      * does not have yet. A new table costs a join and needs no migration at all.
      *
-     * keep_progress false is the default and the state every new account starts
-     * in. It is the switch that decides whether the learners table is ever
-     * written to, so it is the technical form of "an account alone uploads
-     * nothing about your child".
+     * keep_progress is now on for a new account, because an account whose whole
+     * job is getting a family's work back on the next tablet cannot start by not
+     * keeping it. A row here therefore records a *decision*, and its absence is
+     * the default: see prefsFor(), which reads a missing row as on and an
+     * explicit false as off. Off still deletes what was kept, which is what
+     * makes it a real choice rather than a flag.
      */
     /*
      * A child's progress, for accounts that asked us to keep it.
@@ -446,7 +448,7 @@ export async function ensureSchema() {
 
     create table if not exists account_prefs (
       parent_id     bigint primary key references parents (id),
-      keep_progress boolean not null default false,
+      keep_progress boolean not null default true,
       updated_at    timestamptz not null default now()
     );
   `)

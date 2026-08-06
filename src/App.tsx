@@ -14,6 +14,8 @@ import { Subject } from './screens/Subject'
 import { WhoIsPlaying } from './screens/WhoIsPlaying'
 import { Locked } from './screens/Locked'
 import { Unlocked } from './screens/Unlocked'
+import { BROWSER_ANYWAY_KEY, InstallFirst } from './screens/InstallFirst'
+import { installState } from './lib/install'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
@@ -44,6 +46,25 @@ export default function App() {
   const onboarded = useStore((s) => s.onboarded)
   const settings = useSettings()
   const finishSession = useStore((s) => s.finishSession)
+
+  /*
+   * Install before setting up, signing in, or playing.
+   *
+   * Only on a device with nothing saved yet. A family who already set Brainy up
+   * in a browser has their children, their coins and their streaks in *this*
+   * container, and an install gate would lock them away from a save the
+   * installed app cannot reach. They get the offer in the grown-up area
+   * instead, where signing in is what carries them across.
+   *
+   * The escape hatch is remembered in its own storage key rather than in the
+   * save, because it is a fact about this browser and not about the family, and
+   * because signing in replaces the save wholesale.
+   */
+  const [installed, setInstalled] = useState(() => installState().installed)
+  const [browserAnyway, setBrowserAnyway] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem(BROWSER_ANYWAY_KEY) === '1',
+  )
+  useEffect(() => installState().subscribe(() => setInstalled(installState().installed)), [])
 
   const curriculum = useCurriculum()
   const bands = useBands()
@@ -334,6 +355,22 @@ export default function App() {
     if (lastLaunch?.kind === 'level') startLevel(lastLaunch.level)
     else startDaily()
   }, [lastLaunch, startDaily, startLevel])
+
+  if (!onboarded && !installed && !browserAnyway) {
+    return (
+      <InstallFirst
+        onContinueAnyway={() => {
+          try {
+            localStorage.setItem(BROWSER_ANYWAY_KEY, '1')
+          } catch {
+            /* Private mode with storage denied. The state below still gets them
+               through this session, which is the point of the button. */
+          }
+          setBrowserAnyway(true)
+        }}
+      />
+    )
+  }
 
   if (!onboarded) return <Onboarding />
   /*

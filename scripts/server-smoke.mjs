@@ -295,8 +295,10 @@ check('the right code signs in', verified.status, 200)
 check('a device token comes back', String(verified.json?.token ?? '').startsWith('bpt_'), true)
 check('the account is new', verified.json?.account?.isNew, true)
 check('with a licence attached', typeof verified.json?.licence?.code, 'string')
-// The promise, asserted: an account on its own holds nothing about a child.
-check('and no progress consent', verified.json?.account?.keepProgress, false)
+/* The default, asserted: a new account keeps progress, because that is what a
+   family signed up for. The promise that survives is the *shape* of what is
+   kept, which the minimisation assertions below cover. */
+check('and progress keeping is on', verified.json?.account?.keepProgress, true)
 
 const TOKEN = verified.json.token
 check(
@@ -385,15 +387,37 @@ const SYNC = { authorization: `Bearer ${syncSession.json.token}` }
 
 check('no token, no sync', (await call('/api/sync')).status, 401)
 
-/* Consent off is the default, and it is enforced here rather than assumed. */
+/* On by default, so a family that just signed in can sync without finding a
+   switch first. Nothing is stored yet, because nothing has been uploaded. */
 const before = await call('/api/sync', { headers: SYNC })
-check('without consent there is nothing', before.json?.learners?.length, 0)
-check('and it says why', before.json?.keepProgress, false)
+check('a new account has nothing stored', before.json?.learners?.length, 0)
+check('but keeping is already on', before.json?.keepProgress, true)
 check(
-  'uploading without consent is refused',
+  'so uploading is allowed straight away',
+  (await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [] } })).status,
+  200,
+)
+
+/*
+ * The half of the change that matters more than the default: a parent who says
+ * no is not asked again and is not quietly re-enabled. An explicit false has to
+ * outlive a fresh sign-in, which is exactly what a "no row means yes" default
+ * could have broken.
+ */
+await call('/api/account/keep-progress', { method: 'POST', headers: SYNC, body: { on: false } })
+const refusedRead = await call('/api/sync', { headers: SYNC })
+check('turning it off is honoured', refusedRead.json?.keepProgress, false)
+check(
+  'and uploading is then refused',
   (await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [] } })).status,
   403,
 )
+await call('/api/auth/code', { method: 'POST', body: { email: 'sync@example.com' } })
+const afterSignIn = await call('/api/auth/verify', {
+  method: 'POST',
+  body: { email: 'sync@example.com', code: await codeFor('sync@example.com') },
+})
+check('and signing in again does not turn it back on', afterSignIn.json?.account?.keepProgress, false)
 
 await call('/api/account/keep-progress', { method: 'POST', headers: SYNC, body: { on: true } })
 

@@ -41,6 +41,8 @@ export function Session({ plan, onFinish, onQuit }: Props) {
   const { economy } = useLearnerData()
   const recordAnswer = useStore((s) => s.recordAnswer)
   const recordSeen = useStore((s) => s.recordSeen)
+  const flagQuestion = useStore((s) => s.flagQuestion)
+  const learnerName = useStore((s) => s.learners.find((l) => l.id === s.activeLearnerId)?.name ?? 'Your child')
 
   const [queue, setQueue] = useState<PlannedItem[]>(plan.items)
   const [index, setIndex] = useState(0)
@@ -54,6 +56,16 @@ export function Session({ plan, onFinish, onQuit }: Props) {
   const [answers, setAnswers] = useState<AnsweredItem[]>([])
   const [secondsLeft, setSecondsLeft] = useState(settings.timerSeconds)
   const [flash, setFlash] = useState<{ text: string; kind: 'good' | 'bad' } | null>(null)
+  /*
+   * "This looks wrong", from the child.
+   *
+   * Deliberately small and capped at three a quest. It has to be here, in the
+   * moment they disagree, because a seven-year-old will not remember which
+   * question upset them by the time a grown-up is free. But it must not become
+   * a button worth tapping for its own sake, so it is quiet, it says nothing
+   * exciting when tapped, and it grants nothing.
+   */
+  const [flaggedNow, setFlaggedNow] = useState<string[]>([])
 
   const startedAt = useRef(Date.now())
   const advanceTimer = useRef<number | null>(null)
@@ -373,6 +385,31 @@ export function Session({ plan, onFinish, onQuit }: Props) {
                   {current.item.explanation ? ` ${current.item.explanation}` : ''}
                 </p>
               )}
+              {status === 'wrong' &&
+                (flaggedNow.includes(itemSignature(current.item)) ? (
+                  <p className="mt-1 text-sm font-bold text-rose-700">
+                    Saved for a grown-up to check. Thank you 💚
+                  </p>
+                ) : (
+                  flaggedNow.length < 3 && (
+                    <button
+                      onClick={() => {
+                        sfx.tap()
+                        flagQuestion({
+                          learnerName,
+                          skillId: current.skillId,
+                          prompt: current.item.prompt,
+                          given: describeResponse(current.item, response),
+                          expected: describeAnswer(current.item),
+                        })
+                        setFlaggedNow((f) => [...f, itemSignature(current.item)])
+                      }}
+                      className="mt-1 min-h-11 text-sm font-bold text-rose-700 underline decoration-2 underline-offset-2"
+                    >
+                      I think this is wrong
+                    </button>
+                  )
+                ))}
             </div>
             {status === 'wrong' && (
               <Btn

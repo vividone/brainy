@@ -77,18 +77,20 @@ export interface DeviceSettings {
    * Parent has agreed to share anonymous usage data.
    *
    * One switch covering everything that leaves the device: the usage pings
-   * and the weekly learning summary. Off until a parent says yes, asked
-   * plainly during setup and reversible at any time.
+   * and the weekly learning summary. On for a new install, stated plainly
+   * during setup with the box already ticked, and off in one tap in the
+   * grown-up area — where turning it off also erases what was sent. Nothing
+   * here is ever about a child by name, and it is never used for advertising.
    */
   shareUsage: boolean
   /**
    * Random identifier for this installation, so activations and daily use
    * can be counted without counting the same tablet twice.
    *
-   * Created only at the moment consent is given, and destroyed the moment it
-   * is withdrawn. Before a parent opts in there is no identifier in the save
-   * at all, so there is nothing that could leak. It is tied to a browser
-   * profile, not a person, and never travels with a name.
+   * Created when sharing is on and destroyed the moment it is switched off, so
+   * opting out is a real erasure rather than a flag: the id is the only handle
+   * on those rows, and once it is gone nothing can find them again. It is tied
+   * to a browser profile, not a person, and never travels with a name.
    */
   installId: string | null
   /** Monday-of-week key of the last automatic send, so it goes once a week. */
@@ -148,8 +150,9 @@ export interface DeviceSettings {
    * Whether this account has agreed to keep a child's progress off the device.
    *
    * Mirrored from the server rather than owned here — the server decides, this is
-   * a cache so the UI can render without a round trip. False until a parent says
-   * otherwise, and until Phase 3 nothing reads it but the settings screen.
+   * a cache so the UI can render without a round trip. On unless a parent turns
+   * it off, because an account whose job is restoring a family's work cannot
+   * start by not keeping it. Turning it off deletes what was kept.
    */
   keepProgress: boolean
   /**
@@ -160,6 +163,38 @@ export interface DeviceSettings {
    * like one that synced a minute ago.
    */
   lastSyncAt: number | null
+  /**
+   * Questions a child flagged as wrong, waiting for a grown-up to look.
+   *
+   * A child cannot send us anything: they have no account and the app makes no
+   * network request of its own. So "this question is wrong" is saved here, in
+   * plain words, and the grown-up area offers to send it. That keeps the promise
+   * that nothing leaves the tablet without a parent choosing it, and it also
+   * makes the report better, since a parent can see whether the question really
+   * was wrong or whether their child simply misread it.
+   *
+   * On the device rather than the learner, so it never enters a sync payload:
+   * it contains a question and the answer given, which is exactly the session
+   * detail we refuse to upload.
+   */
+  flagged: FlaggedQuestion[]
+}
+
+/** A question a child marked as looking wrong, in the words the parent will read. */
+export interface FlaggedQuestion {
+  id: string
+  /** ms. Shown to the parent as "yesterday", never sent. */
+  at: number
+  learnerName: string
+  skillId: string
+  /** The question as the child saw it. */
+  prompt: string
+  /** What they answered, rendered the same way the report renders it. */
+  given: string
+  /** What Brainy marked as correct. */
+  expected: string
+  /** True once a parent has sent it to us, so it is not sent twice. */
+  sent: boolean
 }
 
 /** The merged view the screens actually consume. */
@@ -269,6 +304,16 @@ interface Actions {
    * it off destroys it, so opting out is a real erasure rather than a flag.
    */
   setShareUsage: (on: boolean) => void
+  /**
+   * A child says a question looks wrong. Saved for a grown-up; nothing is sent.
+   *
+   * Silently ignores a repeat of the same question so a child who taps it twice
+   * does not produce two rows, and keeps only the most recent few so this can
+   * never grow into the day-by-day log we promised not to keep.
+   */
+  flagQuestion: (flag: Omit<FlaggedQuestion, 'id' | 'at' | 'sent'>) => void
+  /** Parent has dealt with a flag, by sending it or by dismissing it. */
+  resolveFlag: (id: string, sent: boolean) => void
   /** Record that a usage ping has been delivered. */
   markPinged: (patch: { lastOpenPing?: string; activationSent?: boolean }) => void
   /**
@@ -345,7 +390,15 @@ const defaultDevice = (): DeviceSettings => ({
   sound: true,
   reduceMotion: false,
   parentPin: '1234',
-  shareUsage: false,
+  /*
+   * On for a new install, and one tap off.
+   *
+   * This is the default for a save that does not have the key yet, which is a
+   * fresh setup. A family who already chose "no" has `shareUsage: false` written
+   * in their save, and merge() keeps a stored value over a default, so nobody's
+   * existing answer is quietly reversed by this line.
+   */
+  shareUsage: true,
   installId: null,
   lastSharedWeek: null,
   lastOpenPing: null,
@@ -356,8 +409,11 @@ const defaultDevice = (): DeviceSettings => ({
   transferSubmittedAt: null,
   authToken: null,
   parentEmail: null,
-  keepProgress: false,
+  /* On by default, and corrected by the server on the first pull if this
+     family has said otherwise. */
+  keepProgress: true,
   lastSyncAt: null,
+  flagged: [],
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -512,9 +568,9 @@ export const useStore = create<Store>()(
               device: {
                 ...s.device,
                 parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.device.parentPin,
-                shareUsage: Boolean(shareUsage),
-                // The id exists only if they said yes.
-                installId: shareUsage ? newId() + newId() : null,
+                shareUsage: shareUsage ?? true,
+                /* The id exists only while sharing does. */
+                installId: (shareUsage ?? true) ? newId() + newId() : null,
               },
             }
           }),
@@ -535,8 +591,8 @@ export const useStore = create<Store>()(
             device: {
               ...s.device,
               parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.device.parentPin,
-              shareUsage: Boolean(shareUsage),
-              installId: shareUsage ? (s.device.installId ?? newId() + newId()) : null,
+              shareUsage: shareUsage ?? true,
+              installId: (shareUsage ?? true) ? (s.device.installId ?? newId() + newId()) : null,
             },
           })),
 
@@ -570,6 +626,27 @@ export const useStore = create<Store>()(
 
         markShared: (week) =>
           set((s) => ({ device: { ...s.device, lastSharedWeek: week } })),
+
+        flagQuestion: (flag) =>
+          set((s) => {
+            const already = s.device.flagged.some(
+              (f) => f.prompt === flag.prompt && f.given === flag.given,
+            )
+            if (already) return {}
+            const row: FlaggedQuestion = { ...flag, id: newId(), at: Date.now(), sent: false }
+            /* Newest first, and capped: this is a support queue, not a history. */
+            return { device: { ...s.device, flagged: [row, ...s.device.flagged].slice(0, 12) } }
+          }),
+
+        resolveFlag: (id, sent) =>
+          set((s) => ({
+            device: {
+              ...s.device,
+              flagged: sent
+                ? s.device.flagged.map((f) => (f.id === id ? { ...f, sent: true } : f))
+                : s.device.flagged.filter((f) => f.id !== id),
+            },
+          })),
 
         setShareUsage: (on) =>
           set((s) => ({
