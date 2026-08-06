@@ -26,7 +26,11 @@
       }
       .wrap { width: min(720px, 100% - 2.5rem); margin: 0 auto; }
       header { border-bottom: 1px solid var(--violet-100); padding: 1rem 0; }
-      .brand { font-weight: 900; font-size: 1.25rem; color: var(--violet-700); text-decoration: none; }
+      /* inline-flex so the 44px actually applies — min-height does nothing to
+         an inline element, and this is the only way off the page. */
+      .brand {
+        display: inline-flex; align-items: center; min-height: 44px; padding-right: 0.4rem;
+        font-weight: 900; font-size: 1.25rem; color: var(--violet-700); text-decoration: none; }
       main { padding: 3rem 0 4rem; }
       h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); letter-spacing: -0.02em; margin: 0 0 0.4rem; font-weight: 900; }
       .updated { color: var(--muted); font-weight: 600; margin: 0 0 2rem; }
@@ -57,10 +61,14 @@
       <p class="updated">Last updated 4 August 2026</p>
 
       <div class="callout">
-        By default Brainy collects nothing. Your child's answers, progress and report stay in the
-        browser on your device and are never uploaded. During setup we ask whether we may collect
-        anonymous usage data; the box starts unticked, and if you leave it that way nothing is ever
-        sent. Nothing about your child ever leaves the tablet, on any plan.
+        By default Brainy collects nothing about your child. Their answers, their report and the
+        record of what they got wrong stay in the browser on this device and are never uploaded — that
+        does not change, and there is no setting that changes it.
+        <br /><br />
+        There is one thing you can switch on: <strong>keeping their progress in your account</strong>,
+        so a new tablet picks up where the last one left off. It is off unless you turn it on, it keeps
+        scores and coins and never what they typed, and turning it off deletes what was kept. See
+        <a href="#progress">Keeping their progress</a>.
         <br /><br />
         This <em>website</em> is a separate thing from the app, and is treated separately: these pages
         use Google Analytics to count visits. The app does not, and cannot. See
@@ -92,9 +100,15 @@
         Brainy is built for children in <strong>Basic 1 to Basic 6</strong> and their equivalents,
         roughly ages 5 to 12. Every one of them is a child in the eyes of all three of those laws.
         That is the reason for the central design decision described throughout this notice: the
-        child has no account, and nothing about the child is sent to us at all. Where a law requires
-        verifiable parental consent before a child's personal data may be processed, we do not rely
-        on obtaining that consent — we avoid the processing.
+        child has no account, no password and nothing to sign in to. Nothing about a child is sent to
+        us at all unless a parent switches on <a href="#progress">keeping their progress</a> — and even
+        then it is scores and coins, never anything they typed or got wrong.
+        <br /><br />
+        Where a law requires verifiable parental consent before a child's personal data may be
+        processed, that consent is the parent's own act on their own account: they hold it, they gave
+        it deliberately on a switch that starts off, and withdrawing it deletes what was kept. We chose
+        the smallest amount of data that solves a real problem for families rather than the largest we
+        could justify.
       </p>
 
       <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">Why we are allowed to hold what we hold</h3>
@@ -108,9 +122,17 @@
           </thead>
           <tbody>
             <tr>
-              <td>Anything about your child</td>
+              <td>Anything about your child, by default</td>
               <td>—</td>
               <td><strong>Not collected.</strong> No basis is needed because there is no processing</td>
+            </tr>
+            <tr>
+              <td>Their scores and coins, <em>if you switch it on</em></td>
+              <td>Your child's</td>
+              <td>
+                <strong>Consent</strong> — a separate switch, off until you turn it on, withdrawable at
+                any time, and withdrawing deletes what was kept
+              </td>
             </tr>
             <tr>
               <td>Usage counts, weekly summary</td>
@@ -173,6 +195,50 @@
         If setup cannot reach us — no signal, or we are down — Brainy lets you carry on anyway and
         asks again in the grown-up area later, because an app sold on working offline should not
         refuse to start when it is offline. Nothing about your child is sent when it does reach us.
+      </p>
+
+      <h2 id="progress">Keeping their progress</h2>
+      <p>
+        A web app added to an iPhone or iPad home screen gets <em>its own storage</em>, separate from
+        Safari — so a family who set Brainy up in the browser and then installed it would open the icon
+        and find an empty app. A new tablet has the same problem. The only way to fix it is for the
+        progress to exist somewhere other than the device, which means uploading something about your
+        child. We are not willing to do that quietly, so it is a switch you turn on.
+      </p>
+      <p><strong>Off by default.</strong> Creating an account does not turn it on. Only you can.</p>
+      <p>When it is on, we keep, per child:</p>
+      <ul>
+        <li>Their first name, age, curriculum and class</li>
+        <li>A mastery score per skill — a number between 0 and 1 against a skill name like
+          <code>ng.maths.b3.add-3digit-regroup</code></li>
+        <li>Stars, coins, XP, badges, streak, and which character and pet they chose</li>
+        <li>Their settings — reading speed, session length, and so on</li>
+      </ul>
+      <p>And we deliberately <strong>refuse</strong> to keep:</p>
+      <ul>
+        <li><strong>Their session history</strong> — every quest, and the exact questions they answered
+          wrongly</li>
+        <li><strong>A day-by-day record</strong> of when the tablet was used</li>
+        <li><strong>Which questions they have recently been shown</strong></li>
+      </ul>
+      <p>
+        Those three are the difference between <em>how far have they got</em> and <em>a log of what
+        this child has been doing</em>. The first is what you want back on a new tablet; the second is a
+        record of a seven-year-old's mistakes, and it is not ours to hold. This is not a policy that
+        lives only in a document: the server <em>rejects</em> an upload containing any of them, so a
+        modified app cannot send them and a careless change on our side fails loudly rather than
+        quietly starting to collect.
+      </p>
+      <p>
+        The visible cost, so it is not a surprise: a restored tablet has your child's mastery, coins and
+        streak, but the weekly chart in the parent report starts again, and a question or two they saw
+        recently may come round once more.
+      </p>
+      <p>
+        <strong>Turning it off</strong> — grown-up area → Access → the same switch — deletes what we
+        were keeping, immediately. Nothing on the tablet changes. You can also remove one child's kept
+        progress on its own and leave a sibling's alone. If nobody signs in to an account for two
+        years, we delete the kept progress anyway.
       </p>
 
       <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">How signing in works</h3>
@@ -470,6 +536,7 @@
             <tr><td>Failed access-code attempts</td><td>30 days</td><td>Rate limiting needs days. These are hashed, never the IP itself</td></tr>
             <tr><td>An uploaded bank transfer receipt</td><td>13 months</td><td>The payment record stays for accounting; the picture of your banking app does not</td></tr>
             <tr><td>Abandoned checkouts</td><td>30 days</td><td>A payment not completed within a month was abandoned</td></tr>
+            <tr><td>Kept progress, if you switched it on</td><td>Until you turn it off</td><td>It is the point of the feature. Two years with nobody signing in and we delete it anyway</td></tr>
             <tr><td>A six-digit sign-in code</td><td>1 day</td><td>It is dead after fifteen minutes; the row is cleared the next day</td></tr>
             <tr><td>A signed-out device's token</td><td>90 days</td><td>Kept revoked, not deleted, so a token that turns up again is refused rather than unrecognised</td></tr>
             <tr><td>Payment records</td><td>7 years</td><td>Tax and accounting rules require it. This one we cannot shorten</td></tr>
