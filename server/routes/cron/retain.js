@@ -128,6 +128,40 @@ export const RULES = [
     why: 'A code is dead after fifteen minutes. Keeping the row a day is generous.',
   },
   {
+    /*
+     * A child's kept progress, for an account nobody has signed into in two
+     * years. Deleting the state and leaving the licence alone is deliberate: the
+     * family may well come back and their entitlement is theirs regardless, but
+     * holding a dormant child's mastery scores indefinitely is not something we
+     * can justify.
+     */
+    label: 'progress for dormant accounts',
+    days: 730,
+    table: 'learner_state',
+    /*
+     * Two flat subqueries rather than one correlated `not exists`. The correlated
+     * form reads better and is perfectly valid Postgres, but the in-memory
+     * Postgres the smoke test runs against cannot resolve an outer alias inside a
+     * nested subquery — and SQL that only the production database can run is SQL
+     * nothing tests. `not in` is safe here specifically because
+     * `device_tokens.parent_id` is `not null`; with a nullable column the whole
+     * predicate would go null and this would silently delete nothing.
+     */
+    where:
+      'learner_id in (select id from learners where parent_id not in ' +
+      '(select parent_id from device_tokens where last_seen >= $1))',
+    why: 'Two years without a sign-in is a family that has moved on.',
+  },
+  {
+    label: 'tombstoned children',
+    days: 30,
+    table: 'learners',
+    where: 'deleted_at is not null and deleted_at < $1',
+    why:
+      'A removed child is tombstoned for a month so another tablet cannot upload them again and a ' +
+      'mistake can be undone. After that the row itself goes.',
+  },
+  {
     label: 'revoked device tokens',
     days: 90,
     table: 'device_tokens',

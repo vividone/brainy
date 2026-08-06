@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(curl -s -o /dev/null -w \"root %{http_code}  play %{http_code}\\\\n\" http://localhost:4300/)",
+      "Bash(curl -s http://localhost:4300/play/)",
+      "Bash(node --check .accept.mjs)",
+      "Bash(node ./.accept.mjs __TRACKED_VAR__/acc)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"rig /play/: %{http_code}\\\\n\" http://127.0.0.1:4500/play/)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"rig /api:   %{http_code}\\\\n\" http://127.0.0.1:4500/api/pay/initialise)",
+      "Bash(curl -s -m 5 http://127.0.0.1:4500/__code)",
+      "Bash(grep -n \"aria-label={\\\\`Name for\\\\|Remove {l.name}\\\\|role=\\\\\"switch\\\\\"\" -B 4 -A 6 src/screens/Parent.tsx)",
+      "Bash(node .diag.mjs)",
+      "Bash(grep -E \"^\\(=|[a-z ]+$\\)|✔|✖|target:|text:|overflow:|SIDEWAYS\")",
+      "Bash(node grids.mjs)",
+      "Bash(node -e \"console.log\\(Object.entries\\(require\\('./package.json'\\).scripts\\).map\\(\\([k,v]\\)=>'  '+k+': '+v\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(sed -n '/export default defineConfig/,$p' vite.config.ts)"
     ]
   }
 }

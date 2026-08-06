@@ -206,6 +206,72 @@ export async function signOut(token: string): Promise<void> {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Keeping progress
+ * ------------------------------------------------------------------ */
+
+export interface SyncOutcome {
+  ok: boolean
+  /** Children the account holds, for the caller to fold in. */
+  learners?: unknown[]
+  /** The server's view of consent, which is the authoritative one. */
+  keepProgress?: boolean
+  error?: string
+  /** Set when the token is dead, not merely unreachable. */
+  gone?: boolean
+}
+
+/** Everything the account holds. Empty, without error, when consent is off. */
+export async function pullProgress(token: string): Promise<SyncOutcome> {
+  try {
+    const { status, data } = await send('/api/sync', { token })
+    if (status === 200 && data?.ok) {
+      return {
+        ok: true,
+        learners: (data.learners as unknown[]) ?? [],
+        keepProgress: Boolean(data.keepProgress),
+      }
+    }
+    if (status === 401) return { ok: false, gone: true }
+    return { ok: false, error: (data?.error as string) ?? `Server returned ${status}.` }
+  } catch {
+    return { ok: false, error: OFFLINE }
+  }
+}
+
+/**
+ * Upload children.
+ *
+ * A 422 means the payload contained something the server will not keep, which is
+ * a bug in this app rather than anything a parent can fix — so it is logged
+ * loudly and reported, not shown to them. Everything else fails silently: sync
+ * is a convenience, and a parent must never see an error about it while their
+ * child is playing.
+ */
+export async function pushProgress(
+  token: string,
+  learners: unknown[],
+): Promise<SyncOutcome & { results?: Record<string, { status: string; revision?: number; state?: unknown }> }> {
+  try {
+    const { status, data } = await send('/api/sync', {
+      method: 'PUT',
+      token,
+      body: { learners, label: deviceLabel() },
+    })
+    if (status === 200 && data?.ok) {
+      return { ok: true, results: data.results as Record<string, { status: string; revision?: number }> }
+    }
+    if (status === 401) return { ok: false, gone: true }
+    if (status === 422) {
+      console.error('[brainy:sync] the server refused part of the payload:', data?.refused)
+      return { ok: false, error: 'refused' }
+    }
+    return { ok: false, error: (data?.error as string) ?? `Server returned ${status}.` }
+  } catch {
+    return { ok: false, error: OFFLINE }
+  }
+}
+
 /** Turn keeping a child's progress on or off. Off also deletes what was kept. */
 export async function setKeepProgress(
   token: string,

@@ -239,8 +239,18 @@ export async function setKeepProgress(parentId, on) {
    * Turning it off is not just a flag: what is already up there has to come
    * down, or "off" would mean "we stopped adding to the pile we kept". Withdrawn
    * consent has to be retroactive to mean anything.
+   *
+   * The state goes before the learners that own it — `learner_state` has a
+   * foreign key to `learners`, so the other order is a constraint violation and
+   * the parent's request to be forgotten fails with a 500. Done as a loop rather
+   * than a subquery so it behaves identically on every Postgres, including the
+   * in-memory one the tests run against.
    */
   if (!on) {
+    const mine = await all(`select id from learners where parent_id = $1`, [parentId])
+    for (const row of mine) {
+      await query(`delete from learner_state where learner_id = $1`, [row.id])
+    }
     await query(`delete from learners where parent_id = $1`, [parentId])
   }
   return { keepProgress: Boolean(on) }
@@ -288,12 +298,23 @@ export const learnersFor = (parentId) =>
     [parentId],
   )
 
-/** Soft delete, so another device does not resurrect it and a mistake is undoable. */
+/**
+ * Forget one child.
+ *
+ * The progress goes immediately — that is what the parent asked for. The row
+ * itself is only tombstoned, so another tablet that still has the child locally
+ * does not simply upload them again on its next sync, and so thirty days of
+ * "actually that was the wrong child" remains possible. The tombstone keeps no
+ * name or age; there is nothing left in it about a person.
+ */
 export async function forgetLearner(parentId, learnerId) {
+  const id = clip(learnerId, 64)
   const result = await query(
     `update learners set deleted_at = now(), name = null, age = null
      where id = $1 and parent_id = $2 and deleted_at is null`,
-    [clip(learnerId, 64), parentId],
+    [id, parentId],
   )
-  return (result?.rowCount ?? 0) > 0
+  if ((result?.rowCount ?? 0) === 0) return false
+  await query(`delete from learner_state where learner_id = $1`, [id])
+  return true
 }

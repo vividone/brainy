@@ -25,7 +25,7 @@
  * half way has told us nothing about a child.
  */
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ageOptions, bandForAge, listCurricula } from '../engine/registry'
 import { APP_NAME, CHARACTERS, PETS } from '../game/characters'
 import { Character } from '../components/Character'
@@ -36,7 +36,8 @@ import { Btn, Card, Screen } from '../components/ui'
 import { useStore } from '../state/store'
 import { sfx } from '../lib/sound'
 import { activate, checkout, formatMoney, prices, type Prices } from '../lib/licence'
-import { requestCode, verifyCode } from '../lib/account'
+import { pullProgress, requestCode, verifyCode } from '../lib/account'
+import type { SyncLearner } from '../state/sync'
 
 const STEPS = [
   { key: 'welcome', title: 'Welcome' },
@@ -51,9 +52,30 @@ const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export function Onboarding() {
   const completeOnboarding = useStore((s) => s.completeOnboarding)
+  const completeRestoredSetup = useStore((s) => s.completeRestoredSetup)
+  /*
+   * Select the raw array and narrow it here.
+   *
+   * `useStore((s) => s.learners.filter(...))` allocates a new array on every
+   * call, so zustand's Object.is check sees a change every time and the
+   * component re-renders until React gives up — error #185, a blank app that
+   * never starts. The selector has to return something referentially stable.
+   */
+  const allLearners = useStore((s) => s.learners)
+  const restoredLearners = useMemo(
+    () => allLearners.filter((l) => l.name.trim() !== ''),
+    [allLearners],
+  )
+  /* Read through a selector, not `getState()` during render: the reference is
+     stable, and this way the mascot updates if the data arrives a beat later. */
+  const restoredEquipped = useStore((s) => {
+    const first = s.learners.find((l) => l.name.trim() !== '')
+    return first ? s.data[first.id]?.economy?.equipped : undefined
+  })
   const importSave = useStore((s) => s.importSave)
   const setLicence = useStore((s) => s.setLicence)
   const signedInAction = useStore((s) => s.signedIn)
+  const adoptRemote = useStore((s) => s.adoptRemote)
   const licence = useStore((s) => s.device.licence)
   const authToken = useStore((s) => s.device.authToken)
   const installId = useStore((s) => s.device.installId)
@@ -82,6 +104,8 @@ export function Onboarding() {
    */
   const [deferred, setDeferred] = useState(false)
   const signedIn = Boolean(authToken)
+  /** How many children a sign-in brought back, so the flow can say so. */
+  const [restoredCount, setRestoredCount] = useState(0)
 
   /* ---- access ---- */
   const [offer, setOffer] = useState<Prices | null>(null)
@@ -109,18 +133,32 @@ export function Onboarding() {
   const effectiveBand = bandOverride ?? suggested?.id ?? ''
   const firstName = name.trim() || 'your child'
   const unlocked = licence?.full === true
+  /**
+   * A parent who signed in and got their family back.
+   *
+   * Derived from the store rather than from `restoredCount` alone, so it survives
+   * a reload part-way through setup — the children are already in the save by
+   * then, and asking for them again would be absurd.
+   */
+  const restored = restoredCount > 0 || restoredLearners.length > 0
 
   const canContinue = [
     true,
     signedIn || deferred,
     true,
-    name.trim().length > 0 && age !== null && Boolean(effectiveBand),
+    restored || (name.trim().length > 0 && age !== null && Boolean(effectiveBand)),
     /^\d{4}$/.test(pin),
     true,
   ][step]
 
   const finish = () => {
     sfx.complete()
+    /*
+     * The restored path never calls `completeOnboarding`: that action replaces
+     * `learners` with the single child it is given, which would delete the family
+     * signing in had just brought back.
+     */
+    if (restored) return completeRestoredSetup({ parentPin: pin, shareUsage })
     completeOnboarding({
       name,
       curriculumId,
@@ -158,6 +196,22 @@ export function Onboarding() {
       keepProgress: result.account?.keepProgress,
       licence: result.licence,
     })
+
+    /*
+     * A returning parent whose account keeps progress gets their children back
+     * here, before being asked to describe a child they have already described.
+     * This is the answer to "I installed the app and everything was gone", and
+     * skipping ahead to hand-over is the difference between recovery feeling like
+     * recovery and feeling like starting again.
+     */
+    if (result.account?.keepProgress) {
+      const held = await pullProgress(result.token!)
+      if (held.ok && held.learners?.length) {
+        adoptRemote(held.learners as SyncLearner[])
+        setRestoredCount(held.learners.length)
+      }
+    }
+
     /* Prices are only needed once we know whether they already have access. */
     void prices().then(setOffer)
     setStep(2)
@@ -276,6 +330,12 @@ export function Onboarding() {
                     ? 'Every subject is open on this tablet.'
                     : 'Maths is open. You can add a code or a licence on the next screen.'}
                 </p>
+                {restoredCount > 0 && (
+                  <p className="mt-2 font-black text-emerald-900">
+                    ✓ Brought back {restoredCount === 1 ? 'your child' : `${restoredCount} children`}, with
+                    their stars, coins and streak.
+                  </p>
+                )}
               </div>
             ) : (
               <>
@@ -509,7 +569,36 @@ export function Onboarding() {
         )}
 
         {/* ---- 3. The child ---- */}
-        {step === 3 && (
+        {step === 3 && restored && (
+          /*
+           * Nothing to ask. They told us about their children once already, and
+           * asking again is what makes a recovery feel like starting over.
+           */
+          <div className="space-y-4">
+            <div className="rounded-2xl border-3 border-emerald-300 bg-emerald-50 p-4">
+              <p className="font-black text-emerald-900">
+                {restoredLearners.length === 1 ? 'Your child is back' : 'Your children are back'}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {restoredLearners.map((l) => (
+                  <li key={l.id} className="font-bold text-emerald-800">
+                    • {l.name}
+                    {l.age ? `, ${l.age}` : ''} —{' '}
+                    {curricula.find((c) => c.id === l.curriculumId)?.yearBands.find((b) => b.id === l.yearBand)
+                      ?.label ?? l.yearBand}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-sm font-semibold text-emerald-800">
+                Their stars, coins, streak and everything they had mastered came with them.
+              </p>
+            </div>
+            <p className="text-sm font-semibold text-brand-500">
+              You can add another child later in the grown-up area.
+            </p>
+          </div>
+        )}
+        {step === 3 && !restored && (
           <div className="space-y-5">
             <div>
               <label htmlFor="child-name" className="block font-bold text-brand-700 mb-2">
@@ -672,7 +761,26 @@ export function Onboarding() {
         )}
 
         {/* ---- 5. Hand over ---- */}
-        {step === 5 && !done && (
+        {step === 5 && !done && restored && (
+          /* Their character and pet came back with them; picking again would
+             overwrite something the child chose. */
+          <div className="text-center py-2">
+            <div className="mx-auto size-28">
+              <Mascot
+                characterId={restoredEquipped?.character}
+                petId={restoredEquipped?.pet}
+                mood="celebrate"
+                variant="buddy"
+                float
+                className="w-full h-full"
+              />
+            </div>
+            <p className="mt-3 font-bold text-brand-700">
+              Everything is back as it was. Hand the tablet over and they can carry straight on.
+            </p>
+          </div>
+        )}
+        {step === 5 && !done && !restored && (
           <div className="space-y-5">
             <div>
               <p className="font-bold text-brand-700 mb-2">

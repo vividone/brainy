@@ -416,6 +416,34 @@ export async function ensureSchema() {
      * written to, so it is the technical form of "an account alone uploads
      * nothing about your child".
      */
+    /*
+     * A child's progress, for accounts that asked us to keep it.
+     *
+     * Stored as one opaque document per child, and the server never looks inside
+     * it. That is partly simplicity — the save format changes and this table
+     * does not care — but mostly it is the privacy posture: we must not end up
+     * owning a queryable database of which children are behind at what. The only
+     * columns are the ones needed to decide whether an upload is newer than what
+     * is already here.
+     *
+     * Deliberately text rather than jsonb. Nothing queries inside it, so jsonb
+     * would buy only validation we already do in JavaScript before writing.
+     *
+     * prev_state is exactly one step of undo. Two tablets played offline mean the
+     * later upload wins and the earlier window is superseded; keeping the
+     * previous document turns that from a lost month into a support request that
+     * can be answered.
+     */
+    create table if not exists learner_state (
+      learner_id    text primary key references learners (id),
+      revision      bigint not null default 0,
+      state         text not null,
+      prev_revision bigint,
+      prev_state    text,
+      device_label  text,
+      updated_at    timestamptz not null default now()
+    );
+
     create table if not exists account_prefs (
       parent_id     bigint primary key references parents (id),
       keep_progress boolean not null default false,

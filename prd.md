@@ -118,8 +118,11 @@ user accounts, login, or cloud sync* — and it has been separated into a part t
 that gave way.
 
 - **Hardened, and now a principle rather than a non-goal: children never have accounts.** No
-  credentials, no row in any table, no name or answer leaving the device. Nothing in the licensing
-  or analytics work touched this, and §12 exists to keep it that way.
+  credentials, no login, nothing to sign in to, and no version of Brainy will give them one. Nothing
+  in the licensing or analytics work touched this, and §12 exists to keep it that way.
+  <br>What did change, once and deliberately: a parent may switch on keeping their child's *scores* in
+  their own account, because installing the app on iOS otherwise loses them (§12). Off by default,
+  scoped to mastery and coins, and the server refuses their session history outright.
 - **Gave way: adults can have one.** A parent who claims a free place, redeems a code or pays needs
   somewhere for that to live, and "the licence is on this tablet only" fails the first time a tablet
   is replaced — which is exactly when a family most needs it to work. So there is a small backend
@@ -693,10 +696,30 @@ Cold load < 2 s on a mid-range Android tablet over 3G · question transition < 1
 
 This is a children's product, which raises the bar and shapes several decisions above.
 
-**The line that has held throughout: no child data ever leaves the device.** No name, no age, no
-answers, no progress, no free text. A child has no account, no credentials and no row in any table.
-Everything the game does is computed locally from localStorage, and a whole session plays with the
-network off. That is the promise the rest of this section protects.
+**The line that has held throughout: a child has no account, no credentials, and nothing they type or
+get wrong ever leaves the device.** Everything the game does is computed locally from localStorage, and
+a whole session plays with the network off. That is the promise the rest of this section protects.
+
+**One narrowing, made deliberately and with consent: kept progress.** A parent may switch on keeping
+their child's *scores* in their own account, because iOS gives an installed home-screen app its own
+storage container — so a family who set Brainy up in Safari and then installed it opened an empty app,
+and a new tablet was the same. No client-side change fixes that; the data has to exist somewhere else.
+The switch is off until a parent turns it on, and what it covers is drawn tightly:
+
+| Kept | Never kept |
+|---|---|
+| Mastery per skill id, stars, coins, XP, badges, streak | Session history, including every question answered wrongly |
+| First name, age, curriculum, class, settings | A day-by-day record of when the tablet was used |
+| Which character and pet they chose | Which questions they have recently been shown |
+
+The three refusals are the ones that matter, and they are enforced rather than promised: the client
+builds the payload from a whitelist, and **the server rejects an upload containing any of them** with a
+422. Stripping them silently would be friendlier and would make the guarantee unverifiable — a modified
+client, or a careless change to the builder, would quietly start uploading a child's mistakes and
+nothing would say so. `scripts/server-smoke.mjs` asserts the rejection.
+
+The line those three sit on: the difference between *how far have they got* — which a parent needs back
+on a new tablet — and *a log of what this child has been doing*, which is not ours to hold.
 
 **What does leave the device, and only because a grown-up chose it:**
 
@@ -717,14 +740,22 @@ notice, never used for marketing, never passed on, and erasable on request.
 profiling, and no ability to join the two halves of the data — the usage tables know an install id and
 nothing about people, the licence tables know people and nothing about children.
 
-**When cloud sync of a child's progress arrives, this changes materially** and must be designed
-properly rather than incrementally. A licence is *not* that step, and must not be mistaken for it:
+**The conditions this section set for keeping a child's progress, and how each was met.** These were
+written before the feature existed, as the price of building it; recording the answers here is what
+stops "we'll do it properly" being the whole plan.
 
-- Parent-held accounts only; children never have credentials.
-- Verifiable parental consent before any child data is stored (COPPA if there will be US users).
-- Data minimisation: store skill ids and scores, never free text from a child.
-- NDPA registration where the thresholds are met, and a published privacy notice before any paid launch in Nigeria.
-- Explicit retention and deletion policy, with parent-initiated export and delete.
+| Condition | How it was met |
+|---|---|
+| Parent-held accounts only; children never have credentials | A child has no login and no way to reach one. The account is the grown-up's, reached by a code emailed to them |
+| Verifiable parental consent before any child data is stored | A distinct switch, off by default, that creating an account does not turn on. `learners` and `learner_state` stay empty until it is |
+| Data minimisation: skill ids and scores, never free text | The whitelist above, enforced on both sides, with the server rejecting the rest |
+| A published privacy notice before any paid launch | `site/privacy.html` names what is kept, what is refused, and the cost of refusing it |
+| Explicit retention, with parent-initiated deletion | Withdrawing consent deletes immediately; one child can be forgotten alone; a dormant account's progress goes after two years. The numbers are the same numbers in `server/routes/cron/retain.js` |
+| NDPA registration where the thresholds are met | Still outstanding — see §12.1 |
+
+**The honest cost, stated in the notice rather than buried:** a restored tablet has the child's mastery,
+coins and streak, but the parent report's weekly chart starts again and a recently-seen question may
+come round once more. That is the price of not keeping the two things that would have prevented it.
 
 ### 12.1 The compliance position, stated once
 
@@ -806,7 +837,7 @@ Phases 1–3 are content work on an unchanged engine. That is the whole point of
 | **4** | Full UK and US packs across all subjects and years | Planned |
 | **5** | **Licensing and payments** — parent sign-ups, coupons, Paystack, and an admin dashboard. See §14 | **Done** |
 | **6** | **Multi-child profiles** on one device, parent-led setup, backup/restore between devices, parent lock, characters and pets | **Done** |
-| **7** | Optional cloud sync and cross-device. The point at which §12's second half becomes mandatory work. | Planned |
+| **7** | Parent accounts, and keeping a child's scores across devices with consent. §12's conditions became the specification. | **Done** |
 | **8** | Distribution: shareable link, then Play Store via TWA if the pull is there | Planned |
 | **9** | School licences — the largest revenue opportunity, but a different product with teacher dashboards and class management | Someday |
 
@@ -969,6 +1000,6 @@ is not lost and the same ground is not re-argued.
 | 11 | Offline signed licence keys | **Parent-held codes checked by a backend** | See §14.1. A tablet-only licence fails the first time a tablet is replaced |
 | 12 | Static host, any provider | **Vercel**, app at `/play/` | One platform for the site and the functions. And `cleanUrls` must stay off, or the PWA silently stops being installable (§10.1) |
 | 13 | Single child per device | **Multi-child**, with per-child everything | Siblings share tablets. Shipped in phase 6 rather than waiting for cloud sync |
-| 14 | Cloud sync for a new device | **Export and restore a file** | Sync moves a child's data off their tablet, which is the one thing §12 protects. A file does the job now and defers that properly to phase 7 |
+| 14 | Cloud sync for a new device | **Export a file, then — with consent — keep scores in the account** | The file came first and still works offline. Keeping progress was added when installing the PWA turned out to *lose* a family's work on iOS: storage in a home-screen app is separate from Safari, so no client-side fix existed. Scoped to scores and refused for history — §12 |
 | 15 | Maths playable with no sign-up at all | **The parent registers at setup** — the child never does | "No registration required" contradicted a subscription business, and a free place cannot be held for a person you never captured. Registration is the parent's; the child still has no account and never will |
 | 16 | No way out | **Remove a child; delete everything** | A product handed to other families needs a real exit, not a settings page that only adds |

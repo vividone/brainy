@@ -37,7 +37,15 @@ import {
   submitTransfer,
   type Prices,
 } from '../lib/licence'
-import { requestCode, signOut, verifyCode } from '../lib/account'
+import {
+  pullProgress,
+  requestCode,
+  setKeepProgress as setKeepProgressOnServer,
+  signOut,
+  verifyCode,
+} from '../lib/account'
+import { syncNow } from '../state/syncRunner'
+import type { SyncLearner } from '../state/sync'
 import { useEntitlement } from '../state/entitlement'
 import { isoWeek } from '../state/weekly'
 import { FeedbackCard } from './Feedback'
@@ -182,7 +190,8 @@ export function Parent({ onBack }: { onBack: () => void }) {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`min-h-12 px-2 rounded-2xl border-2 font-black text-sm sm:text-base transition
+            className={`flex min-h-12 items-center justify-center px-2 rounded-2xl border-2
+              font-black text-sm sm:text-base leading-tight transition
               ${tab === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
           >
             {label}
@@ -239,7 +248,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
                     style={{ height: `${Math.max(4, (s.questions / week.maxQuestions) * 100)}%` }}
                     title={`${s.questions} questions`}
                   />
-                  <span className="text-[10px] font-black text-slate-400">
+                  <span className="text-[11px] sm:text-xs font-black text-slate-400">
                     {new Date(week.days[i]).toLocaleDateString(undefined, { weekday: 'narrow' })}
                   </span>
                 </div>
@@ -300,7 +309,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
                 )
               })}
             </div>
-            <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
+            <div className="mt-2 flex items-center justify-end gap-1.5 text-[11px] sm:text-xs font-bold text-slate-400">
               <span>Less</span>
               {['bg-slate-100', 'bg-violet-200', 'bg-violet-400', 'bg-violet-500', 'bg-violet-700'].map((c) => (
                 <span key={c} className={`size-3 rounded ${c}`} />
@@ -315,7 +324,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
             <div className="flex items-end justify-between gap-2 h-28">
               {stats.accuracyTrend.map((w) => (
                 <div key={w.label} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
-                  <span className="text-[10px] font-black text-slate-500 tabular-nums">
+                  <span className="text-[11px] sm:text-xs font-black text-slate-500 tabular-nums">
                     {w.accuracy === null ? '' : `${Math.round(w.accuracy * 100)}%`}
                   </span>
                   <div
@@ -323,7 +332,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
                     style={{ height: `${w.accuracy === null ? 3 : Math.max(4, w.accuracy * 100)}%` }}
                     title={`${w.questions} questions`}
                   />
-                  <span className="text-[10px] font-black text-slate-400 text-center leading-tight">
+                  <span className="text-[11px] sm:text-xs font-black text-slate-400 text-center leading-tight">
                     {w.label}
                   </span>
                 </div>
@@ -594,7 +603,9 @@ function ChildrenTab() {
                 <input
                   value={l.name}
                   onChange={(e) => store.renameLearner(l.id, e.target.value)}
-                  className="w-full bg-transparent text-lg font-black text-slate-900 outline-none focus:bg-slate-50 rounded px-1"
+                  className="w-full min-h-12 rounded-xl border-2 border-transparent bg-transparent px-2
+                    text-lg font-black text-slate-900 outline-none hover:border-slate-200
+                    focus:border-slate-900 focus:bg-white"
                   aria-label={`Name for ${l.name}`}
                 />
                 <p className="px-1 text-sm font-bold text-slate-500">
@@ -612,7 +623,8 @@ function ChildrenTab() {
             </div>
             <button
               onClick={() => setConfirmRemove(l.id)}
-              className="mt-2 text-sm font-bold text-rose-600 hover:underline"
+              className="mt-2 inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold
+                text-rose-600 hover:bg-rose-50"
             >
               Remove {l.name}
             </button>
@@ -747,6 +759,109 @@ function ChildrenTab() {
  * and only then offers to sell anything.
  */
 /**
+ * The one switch that decides whether anything about a child leaves the tablet.
+ *
+ * Off by default, and off is the honest default: an account exists to hold a
+ * licence and an email address, and keeping a child's progress is a separate
+ * decision with a separate answer. So this is a distinct control with its own
+ * explanation, not a line of small print under "create an account".
+ *
+ * The copy names what goes up *and what does not*, because "we keep their
+ * progress" could reasonably be read as "you keep a log of everything my child
+ * does", and that is exactly what is being refused.
+ *
+ * Turning it off deletes what was kept. Withdrawn consent that only stops future
+ * uploads would mean "we stopped adding to the pile", which is not what a parent
+ * asking to be forgotten means.
+ */
+function KeepProgressSwitch({ token }: { token: string }) {
+  const on = useStore((s) => s.device.keepProgress)
+  const lastSyncAt = useStore((s) => s.device.lastSyncAt)
+  const setKeep = useStore((s) => s.setKeepProgress)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const [confirmOff, setConfirmOff] = useState(false)
+
+  const apply = async (next: boolean) => {
+    setBusy(true)
+    setNote(null)
+    const result = await setKeepProgressOnServer(token, next)
+    setBusy(false)
+    if (!result.ok) return setNote(result.error ?? 'Could not change that just now.')
+    setKeep(Boolean(result.keepProgress))
+    setNote(
+      next
+        ? 'On. Their progress will be in your account within a minute or two.'
+        : 'Off, and what we were keeping has been deleted.',
+    )
+    if (next) void syncNow({ force: true })
+  }
+
+  return (
+    <>
+      <div className="mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-black text-slate-800">Keep their progress in my account</p>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              So a new tablet — or this one after installing it to the home screen — picks up exactly
+              where they left off. We keep <b>mastery scores, stars, coins, streak and badges</b>.
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              We never keep the questions they got wrong, a day-by-day record of when they played, or
+              anything they typed. Those stay on this tablet, and the server refuses them.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={on}
+            aria-label="Keep their progress in my account"
+            disabled={busy}
+            onClick={() => (on ? setConfirmOff(true) : void apply(true))}
+            className={`mt-1 grid h-11 w-16 shrink-0 items-center rounded-full border-2 transition
+              disabled:opacity-50
+              ${on ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+          >
+            <span
+              className={`block size-7 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-7' : 'translate-x-0.5'}`}
+            />
+          </button>
+        </div>
+        {note && <p className="mt-2 text-sm font-bold text-slate-700">{note}</p>}
+        {on && lastSyncAt && (
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            Last kept up to date {friendlyDate(lastSyncAt).toLowerCase()}.
+          </p>
+        )}
+      </div>
+
+      <Modal open={confirmOff} onClose={() => setConfirmOff(false)} title="Stop keeping their progress?">
+        <p className="font-bold text-slate-600">
+          What we are holding will be deleted. Nothing on this tablet changes — every star, coin and
+          streak stays exactly where it is — but a new tablet will start them again from the beginning.
+        </p>
+        <div className="mt-5 flex gap-3">
+          <Btn variant="secondary" size="lg" full onClick={() => setConfirmOff(false)}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="danger"
+            size="lg"
+            full
+            onClick={() => {
+              setConfirmOff(false)
+              void apply(false)
+            }}
+          >
+            Stop and delete
+          </Btn>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
+/**
  * The account, in the grown-up area.
  *
  * Three jobs, in order of how often each is needed: tell a parent which account
@@ -764,6 +879,7 @@ function AccountCard() {
   const signedInAction = useStore((s) => s.signedIn)
   const signedOutAction = useStore((s) => s.signedOut)
   const setLicence = useStore((s) => s.setLicence)
+  const adoptRemote = useStore((s) => s.adoptRemote)
 
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState(parentEmail ?? '')
@@ -799,6 +915,8 @@ function AccountCard() {
           Signing out forgets your email on this device. It does not cancel anything, and it does not
           touch a single thing your child has done — their progress is on this tablet either way.
         </p>
+
+        <KeepProgressSwitch token={token} />
       </Card>
     )
   }
@@ -876,7 +994,26 @@ function AccountCard() {
                   /* A sign-in carries the family's current licence, so a tablet
                      that was set up offline gets its paid subjects here. */
                   if (result.licence) setLicence(result.licence)
-                  setNote({ good: true, text: 'Signed in. Your access is up to date.' })
+
+                  /*
+                   * And, if this family keeps progress, their children. This is
+                   * the recovery path for a tablet that opened blank: sign in,
+                   * and the child comes back with their mastery and coins.
+                   */
+                  let restored = 0
+                  if (result.account?.keepProgress) {
+                    const held = await pullProgress(result.token!)
+                    if (held.ok && held.learners?.length) {
+                      adoptRemote(held.learners as SyncLearner[])
+                      restored = held.learners.length
+                    }
+                  }
+                  setNote({
+                    good: true,
+                    text: restored
+                      ? `Signed in, and brought back ${restored} ${restored === 1 ? 'child' : 'children'}.`
+                      : 'Signed in. Your access is up to date.',
+                  })
                 }}
               >
                 {busy === 'verify' ? 'Checking…' : 'Sign in'}
@@ -1523,7 +1660,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
       onClick={onToggle}
       role="switch"
       aria-checked={on}
-      className={`h-9 w-16 rounded-full border-2 transition ${on ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+      className={`grid h-11 w-16 items-center rounded-full border-2 transition ${on ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
     >
       <span
         className={`block size-7 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-7' : 'translate-x-0.5'}`}
@@ -1622,7 +1759,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
                   ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
               >
                 <span className="block text-lg">{choice.value ?? 'Auto'}</span>
-                <span className="block text-[10px] uppercase tracking-wide opacity-80">{choice.label}</span>
+                <span className="block text-[11px] sm:text-xs uppercase tracking-wide opacity-80">{choice.label}</span>
               </button>
             )
           })}
@@ -1864,7 +2001,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
                   : 'Sharing is off, so nothing more will be sent. We could not reach our server to delete the records already sent — they carry no name, and the code that linked them to this tablet is now gone.',
               )
             }}
-            className={`mt-1 h-9 w-16 shrink-0 rounded-full border-2 transition ${settings.shareUsage ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
+            className={`mt-1 grid h-11 w-16 shrink-0 items-center rounded-full border-2 transition ${settings.shareUsage ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
           >
             <span
               className={`block size-7 rounded-full bg-white shadow transition-transform ${settings.shareUsage ? 'translate-x-7' : 'translate-x-0.5'}`}

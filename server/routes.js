@@ -32,6 +32,7 @@ import retain from './routes/cron/retain.js'
 import expiring from './routes/cron/expiring.js'
 import signup from './routes/signup.js'
 import stats from './routes/stats.js'
+import sync from './routes/sync.js'
 
 const KB = 1024
 const MB = 1024 * KB
@@ -57,6 +58,14 @@ export const ROUTES = [
   { url: '/api/auth/*', methods: ['GET', 'POST'], handler: auth, bodyLimit: 8 * KB },
   { url: '/api/account', methods: ['GET', 'POST', 'DELETE'], handler: account, bodyLimit: SMALL },
   { url: '/api/account/*', methods: ['GET', 'POST', 'DELETE'], handler: account, bodyLimit: SMALL },
+
+  /*
+   * A child's progress, for accounts that asked us to keep it. Larger than the
+   * others by necessity — a whole curriculum's mastery for several children —
+   * but bounded well below the receipt route: the per-child ceiling is enforced
+   * in lib/sync.js, and this is the outer wall.
+   */
+  { url: '/api/sync', methods: ['GET', 'PUT', 'POST'], handler: sync, bodyLimit: 2 * MB },
 
   /* Money. */
   { url: '/api/pay/initialise', methods: ['GET', 'POST'], handler: payInitialise, bodyLimit: SMALL },

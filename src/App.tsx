@@ -25,6 +25,7 @@ import { dayKey } from './lib/dates'
 import { APP_VERSION } from './game/characters'
 import { claim, daysSinceCheck, revalidate, type StoredLicence } from './lib/licence'
 import { subjectOpen, useEntitlement } from './state/entitlement'
+import { syncAfterSession, syncNow } from './state/syncRunner'
 
 /** How often a stored licence is checked against the server. */
 const LICENCE_RECHECK_DAYS = 7
@@ -202,6 +203,22 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [licence, setLicence])
 
+  /*
+   * Reconcile with the account shortly after launch.
+   *
+   * This is the moment that fixes "I installed the app and everything was gone":
+   * a freshly installed tablet has a token in its save, asks the account what it
+   * holds, and adopts it. Delayed so it never competes with the app starting, and
+   * it does nothing at all unless the parent has both signed in and asked us to
+   * keep progress.
+   */
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void syncNow()
+    }, 3000)
+    return () => window.clearTimeout(timer)
+  }, [])
+
   /* Back button and Escape both go up one level rather than leaving the app. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -292,6 +309,10 @@ export default function App() {
       // double-award coins and XP.
       const { awards, result } = finishSession(raw)
       setRoute({ name: 'results', result, awards })
+
+      /* Upload what just happened, a couple of seconds from now. Debounced, and
+         silent whether it works or not. */
+      syncAfterSession()
 
       const { device: d } = useStore.getState()
       if (d.shareUsage && d.installId) {

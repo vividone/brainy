@@ -20,6 +20,7 @@ import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
 import { shopItemById } from '../game/cosmetics'
 import { dayKey, daysBetween } from '../lib/dates'
 import type { StoredLicence } from '../lib/licence'
+import { mergeRemoteProfile, mergeRemoteState, type SyncLearner } from './sync'
 
 /*
  * Storage key kept from the app's earlier name on purpose: changing it
@@ -151,6 +152,14 @@ export interface DeviceSettings {
    * otherwise, and until Phase 3 nothing reads it but the settings screen.
    */
   keepProgress: boolean
+  /**
+   * When this tablet last had a straight answer from the account, in ms.
+   *
+   * Only ever used to decide whether it is worth asking again — never to decide
+   * what a child may do. A tablet that has not synced in a month works exactly
+   * like one that synced a minute ago.
+   */
+  lastSyncAt: number | null
 }
 
 /** The merged view the screens actually consume. */
@@ -209,6 +218,16 @@ export interface LearnerData {
    * repeat them is what makes practice actually feel fresh day to day.
    */
   seenItems: Record<string, string[]>
+  /**
+   * Counts up on every change worth keeping in the account.
+   *
+   * A counter rather than a timestamp, because device clocks are wrong often
+   * enough to matter: a tablet set to next year would win every sync conflict
+   * for ever, and nobody would work out why. A revision is only ever compared
+   * with the previous revision of the *same* child, so two tablets need no
+   * agreement beyond both counting upwards.
+   */
+  revision: number
 }
 
 interface SaveState {
@@ -232,6 +251,12 @@ export interface NewLearner {
 
 interface Actions {
   completeOnboarding: (p: NewLearner & { parentPin: string; shareUsage?: boolean }) => void
+  /**
+   * Finish setup without creating a child, for a parent whose children were
+   * restored from their account. Never replaces `learners` — see the comment on
+   * the implementation for why that distinction is load-bearing.
+   */
+  completeRestoredSetup: (p: { parentPin: string; shareUsage?: boolean }) => void
   updateSettings: (patch: Partial<Settings>) => void
   setCurriculum: (curriculumId: string, yearBand: string) => void
   setAge: (age: number) => void
@@ -267,6 +292,14 @@ interface Actions {
   /** Forget the account on this device. Never touches a child's progress. */
   signedOut: () => void
   setKeepProgress: (on: boolean) => void
+  /**
+   * Adopt children downloaded from the account, per child and only when newer.
+   * This is what makes an installed PWA, or a new tablet, pick up where the
+   * last one left off.
+   */
+  adoptRemote: (remote: SyncLearner[]) => void
+  /** Note that a sync round trip completed, even if nothing changed. */
+  markSynced: () => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -324,6 +357,7 @@ const defaultDevice = (): DeviceSettings => ({
   authToken: null,
   parentEmail: null,
   keepProgress: false,
+  lastSyncAt: null,
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -346,6 +380,7 @@ export const emptyLearnerData = (): LearnerData => ({
   answerStreak: 0,
   bestAnswerStreak: 0,
   seenItems: {},
+  revision: 0,
 })
 
 /*
@@ -391,6 +426,7 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'authToken',
   'parentEmail',
   'keepProgress',
+  'lastSyncAt',
 ])
 
 /** Monday-of-week key, used for streak freezes and the weekly summary. */
@@ -408,10 +444,28 @@ export const useStore = create<Store>()(
       const active = (s: SaveState): LearnerData => s.data[s.activeLearnerId] ?? emptyLearnerData()
 
       /** Write back a patch to the active child's data. */
+      /**
+       * Write back a patch to the active child's data, and count the revision up.
+       *
+       * The bump lives here rather than at each call site so it cannot be
+       * forgotten: every write to a child's data goes through this function, so
+       * every write is visible to sync. It over-counts slightly — recording a
+       * seen question bumps it, and seen questions are never uploaded — which
+       * costs nothing, because the number is only ever compared with the previous
+       * number for the same child. Missing a bump would cost a lost session; an
+       * extra one costs a redundant upload of identical data.
+       */
       const patchActive = (fn: (d: LearnerData) => Partial<LearnerData>) =>
         set((s) => {
           const current = active(s)
-          return { data: { ...s.data, [s.activeLearnerId]: { ...current, ...fn(current) } } }
+          const patch = fn(current)
+          if (Object.keys(patch).length === 0) return {}
+          return {
+            data: {
+              ...s.data,
+              [s.activeLearnerId]: { ...current, ...patch, revision: (current.revision ?? 0) + 1 },
+            },
+          }
         })
 
       return {
@@ -464,6 +518,27 @@ export const useStore = create<Store>()(
               },
             }
           }),
+
+        /**
+         * Finish setup for a parent whose children came back from their account.
+         *
+         * A separate action rather than a flag on `completeOnboarding`, because
+         * that one *replaces* `learners` and `data` with the single child it was
+         * given — correct for a first run, and catastrophic here: it would delete
+         * the very progress signing in had just restored. Keeping them as two
+         * functions means the destructive one cannot be reached by accident from
+         * the restore path.
+         */
+        completeRestoredSetup: ({ parentPin, shareUsage }) =>
+          set((s) => ({
+            onboarded: true,
+            device: {
+              ...s.device,
+              parentPin: /^\d{4}$/.test(parentPin) ? parentPin : s.device.parentPin,
+              shareUsage: Boolean(shareUsage),
+              installId: shareUsage ? (s.device.installId ?? newId() + newId()) : null,
+            },
+          })),
 
         updateSettings: (patch) =>
           set((s) => {
@@ -532,6 +607,82 @@ export const useStore = create<Store>()(
           })),
 
         setKeepProgress: (on) => set((s) => ({ device: { ...s.device, keepProgress: on } })),
+
+        /**
+         * Fold children downloaded from the account into this tablet.
+         *
+         * The rule is last-writer-wins **per child, and only upwards**: a
+         * downloaded document is adopted when its revision is higher than the
+         * local one, and ignored otherwise. That is what makes this safe to call
+         * on every launch — a tablet mid-session cannot have its own newer work
+         * replaced by a stale copy from the account.
+         *
+         * A child the account knows and this tablet does not is created. This is
+         * the case that answers "I installed the app and everything was gone".
+         */
+        adoptRemote: (remote) =>
+          set((s) => {
+            const learners = [...s.learners]
+            const data = { ...s.data }
+            let adopted = 0
+
+            for (const incoming of remote) {
+              if (!incoming?.id || !incoming.state) continue
+              const localIndex = learners.findIndex((l) => l.id === incoming.id)
+              const localData = data[incoming.id] ?? emptyLearnerData()
+
+              /* Older or equal: this tablet already has at least as much. */
+              if (localIndex >= 0 && incoming.revision <= (localData.revision ?? 0)) continue
+
+              const profile: Profile =
+                localIndex >= 0
+                  ? mergeRemoteProfile(learners[localIndex], incoming)
+                  : mergeRemoteProfile(
+                      {
+                        id: incoming.id,
+                        name: '',
+                        curriculumId: DEFAULT_CURRICULUM_ID,
+                        yearBand: DEFAULT_YEAR_BAND,
+                        colour: 'violet',
+                        createdAt: Date.now(),
+                      },
+                      incoming,
+                    )
+
+              if (localIndex >= 0) learners[localIndex] = profile
+              else learners.push(profile)
+
+              data[incoming.id] = {
+                ...mergeRemoteState(localData, incoming.state),
+                revision: incoming.revision,
+              }
+              adopted += 1
+            }
+
+            if (adopted === 0) return { device: { ...s.device, lastSyncAt: Date.now() } }
+
+            /*
+             * A blank placeholder child from a first run that never finished is
+             * dropped once real children arrive, or the parent lands on "Who's
+             * playing?" next to an empty card.
+             */
+            const real = learners.filter(
+              (l) => l.name.trim() !== '' || (data[l.id]?.history?.length ?? 0) > 0,
+            )
+            const kept = real.length > 0 ? real : learners
+            for (const id of Object.keys(data)) {
+              if (!kept.some((l) => l.id === id)) delete data[id]
+            }
+
+            return {
+              learners: kept,
+              data,
+              activeLearnerId: kept.some((l) => l.id === s.activeLearnerId) ? s.activeLearnerId : kept[0].id,
+              device: { ...s.device, lastSyncAt: Date.now() },
+            }
+          }),
+
+        markSynced: () => set((s) => ({ device: { ...s.device, lastSyncAt: Date.now() } })),
 
         setLocked: (locked, note) =>
           set((s) => ({
@@ -670,6 +821,9 @@ export const useStore = create<Store>()(
               ...s.data,
               [s.activeLearnerId]: {
                 ...d,
+                /* Finishing a session is the change most worth keeping, and this
+                   is the one write that bypasses `patchActive`. */
+                revision: (d.revision ?? 0) + 1,
                 economy: { ...d.economy, xp: xpAfter, coins: coinsAfter },
                 streak,
                 levelStars: { ...d.levelStars, [cid]: starsMap },
@@ -995,6 +1149,7 @@ export const useStore = create<Store>()(
           answerStreak: (old.answerStreak as number) ?? 0,
           bestAnswerStreak: (old.bestAnswerStreak as number) ?? 0,
           seenItems: (old.seenItems as Record<string, string[]>) ?? {},
+          revision: 0,
         }
 
         return {

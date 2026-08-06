@@ -366,6 +366,130 @@ const stillThere = await codeFor('bola@example.com')
 check('and is consumed, not left live', stillThere, null)
 
 /* ------------------------------------------------------------------ *
+ * Keeping a child's progress
+ *
+ * The assertions that matter here are the refusals. This is the one route that
+ * holds anything about a child, so what it declines to hold is the feature.
+ * ------------------------------------------------------------------ */
+
+console.log('\nProgress sync')
+
+/* A fresh account, signed in, so this section owns its own state. */
+await call('/api/auth/code', { method: 'POST', body: { email: 'sync@example.com' } })
+const syncCode = await codeFor('sync@example.com')
+const syncSession = await call('/api/auth/verify', {
+  method: 'POST',
+  body: { email: 'sync@example.com', code: syncCode },
+})
+const SYNC = { authorization: `Bearer ${syncSession.json.token}` }
+
+check('no token, no sync', (await call('/api/sync')).status, 401)
+
+/* Consent off is the default, and it is enforced here rather than assumed. */
+const before = await call('/api/sync', { headers: SYNC })
+check('without consent there is nothing', before.json?.learners?.length, 0)
+check('and it says why', before.json?.keepProgress, false)
+check(
+  'uploading without consent is refused',
+  (await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [] } })).status,
+  403,
+)
+
+await call('/api/account/keep-progress', { method: 'POST', headers: SYNC, body: { on: true } })
+
+const state = {
+  settings: { sessionLength: 10 },
+  progress: { 'ng-ube': { 'ng.maths.b3.add': { mastery: 0.62, attempts: 9, correct: 7 } } },
+  levelStars: { 'ng-ube': { 'number#0': 3 } },
+  economy: { xp: 240, coins: 61, owned: ['c1'], equipped: { character: 'c1' } },
+  streak: { current: 4, longest: 4 },
+  badges: ['first-mango'],
+  totals: { questions: 40, correct: 31, ms: 900_000 },
+  answerStreak: 3,
+  bestAnswerStreak: 8,
+}
+const learner = { id: 'L-sync-1', revision: 1, profile: { name: 'Tunde', age: 7, curriculumId: 'ng-ube', yearBand: 'b3' }, state }
+
+const stored = await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [learner], label: 'test' } })
+check('an upload is accepted', stored.status, 200)
+check('and stored', stored.json?.results?.['L-sync-1']?.status, 'stored')
+
+const fetched = await call('/api/sync', { headers: SYNC })
+check('it comes back', fetched.json?.learners?.length, 1)
+check('with the revision', fetched.json?.learners?.[0]?.revision, 1)
+check('and the mastery intact', fetched.json?.learners?.[0]?.state?.progress?.['ng-ube']?.['ng.maths.b3.add']?.mastery, 0.62)
+check('and the coins', fetched.json?.learners?.[0]?.state?.economy?.coins, 61)
+check('and the profile', fetched.json?.learners?.[0]?.profile?.name, 'Tunde')
+
+/* Last-writer-wins per child, on a counter rather than a clock — a tablet with
+   the wrong date must not win every conflict for ever. */
+const stale = await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [{ ...learner, revision: 1 }] } })
+check('the same revision is refused', stale.json?.results?.['L-sync-1']?.status, 'stale')
+check('and the newer copy comes back with it', stale.json?.results?.['L-sync-1']?.revision, 1)
+const newer = await call('/api/sync', {
+  method: 'PUT',
+  headers: SYNC,
+  body: { learners: [{ ...learner, revision: 2, state: { ...state, economy: { ...state.economy, coins: 99 } } }] },
+})
+check('a higher revision is stored', newer.json?.results?.['L-sync-1']?.status, 'stored')
+check(
+  'and wins',
+  (await call('/api/sync', { headers: SYNC })).json?.learners?.[0]?.state?.economy?.coins,
+  99,
+)
+
+console.log('\nWhat sync refuses to hold')
+/*
+ * The three refusals are the privacy promise in executable form. Stripping these
+ * silently would be friendlier and would make the promise impossible to verify —
+ * so they are rejected, and this is the assertion that says so.
+ */
+for (const [field, value] of [
+  ['history', [{ answers: [{ skillId: 'x', correctFirstTry: false }] }]],
+  ['byDay', { '2026-08-05': { sessions: 2 } }],
+  ['seenItems', { 'ng.maths.b3.add': ['sig1'] }],
+]) {
+  const attempt = await call('/api/sync', {
+    method: 'PUT',
+    headers: SYNC,
+    body: { learners: [{ ...learner, revision: 9, state: { ...state, [field]: value } }] },
+  })
+  check(`"${field}" is rejected outright`, attempt.status, 422)
+  check(`  and named in the refusal`, (attempt.json?.refused ?? []).some((r) => r.includes(field)), true)
+}
+check(
+  'an unknown field is rejected too',
+  (await call('/api/sync', { method: 'PUT', headers: SYNC, body: { learners: [{ ...learner, revision: 9, state: { ...state, somethingNew: 1 } }] } })).status,
+  422,
+)
+// Rejected means rejected: the good copy from before must be untouched.
+check(
+  'and nothing was written',
+  (await call('/api/sync', { headers: SYNC })).json?.learners?.[0]?.state?.economy?.coins,
+  99,
+)
+check(
+  'another account cannot claim the child',
+  (await call('/api/sync', { method: 'PUT', headers: { authorization: `Bearer ${again.json.token}` }, body: { learners: [{ ...learner, revision: 50 }] } })).status,
+  403,
+)
+
+console.log('\nWithdrawing consent')
+check(
+  'turning it off is accepted',
+  (await call('/api/account/keep-progress', { method: 'POST', headers: SYNC, body: { on: false } })).status,
+  200,
+)
+// Off has to mean "and delete it", or it only means "stop adding to the pile".
+const after = await call('/api/sync', { headers: SYNC })
+check('and the progress is gone', after.json?.learners?.length, 0)
+check(
+  'even after turning it back on',
+  (await call('/api/account/keep-progress', { method: 'POST', headers: SYNC, body: { on: true } }).then(() => call('/api/sync', { headers: SYNC }))).json?.learners?.length,
+  0,
+)
+
+/* ------------------------------------------------------------------ *
  * Failing closed on missing configuration
  * ------------------------------------------------------------------ */
 
