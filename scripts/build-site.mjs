@@ -105,6 +105,35 @@ if (adminHtml.includes('analytics.js')) {
   throw new Error('admin.html must not load analytics.js.')
 }
 
+/*
+ * vercel.json must contain nothing Vercel does not recognise.
+ *
+ * Its schema forbids extra properties, so a `_comment` key — the obvious way to
+ * annotate a file format with no comments — fails the deploy outright with
+ * "should NOT have additional property". That is a slow way to find out: the
+ * build passes, the push succeeds, and the deploy is rejected minutes later.
+ * Checked here so it fails in a second instead. The reasoning that used to live
+ * in those keys is in DEPLOY.md under "vercel.json, annotated".
+ */
+const vercelPath = path.join(root, 'vercel.json')
+const vercelConfig = JSON.parse(await readFile(vercelPath, 'utf8'))
+const strayKeys = []
+const walk = (node, trail) => {
+  if (Array.isArray(node)) return node.forEach((item, i) => walk(item, `${trail}[${i}]`))
+  if (!node || typeof node !== 'object') return
+  for (const [key, value] of Object.entries(node)) {
+    if (key.startsWith('_')) strayKeys.push(`${trail}.${key}`)
+    walk(value, `${trail}.${key}`)
+  }
+}
+walk(vercelConfig, 'vercel.json')
+if (strayKeys.length > 0) {
+  throw new Error(
+    `vercel.json has ${strayKeys.length} key(s) Vercel's schema will reject:\n  ${strayKeys.join('\n  ')}\n` +
+      'JSON has no comments and Vercel forbids unknown properties. Put the explanation in DEPLOY.md.',
+  )
+}
+
 const entries = await readdir(dist)
 console.log(`site → dist/ (${entries.join(', ')})`)
 console.log(

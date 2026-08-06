@@ -449,6 +449,35 @@ The link is all they need — no store, no install, no account. Something like:
 
 3. **The feedback form.** Same screen. Categories first ("a question looks wrong", "something confused my child"), because an open text box gets nothing while a named category gets the report that fixes content.
 
+## vercel.json, annotated
+
+JSON has no comments, and **Vercel's schema rejects any key it does not recognise** — including
+`_comment`, which fails the deploy with *"should NOT have additional property"*. So the reasoning that
+would otherwise sit next to each rule lives here instead. `npm run build` fails if an unknown key
+creeps back in, so this is caught locally rather than by a rejected deploy.
+
+**The `/api/*` rewrite.** Everything under `/api/` is proxied to the Fastify service on Railway, which
+keeps the browser on one origin: the admin session cookie stays `SameSite=Strict`, there is no CORS,
+and no client code knows where the API lives. Two things about it are easy to get wrong — Vercel checks
+the filesystem *before* rewrites, so this only works because there is no longer an `api/` directory;
+and if the destination host is wrong the failure is a proxy error rather than anything obvious, which
+is what `npm run preflight` exists to catch.
+
+**Three Content-Security-Policies, over deliberately non-overlapping paths.** `/play/(.*)`, `/admin`
+plus `/admin.html`, and `/` plus `/privacy.html`. Two matching rules would send two CSP headers, and a
+browser enforces the *intersection* of both — an excellent way to break a page while every rule looks
+correct read on its own. The catch-all `/(.*)` at the bottom sets no CSP for exactly that reason; it
+carries only the headers that are safe to combine.
+
+- `/play/` — the app. `script-src 'self'`, no exceptions: a child's tablet loads no third-party code,
+  and the build fails if any appears.
+- `/admin` — shows parents' email addresses and bank receipts, so it frames nowhere and posts nowhere.
+  Receipts are same-origin images from `/api/admin/proof`.
+- `/` and `/privacy.html` — the marketing pages, and the only place Google Analytics is allowed.
+  `'unsafe-inline'` stays in `style-src` because those pages use `style=` attributes; it is absent from
+  `script-src`, which is the one that matters, and the inline scripts were moved into `/site.js` and
+  `/admin.js` to make that possible.
+
 ## Two things that are easy to break
 
 **Do not set `cleanUrls` *or* `trailingSlash` in `vercel.json`.** Both do the

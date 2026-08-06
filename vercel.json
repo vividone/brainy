@@ -2,40 +2,79 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "_comment": "Do NOT set cleanUrls or trailingSlash. Both canonicalise /play/ to /play, which falls outside the service worker's /play/ scope, and Chrome then silently stops offering to install the app. See DEPLOY.md.",
-  "_api": "Everything under /api/ is proxied to the Fastify service on Railway, which keeps the browser on one origin — so the admin session cookie stays SameSite=Strict, there is no CORS, and no client code knows the API moved. Two things to know: Vercel checks the filesystem BEFORE rewrites, so this only works because there is no longer an api/ directory; and `npm run preflight` fails loudly if the host below is wrong or unreachable.",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://api-brainy.fortbridge.app/api/:path*" },
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/privacy", "destination": "/privacy.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://api-brainy.fortbridge.app/api/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    }
   ],
-  "redirects": [{ "source": "/app/:path*", "destination": "/play/:path*", "permanent": true }],
+  "redirects": [
+    {
+      "source": "/app/:path*",
+      "destination": "/play/:path*",
+      "permanent": true
+    }
+  ],
   "crons": [
-    { "path": "/api/cron/expiring", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/retain", "schedule": "0 3 * * 1" }
+    {
+      "path": "/api/cron/expiring",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/retain",
+      "schedule": "0 3 * * 1"
+    }
   ],
   "headers": [
     {
       "source": "/play/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     },
     {
       "source": "/play/manifest.webmanifest",
       "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
       ]
     },
     {
       "source": "/play/sw.js",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/play/index.html",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     },
     {
-      "_comment": "Three Content-Security-Policies, over deliberately non-overlapping paths. Two matching rules would send two CSP headers, which browsers enforce as the intersection of both — a good way to break a page while every rule looks correct in isolation. The catch-all below sets no CSP for exactly that reason.",
       "source": "/play/(.*)",
       "headers": [
         {
@@ -45,14 +84,16 @@
       ]
     },
     {
-      "_comment": "The dashboard shows parents' email addresses and bank receipts, so it frames nowhere and posts nowhere. Receipts are same-origin images from /api/admin/proof.",
       "source": "/admin",
       "headers": [
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         },
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
@@ -62,11 +103,13 @@
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         },
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
-      "_comment": "The marketing pages, and the only place Google Analytics is allowed. 'unsafe-inline' stays in style-src because the pages use style= attributes; it is absent from script-src, which is the one that matters, and the inline scripts were moved into /site.js and /admin.js to make that possible.",
       "source": "/",
       "headers": [
         {
@@ -87,10 +130,22 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
       ]
     }
   ]
