@@ -18,11 +18,51 @@ dist/
 
 The marketing site owns the root; the app lives at `/play/`. Both ship from one `dist/`, so there is one deploy, not two.
 
-Check it locally exactly as a host would serve it:
+## Working on it locally
 
 ```
+npm run dev            # site at /, dashboard at /admin, app at /play/
+npm run dev:api        # the API on :3001, which /api is proxied to
+```
+
+Two commands, two terminals, one origin — the same arrangement as production,
+where `vercel.json` proxies `/api` to Railway. That matters for more than
+convenience: the admin session cookie is `SameSite=Strict`, so a cross-origin dev
+setup would behave differently from the real thing in exactly the area hardest to
+debug.
+
+**Vite prints only `/play/`**, because that is the app's `base`. The other routes
+exist and are listed underneath its banner:
+
+| | |
+|---|---|
+| `/` | the landing page |
+| `/admin` | the dashboard |
+| `/privacy` | the privacy notice |
+| `/play/` | the app, with hot reloading |
+
+The site files are served straight from `site/` — they have no build step — and the
+paths mirror the rewrites in `vercel.json`, so a link that works here works
+deployed. Analytics are inert locally: the measurement id is only substituted at
+build time, and `localhost` is excluded anyway.
+
+`npm run dev:api` needs no configuration to start. Without `DATABASE_URL` it runs
+and says so, and the routes that need a database answer 503 rather than pretending;
+copy `.env.example` to `.env` when you want sign-in, email or payments to work.
+`/admin` signs in with the development credentials it prints.
+
+**On Windows, use `localhost` rather than `127.0.0.1`** — Vite binds to `::1`, so
+the IPv4 address refuses the connection with no useful error.
+
+To check the built output exactly as a host would serve it:
+
+```
+npm run build
 npm run serve          # http://localhost:4200
 ```
+
+That is the one that catches build-only problems — asset hashing, the service
+worker, and the `/play/` scope.
 
 `vite preview` is not a substitute — it applies the app's `/play/` base to the whole server and redirects the root away from the landing page.
 

@@ -1300,7 +1300,7 @@ function AccessTab() {
         ) : (
           <p className="rounded-2xl bg-slate-50 p-3 font-bold text-slate-600">
             Payments are not switched on yet. Leave your email above and we will send you a code — the
-            first twenty families keep everything free permanently.
+            first twenty families get a free year of every subject.
           </p>
         )}
       </Card>

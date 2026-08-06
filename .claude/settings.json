@@ -14,7 +14,20 @@
       "Bash(grep -E \"^\\(=|[a-z ]+$\\)|✔|✖|target:|text:|overflow:|SIDEWAYS\")",
       "Bash(node grids.mjs)",
       "Bash(node -e \"console.log\\(Object.entries\\(require\\('./package.json'\\).scripts\\).map\\(\\([k,v]\\)=>'  '+k+': '+v\\).join\\('\\\\n'\\)\\)\")",
-      "Bash(sed -n '/export default defineConfig/,$p' vite.config.ts)"
+      "Bash(sed -n '/export default defineConfig/,$p' vite.config.ts)",
+      "Bash(curl -s -m 6 -o /dev/null -w \"  /healthz  %{http_code}\\\\n\" http://127.0.0.1:3001/healthz)",
+      "Bash(curl -s -m 6 -o /dev/null -w \"  /api/pay/initialise  %{http_code}\\\\n\" http://localhost:5175/api/pay/initialise)",
+      "Bash(curl -s -m 6 http://localhost:5175/api/pay/initialise)",
+      "Bash(curl -s -m 6 -o /dev/null -w \"  /api/admin/me        %{http_code} \\(401 = correct\\)\\\\n\" http://localhost:5175/api/admin/me)",
+      "Bash(curl -s -o /dev/null -w \"brand.svg: %{http_code}\\\\n\" https://brainy.fortbridge.app/brand.svg)",
+      "Bash(curl -s https://brainy.fortbridge.app/)",
+      "Bash(node look.mjs)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /tmp/b.svg -w \"status=%{http_code} type=%{content_type} size=%{size_download}\\\\n\" https://brainy.fortbridge.app/brand.svg)",
+      "Read(//tmp/**)",
+      "Bash(curl -sI https://brainy.fortbridge.app/)",
+      "Bash(git push *)",
+      "Bash(grep -v \"^\\\\s*[0-9]*:\\\\s*/\\\\*\")"
     ]
   }
 }
