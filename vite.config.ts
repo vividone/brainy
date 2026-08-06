@@ -57,11 +57,16 @@ function marketingSite(): Plugin {
           return next()
         }
 
-        /* The one file the site serves from public/ rather than site/. */
-        if (url === '/brand.svg') {
-          res.setHeader('Content-Type', TYPES['.svg'])
+        /* The two files the site serves from public/ rather than site/. */
+        const fromPublic: Record<string, [string, string]> = {
+          '/brand.svg': ['favicon.svg', TYPES['.svg']],
+          '/favicon.ico': ['favicon.ico', 'image/x-icon'],
+        }
+        const mapped = fromPublic[url]
+        if (mapped) {
+          res.setHeader('Content-Type', mapped[1])
           res.setHeader('Cache-Control', 'no-store')
-          res.end(await readFile(path.join(publicDir, 'favicon.svg')))
+          res.end(await readFile(path.join(publicDir, mapped[0])))
           return
         }
 

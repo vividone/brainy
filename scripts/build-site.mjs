@@ -33,6 +33,8 @@ await cp(site, dist, { recursive: true })
  * as /brand.svg for the site, so changing the owl changes it everywhere.
  */
 await cp(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'brand.svg'))
+/* Browsers probe /favicon.ico at the root whatever the link tags say. */
+await cp(path.join(root, 'public', 'favicon.ico'), path.join(dist, 'favicon.ico'))
 
 /* ------------------------------------------------------------------ *
  * Google Analytics — marketing site only

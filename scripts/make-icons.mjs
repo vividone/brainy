@@ -205,6 +205,39 @@ function drawIcon(size, { inset = 0, background = true } = {}) {
   return encodePng(size, size, c.data)
 }
 
+/**
+ * Wrap PNGs in an ICO container.
+ *
+ * Browsers still probe /favicon.ico at the root whatever the <link> tags say,
+ * and a 404 there is a common reason a tab shows a blank page icon even when
+ * an SVG favicon is served correctly. Safari and Windows pinned tiles want one
+ * too. ICO has carried PNG payloads since Vista, so no BMP encoder is needed —
+ * the PNGs drawn above are embedded as they are.
+ */
+function encodeIco(images) {
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(0, 0) // reserved
+  header.writeUInt16LE(1, 2) // 1 = icon
+  header.writeUInt16LE(images.length, 4)
+
+  const entries = []
+  let offset = 6 + images.length * 16
+  for (const { size, png } of images) {
+    const e = Buffer.alloc(16)
+    e.writeUInt8(size >= 256 ? 0 : size, 0) // 0 means 256
+    e.writeUInt8(size >= 256 ? 0 : size, 1)
+    e.writeUInt8(0, 2) // palette size
+    e.writeUInt8(0, 3) // reserved
+    e.writeUInt16LE(1, 4) // colour planes
+    e.writeUInt16LE(32, 6) // bits per pixel
+    e.writeUInt32LE(png.length, 8)
+    e.writeUInt32LE(offset, 12)
+    entries.push(e)
+    offset += png.length
+  }
+  return Buffer.concat([header, ...entries, ...images.map((i) => i.png)])
+}
+
 const files = [
   ['icon-192.png', drawIcon(192)],
   ['icon-512.png', drawIcon(512)],
@@ -236,3 +269,8 @@ writeFileSync(
 `,
 )
 console.log('wrote public/favicon.svg')
+
+/* The classic fallback, at the three sizes a browser actually asks for. */
+const ico = encodeIco([16, 32, 48].map((size) => ({ size, png: drawIcon(size) })))
+writeFileSync(path.join(publicDir, 'favicon.ico'), ico)
+console.log(`wrote public/favicon.ico (${(ico.length / 1024).toFixed(1)} KB, 16/32/48)`)
