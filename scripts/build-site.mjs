@@ -23,6 +23,17 @@ const dist = path.join(root, 'dist')
 await mkdir(dist, { recursive: true })
 await cp(site, dist, { recursive: true })
 
+/*
+ * One brand mark, one file.
+ *
+ * The website used to draw its own logo inline — a face with two eyes — while
+ * the favicon and the installed-app icons were an owl. Three drawings of
+ * "Brainy" that had already drifted apart. public/favicon.svg is now the only
+ * definition; it ships to /play/favicon.svg for the app and is published here
+ * as /brand.svg for the site, so changing the owl changes it everywhere.
+ */
+await cp(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'brand.svg'))
+
 /* ------------------------------------------------------------------ *
  * Google Analytics — marketing site only
  * ------------------------------------------------------------------ */

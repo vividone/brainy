@@ -8,7 +8,7 @@
       name="description"
       content="Short daily maths, reasoning and English practice for Basic 1–6, matched to the Nigerian, British or American curriculum. Works offline. No ads, and your child's work never leaves the device."
     />
-    <link rel="icon" type="image/svg+xml" href="/play/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/brand.svg" />
     <link rel="apple-touch-icon" href="/play/apple-touch-icon.png" />
     <meta name="theme-color" content="#7c3aed" />
 
@@ -94,10 +94,12 @@
         text-decoration: none;
         letter-spacing: -0.02em;
       }
-      .brand svg {
+      .brand svg,
+      .brand img {
         width: 38px;
         height: 38px;
         flex: none;
+        border-radius: 9px;
       }
       .nav-links {
         margin-left: auto;
@@ -227,18 +229,23 @@
         gap: 0.75rem;
         margin-top: 1.75rem;
       }
-      .cta-note {
-        margin-top: 0.9rem;
-        font-size: 0.9rem;
-        color: var(--muted);
-        font-weight: 600;
-      }
       .shot {
         border-radius: 26px;
         border: 3px solid var(--violet-200);
         box-shadow: 0 24px 60px -20px rgba(76, 29, 149, 0.35);
         overflow: hidden;
         background: #fff;
+        /* These are tall portrait screenshots. Left unbounded, one runs to
+           1200px beside four lines of text and the pair stops looking like a
+           pair. Capped to the viewport so both halves stay comparable. */
+        max-height: 78vh;
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top;
       }
 
       /* ---- generic sections ---- */
@@ -253,6 +260,16 @@
         letter-spacing: -0.02em;
         margin: 0 0 0.6rem;
         font-weight: 900;
+        /* Stops a heading dropping its last word onto a line of its own —
+           "…what to / do" was doing exactly that. Ignored by browsers that do
+           not support it, which simply leaves today's wrapping. */
+        text-wrap: balance;
+      }
+      h1 {
+        text-wrap: balance;
+      }
+      .sub {
+        text-wrap: pretty;
       }
       .sub {
         color: var(--muted);
@@ -269,8 +286,23 @@
 
       .cards {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        /*
+         * Six cards, so one, two or three columns — never four. auto-fit was
+         * fitting four at desktop width and leaving the last two beside an
+         * empty half-row, which reads as a mistake rather than a layout.
+         */
+        grid-template-columns: 1fr;
         gap: 1rem;
+      }
+      @media (min-width: 560px) {
+        .cards {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (min-width: 940px) {
+        .cards {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
       .card {
         background: #fff;
@@ -349,9 +381,18 @@
         display: grid;
         gap: 0.7rem;
       }
+      /*
+       * A hanging tick, not a flex row.
+       *
+       * These were `display: flex`, which makes every child a flex item — so
+       * "Class readiness." and the sentence after it became two separate
+       * columns with a gap between them, and each wrapped on its own. The
+       * label has to sit inline with its own description, so the item stays a
+       * normal block and the tick hangs outside it.
+       */
       .ticks li {
-        display: flex;
-        gap: 0.65rem;
+        position: relative;
+        padding-left: 1.6rem;
         font-weight: 650;
         color: var(--muted);
       }
@@ -360,9 +401,11 @@
       }
       .ticks li::before {
         content: '✓';
+        position: absolute;
+        left: 0;
+        top: 0;
         color: #059669;
         font-weight: 900;
-        flex: none;
       }
 
       .steps {
@@ -555,20 +598,7 @@
     <header class="nav">
       <div class="wrap nav-inner">
         <a class="brand" href="/">
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#8b5cf6" />
-                <stop offset="1" stop-color="#5b21b6" />
-              </linearGradient>
-            </defs>
-            <rect width="100" height="100" rx="24" fill="url(#g)" />
-            <circle cx="38" cy="43" r="11" fill="#fff" />
-            <circle cx="62" cy="43" r="11" fill="#fff" />
-            <circle cx="38" cy="43" r="5" fill="#3b2464" />
-            <circle cx="62" cy="43" r="5" fill="#3b2464" />
-            <path d="M36 66 q14 12 28 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" />
-          </svg>
+          <img src="/brand.svg" alt="" width="38" height="38" />
           Brainy
         </a>
         <nav class="nav-links">
@@ -594,10 +624,6 @@
             <a class="btn" href="/play/">Open Brainy — it's free</a>
             <a class="btn ghost" href="#how">See how it works</a>
           </div>
-          <p class="cta-note">
-            One tap to add it to the home screen. You register, your child never does. No ads, ever.
-            Works offline.
-          </p>
         </div>
         <div class="shot">
           <img src="/img/home.png" alt="The Brainy home screen showing the daily quest and subject grid" width="900" height="1200" />
@@ -639,11 +665,12 @@
 
     <section class="tint" id="subjects">
       <div class="wrap center">
-        <h2>Built on the Nigerian curriculum</h2>
+        <h2>Built on the relevant curriculum</h2>
         <p class="sub">
-          Naira and kobo, Roman numerals, common-entrance reasoning puzzles — the things international
-          apps leave out. British and American curricula are built in too, and switching keeps both
-          children's progress.
+ All three curricula are
+          built in — <b>Nigerian UBE</b> (Basic 1–6), the <b>British National Curriculum</b> (Years 1–6)
+          and <b>American Common Core</b> (Kindergarten–Grade 5). Switch at any time: each child keeps
+          separate progress in each one, so nothing is lost either way.
         </p>
       </div>
       <div class="wrap subjects">
@@ -739,34 +766,40 @@
     <section id="privacy">
       <div class="wrap">
         <div class="privacy">
-          <h2>No adverts. No profile. Nothing about your child.</h2>
+          <h2>You decide what is shared. The default is nothing.</h2>
           <p class="sub">
-            This is a children's app, so the default is to collect nothing at all — and that is what
-            happens unless you decide otherwise.
+            This is a children's app, so every switch starts off and the useful ones are yours to turn
+            on. Here is the whole list, in plain words.
           </p>
           <ul class="ticks">
-            <li><b>Nothing about your child leaves the tablet</b> — not their name, not their age, not
-              a single answer. <b>You hold the account; they never have one</b>, and never will.</li>
+            <li><b>Your child never has an account.</b> No login, no password, nothing to sign in to —
+              you hold the account, and no version of Brainy will give them one.</li>
+            <li><b>Their answers stay on the tablet.</b> What they got wrong, when they played, the
+              questions they were asked — that lives in this browser and is never uploaded. There is no
+              setting that changes it.</li>
+            <li><b>Optional: keep their scores in your account.</b> Off unless you turn it on. It exists
+              because installing to a home screen on an iPhone otherwise loses their work — so with it
+              on, a new tablet picks up where the last one left off. We keep mastery scores, coins and
+              their streak; we refuse their session history and anything they typed, and the server
+              rejects an upload containing them.</li>
             <li><b>Your email, when you register.</b> Your access is attached to it, so it can be
               restored if this tablet is lost or replaced, and so a free place is held for you rather
               than for whoever happens to have the code. We write to you about your own access and
               nothing else — there is no mailing list.</li>
+            <li><b>Optional: anonymous usage data.</b> Also off unless you turn it on, asked in plain
+              words during setup with the box unticked. How often Brainy is opened, how many questions
+              were answered, which topics score worst, and a random code so one tablet is not counted
+              twice — never a name, an age, or anything typed. Switching it off deletes the code and
+              asks us to erase what was sent.</li>
             <li><b>No advertising</b>, in any version, ever.</li>
             <li><b>No third-party code in the app at all.</b> These marketing pages count visits with
               Google Analytics, like most websites — the app itself has no analytics, no Google script
               and nothing embedded, and the build refuses to publish if that ever changes.</li>
             <li><b>No chat and no contact</b> with other children. There is nobody else in the app.</li>
-            <li><b>Your child's work stays here.</b> Their answers, progress and report live in this
-              browser and are never uploaded.</li>
-            <li><b>Nothing is sent unless you say yes.</b> During setup we ask, in plain words,
-              whether we may collect anonymous usage data. The box starts unticked.</li>
           </ul>
           <p style="margin-top: 1.25rem; color: var(--violet-100); font-weight: 600">
-            If you do say yes, here is exactly what that means: how often Brainy is opened, how many
-            questions were answered, and which topics score worst — plus a random code so one tablet
-            is not counted twice. Never your child's name, never their age, never anything they
-            typed, and never sold or shared. You can read the whole thing in the grown-up area, and
-            switching it off deletes the code.
+            Two of those are choices, and both are reversible from the grown-up area in one tap.
+            Turning either off does not just stop us collecting — it deletes what was collected.
           </p>
           <p style="margin-top: 1.5rem">
             <a class="btn ghost" href="/privacy.html">Read the full privacy notice</a>
@@ -834,14 +867,7 @@
       <div class="wrap">
         <div class="foot-grid">
           <a class="brand" href="/" style="font-size: 1.15rem">
-            <svg viewBox="0 0 100 100" aria-hidden="true">
-              <rect width="100" height="100" rx="24" fill="#7c3aed" />
-              <circle cx="38" cy="43" r="11" fill="#fff" />
-              <circle cx="62" cy="43" r="11" fill="#fff" />
-              <circle cx="38" cy="43" r="5" fill="#3b2464" />
-              <circle cx="62" cy="43" r="5" fill="#3b2464" />
-              <path d="M36 66 q14 12 28 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" />
-            </svg>
+            <img src="/brand.svg" alt="" width="38" height="38" />
             Brainy
           </a>
           <nav>

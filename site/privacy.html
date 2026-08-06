@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy notice — Brainy</title>
     <meta name="description" content="How Brainy handles your child's data: it doesn't collect any." />
-    <link rel="icon" type="image/svg+xml" href="/play/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/brand.svg" />
     <meta name="theme-color" content="#7c3aed" />
     <link rel="canonical" href="https://brainy.fortbridge.app/privacy.html" />
     <style>
@@ -29,8 +29,9 @@
       /* inline-flex so the 44px actually applies — min-height does nothing to
          an inline element, and this is the only way off the page. */
       .brand {
-        display: inline-flex; align-items: center; min-height: 44px; padding-right: 0.4rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; padding-right: 0.4rem;
         font-weight: 900; font-size: 1.25rem; color: var(--violet-700); text-decoration: none; }
+      .brand img { width: 30px; height: 30px; border-radius: 7px; flex: none; }
       main { padding: 3rem 0 4rem; }
       h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); letter-spacing: -0.02em; margin: 0 0 0.4rem; font-weight: 900; }
       .updated { color: var(--muted); font-weight: 600; margin: 0 0 2rem; }
@@ -54,7 +55,14 @@
     </style>
   </head>
   <body>
-    <header><div class="wrap"><a class="brand" href="/">← Brainy</a></div></header>
+    <header>
+      <div class="wrap">
+        <a class="brand" href="/">
+          <img src="/brand.svg" alt="" width="30" height="30" />
+          <span>← Brainy</span>
+        </a>
+      </div>
+    </header>
 
     <main class="wrap">
       <h1>Privacy notice</h1>

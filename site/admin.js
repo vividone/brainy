@@ -83,7 +83,7 @@ async function api(path, { method = 'GET', body } = {}) {
 function signIn(message) {
   root.innerHTML = ''
   const box = el(`<div class="gate">
-    <h1>Brainy Admin</h1>
+    <h1><img src="/brand.svg" alt="" class="mark" /> Brainy Admin</h1>
     <p class="sub">Management Portal for Licences and Payments.</p>
     <div id="msg"></div>
     <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" /></div>
@@ -169,7 +169,7 @@ function dashboard(admin) {
   root.append(
     el(`<div>
       <div class="bar">
-        <h1>Brainy admin</h1>
+        <h1><img src="/brand.svg" alt="" class="mark" /> Brainy admin</h1>
         <span class="who">${esc(admin?.email ?? '')} · <a href="#" id="out">sign out</a></span>
       </div>
       <div class="tabs" id="tabs"></div>
