@@ -10,6 +10,7 @@ import { fileURLToPath, URL } from 'node:url'
 const API_PORT = Number(process.env.API_PORT ?? 3001)
 
 const siteDir = fileURLToPath(new URL('./site', import.meta.url))
+const publicDir = fileURLToPath(new URL('./public', import.meta.url))
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -34,6 +35,11 @@ const TYPES: Record<string, string> = {
  *
  * Deliberately mirrors the rewrites in `vercel.json` — `/admin` → `admin.html`,
  * `/privacy` → `privacy.html` — so a link that works locally works deployed.
+ * It also mirrors what `scripts/build-site.mjs` does with the brand mark:
+ * `/brand.svg` is `public/favicon.svg`, copied at build time so the site and
+ * the app share one owl. Without this line the logo is simply absent in
+ * development, and Vite answers with its own "base URL is /play/" message,
+ * which points at the wrong problem entirely.
  * `analytics.js` is served too, and does nothing in development because its
  * measurement id is only substituted at build time.
  */
@@ -49,6 +55,14 @@ function marketingSite(): Plugin {
         /* Everything Vite owns: the app, its module graph, its client. */
         if (url.startsWith('/play') || url.startsWith('/@') || url.startsWith('/src') || url.startsWith('/node_modules')) {
           return next()
+        }
+
+        /* The one file the site serves from public/ rather than site/. */
+        if (url === '/brand.svg') {
+          res.setHeader('Content-Type', TYPES['.svg'])
+          res.setHeader('Cache-Control', 'no-store')
+          res.end(await readFile(path.join(publicDir, 'favicon.svg')))
+          return
         }
 
         const named =
