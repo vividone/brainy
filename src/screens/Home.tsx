@@ -117,7 +117,7 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
               <p className="text-sm font-black uppercase tracking-wide text-brand-100">Today's quest</p>
               <h2 className="text-2xl sm:text-3xl font-black">Daily Quest</h2>
               <p className="text-brand-100 font-bold text-sm mt-1">
-                Picked just for you — new skills plus a bit of revision.
+                Picked just for you: new skills plus a bit of revision.
               </p>
             </div>
             <span className="text-5xl sm:text-6xl shrink-0" aria-hidden>
@@ -196,7 +196,7 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
                   </>
                 ) : (
                   <p className="mt-1.5 text-xs font-bold text-brand-400">
-                    {authored ? 'Ask a grown-up to open this' : 'Coming soon — tap to see'}
+                    {authored ? 'Ask a grown-up to open this' : 'Coming soon, tap to see'}
                   </p>
                 )}
               </div>

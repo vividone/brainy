@@ -127,7 +127,7 @@ const wrap = (heading, bodyHtml) => `
     <h1 style="margin:0 0 14px;font-size:22px;line-height:1.25;font-weight:800">${esc(heading)}</h1>
     ${bodyHtml}
     <p style="margin:26px 0 0;padding-top:16px;border-top:1px solid #e2e8f0;font-size:13px;line-height:1.6;color:#64748b">
-      We only ever use your address for your access to Brainy — never for marketing, and we do not pass
+      We only ever use your address for your access to Brainy, never for marketing, and we do not pass
       it on. Just reply to this email if anything is wrong; a person reads it.
     </p>
   </div>
@@ -144,13 +144,13 @@ const codeBlock = (code) => `
 const howToUse = () => `
   ${p(`<b>To unlock a tablet:</b> open <a href="${APP_URL()}/play/" style="color:#7c3aed">${esc(APP_URL())}/play/</a>,
    tap the grown-up button, then <b>Access</b>, and type the code in.`)}
-  ${p('Keep this email. The code is how you unlock another tablet, or the same one after a reset — there is no account and no password to remember.')}`
+  ${p('Keep this email. The code is how you unlock another tablet, or the same one after a reset. There is no account and no password to remember.')}`
 
 const HOW_TO_USE_TEXT = (url) =>
   `To unlock a tablet: open ${url}/play/, tap the grown-up button, then Access, and type the code in.\n\n` +
-  `Keep this email. The code is how you unlock another tablet, or the same one after a reset — there is no account and no password to remember.`
+  `Keep this email. The code is how you unlock another tablet, or the same one after a reset. There is no account and no password to remember.`
 
-const SIGN_OFF = '\n\nWe only ever use your address for your access to Brainy — never for marketing, and we do not pass it on. Reply to this email if anything is wrong; a person reads it.\n'
+const SIGN_OFF = '\n\nWe only ever use your address for your access to Brainy, never for marketing, and we do not pass it on. Reply to this email if anything is wrong; a person reads it.\n'
 
 /* ------------------------------------------------------------------ *
  * The messages
@@ -180,7 +180,7 @@ export function sendSignInCode({ email: address, code, minutes }) {
 
 Type it into Brainy to finish signing in. It works once and expires in ${minutes} minutes.
 
-If you did not ask for this, you can ignore it — the code is useless on its own, nobody can get into
+If you did not ask for this, you can ignore it. The code is useless on its own, nobody can get into
 your account without it, and we will not email you again unless you ask. Nothing about your child is
 in this email or in your account unless you have chosen to keep their progress there.${SIGN_OFF}`,
     html: wrap(
@@ -206,7 +206,7 @@ export function sendLicence(licence, { reason } = {}) {
   const greeting = licence.name ? `Hello ${licence.name},` : 'Hello,'
   const opening =
     reason === 'free-place'
-      ? 'You have one of the free family places, so every subject is open for one child — permanently.'
+      ? 'You have one of the free family places, so every subject is open for one child, permanently.'
       : `Every subject is now open for one child. ${licence.planLabel ?? ''}`.trim()
 
   return send({
@@ -221,14 +221,14 @@ ${opening} ${expiryLine(licence)}
 
 ${HOW_TO_USE_TEXT(url)}
 
-Mathematics stays free for everybody whatever happens to a licence, and nothing your child has already earned — stars, coins, streaks — is ever taken away.${SIGN_OFF}`,
+Mathematics stays free for everybody whatever happens to a licence, and nothing your child has already earned (stars, coins, streaks) is ever taken away.${SIGN_OFF}`,
     html: wrap(
       'Your Brainy access code',
       `${p(esc(greeting))}
        ${p(`${esc(opening)} ${esc(expiryLine(licence))}`)}
        ${codeBlock(licence.code)}
        ${howToUse()}
-       ${p('Mathematics stays free for everybody whatever happens to a licence, and nothing your child has already earned — stars, coins, streaks — is ever taken away.')}`,
+       ${p('Mathematics stays free for everybody whatever happens to a licence, and nothing your child has already earned (stars, coins, streaks) is ever taken away.')}`,
     ),
   })
 }
@@ -249,7 +249,7 @@ export function sendPending(parent) {
     subject: 'Thanks for signing up to Brainy',
     text: `${greeting}
 
-Thank you — we have your details, and we will write to you before anything changes.
+Thank you. We have your details, and we will write to you before anything changes.
 
 The free family places are all taken at the moment, so nothing is unlocked yet. Mathematics is free for everybody, with no sign-up and no card: your child's class and every earlier class as revision, for as long as you like.
 
@@ -259,9 +259,9 @@ On a phone, use "Add to home screen" so it opens like an app and works without d
     html: wrap(
       'Thanks for signing up',
       `${p(esc(greeting))}
-       ${p('Thank you — we have your details, and we will write to you before anything changes.')}
+       ${p('Thank you. We have your details, and we will write to you before anything changes.')}
        ${p('The free family places are all taken at the moment, so nothing is unlocked yet. <b>Mathematics is free for everybody</b>, with no sign-up and no card: your child’s class and every earlier class as revision, for as long as you like.')}
-       ${p(`<a href="${url}/play/" style="color:#7c3aed;font-weight:700">Open Brainy</a> — on a phone, use “Add to home screen” so it opens like an app and works without data.`)}`,
+       ${p(`<a href="${url}/play/" style="color:#7c3aed;font-weight:700">Open Brainy</a>. On a phone, use “Add to home screen” so it opens like an app and works without data.`)}`,
     ),
   })
 }
@@ -275,7 +275,7 @@ export function sendReceipt(licence, payment) {
   return send({
     to: licence.email,
     tag: 'receipt',
-    subject: 'Your Brainy licence — payment received',
+    subject: 'Your Brainy licence: payment received',
     text: `${greeting}
 
 Thank you. We have received ${amount} for ${licence.planLabel ?? payment.plan}, and every subject is now open for one child. ${expiryLine(licence)}
@@ -315,7 +315,7 @@ export function sendExpiring(licence, daysLeft) {
     subject: `Brainy: your access runs out in ${when}`,
     text: `${greeting}
 
-Your Brainy licence runs out on ${longDate(licence.expiresAt)} — ${when} from now.
+Your Brainy licence runs out on ${longDate(licence.expiresAt)}, ${when} from now.
 
 To renew: open ${url}/play/, tap the grown-up button, then Access.
 
@@ -325,7 +325,7 @@ Your code, unchanged: ${licence.code}${SIGN_OFF}`,
     html: wrap(
       `Your access runs out in ${when}`,
       `${p(esc(greeting))}
-       ${p(`Your Brainy licence runs out on <b>${esc(longDate(licence.expiresAt))}</b> — ${esc(when)} from now.`)}
+       ${p(`Your Brainy licence runs out on <b>${esc(longDate(licence.expiresAt))}</b>, ${esc(when)} from now.`)}
        ${p(`To renew: open <a href="${url}/play/" style="color:#7c3aed">Brainy</a>, tap the grown-up button, then <b>Access</b>.`)}
        ${p('If you would rather not, nothing dramatic happens. Mathematics stays free and open, everything your child has earned stays exactly as it is, and the other subjects simply stop opening new work. You can renew at any point afterwards and pick up where they left off.')}
        ${codeBlock(licence.code)}`,
@@ -347,7 +347,7 @@ export function sendTransferReceived(request) {
   return send({
     to: request.email,
     tag: 'transfer-received',
-    subject: 'We have your payment details — checking now',
+    subject: 'We have your payment details: checking now',
     text: `${greeting}
 
 Thank you. We have your transfer details for ${request.planLabel ?? request.plan} (${amount}).
@@ -356,7 +356,7 @@ Nothing is unlocked yet: someone has to see the money arrive in the account firs
 same day, and at most a couple of days. As soon as it is confirmed we will email your access code,
 and typing it into the grown-up area opens every subject.
 
-If anything looks wrong — the wrong amount, or a transfer that has not left your bank — just reply to
+If anything looks wrong (the wrong amount, or a transfer that has not left your bank), just reply to
 this email and we will sort it out.
 
 In the meantime maths stays free and open, as always.${SIGN_OFF}`,
@@ -364,8 +364,8 @@ In the meantime maths stays free and open, as always.${SIGN_OFF}`,
       'We have your payment details',
       `${p(esc(greeting))}
        ${p(`Thank you. We have your transfer details for <b>${esc(request.planLabel ?? request.plan)}</b> (${esc(amount)}).`)}
-       ${p('<b>Nothing is unlocked yet</b> — someone has to see the money arrive in the account first. That is usually the same day, and at most a couple of days. As soon as it is confirmed we will email your access code, and typing it into the grown-up area opens every subject.')}
-       ${p('If anything looks wrong — the wrong amount, or a transfer that has not left your bank — just reply to this email and we will sort it out.')}
+       ${p('<b>Nothing is unlocked yet</b>: someone has to see the money arrive in the account first. That is usually the same day, and at most a couple of days. As soon as it is confirmed we will email your access code, and typing it into the grown-up area opens every subject.')}
+       ${p('If anything looks wrong (the wrong amount, or a transfer that has not left your bank), just reply to this email and we will sort it out.')}
        ${p('In the meantime maths stays free and open, as always.')}`,
     ),
   })
@@ -390,7 +390,7 @@ export function sendTransferDeclined(request, reason) {
 
 We have looked for your transfer for ${request.planLabel ?? request.plan} and could not confirm it yet.
 
-${reason ? `What we found: ${reason}\n\n` : ''}This is usually something simple — a transfer still in
+${reason ? `What we found: ${reason}\n\n` : ''}This is usually something simple: a transfer still in
 transit, an amount that came through short, or a sending name we could not match to you. Reply to this
 email with anything that helps us find it and we will look again. If the money did leave your account
 and we cannot locate it, tell us and we will keep looking rather than leave you out of pocket.
@@ -401,7 +401,7 @@ Nothing has been taken from you by us, and maths stays free and open in the mean
       `${p(esc(greeting))}
        ${p(`We have looked for your transfer for <b>${esc(request.planLabel ?? request.plan)}</b> and could not confirm it yet.`)}
        ${reason ? p(`<b>What we found:</b> ${esc(reason)}`) : ''}
-       ${p('This is usually something simple — a transfer still in transit, an amount that came through short, or a sending name we could not match to you. Reply to this email with anything that helps us find it and we will look again. If the money did leave your account and we cannot locate it, tell us and we will keep looking rather than leave you out of pocket.')}
+       ${p('This is usually something simple: a transfer still in transit, an amount that came through short, or a sending name we could not match to you. Reply to this email with anything that helps us find it and we will look again. If the money did leave your account and we cannot locate it, tell us and we will keep looking rather than leave you out of pocket.')}
        ${p('Nothing has been taken from you by us, and maths stays free and open in the meantime.')}`,
     ),
   })
@@ -420,7 +420,7 @@ export function sendToOperator(subject, lines) {
   return send({
     to,
     tag: 'operator',
-    subject: `Brainy — ${subject}`,
+    subject: `Brainy: ${subject}`,
     text,
     html: wrap(subject, p(esc(text).replace(/\n/g, '<br>'))),
   })

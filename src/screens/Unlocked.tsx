@@ -43,7 +43,7 @@ export function Unlocked({ licence, problem, onDone }: Props) {
         </div>
         <Card className="mt-6 p-5 border-slate-200">
           <p className="font-semibold text-slate-600">
-            If you completed the payment, it will land shortly — nothing is lost. Open the grown-up area,
+            If you completed the payment, it will land shortly, and nothing is lost. Open the grown-up area,
             then <b>Settings → Access</b>, and tap <b>Check again</b>. If it is still not there in a few
             minutes, send us a message from the same screen and we will sort it out by hand.
           </p>
@@ -80,7 +80,7 @@ export function Unlocked({ licence, problem, onDone }: Props) {
         <p className="text-xs font-black uppercase tracking-wide text-slate-400">Your family code</p>
         <p className="mt-1 text-2xl font-black tracking-wider text-slate-900">{licence.code}</p>
         <p className="mt-2 text-sm font-semibold text-slate-500">
-          Keep this. It is how you unlock another tablet, or this one again after a reset — there is no
+          Keep this. It is how you unlock another tablet, or this one again after a reset. There is no
           account and no password to remember, just the code.
         </p>
         <Btn

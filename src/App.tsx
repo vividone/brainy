@@ -172,7 +172,7 @@ export default function App() {
       } else {
         setPayProblem(
           result.error ??
-            'We could not confirm that payment. Nothing is lost — check the grown-up area in a minute.',
+            'We could not confirm that payment. Nothing is lost. Check the grown-up area in a minute.',
         )
       }
     })

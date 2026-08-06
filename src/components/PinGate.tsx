@@ -65,7 +65,7 @@ export function PinGate({ onPass, onBack, title, prompt, emoji = '🔒', childre
             />
           ))}
         </div>
-        {error && <p className="mt-3 font-black text-rose-600">Not quite — try again</p>}
+        {error && <p className="mt-3 font-black text-rose-600">Not quite, try again</p>}
 
         <div className="mt-6 grid grid-cols-3 gap-2">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (

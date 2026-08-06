@@ -24,7 +24,7 @@ export const islandStyle = (theme: IslandTheme): IslandStyle => ISLAND_STYLES[th
 export const PRAISE = {
   great: ['Sharp sharp! 🎉', 'Brilliant work!', 'You are on fire! 🔥', 'Superb!', 'Nailed it!'],
   good: ['Well done!', 'Good job!', 'Nice work!', 'Keep going!'],
-  okay: ['Good effort!', 'You are getting there!', 'Practice makes perfect!', 'Nice try — keep at it!'],
+  okay: ['Good effort!', 'You are getting there!', 'Practice makes perfect!', 'Nice try, keep at it!'],
 }
 
 export const CORRECT_WORDS = ['Yes!', 'Correct!', 'Well done!', 'Sharp!', 'That’s it!', 'Brilliant!']

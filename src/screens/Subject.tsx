@@ -183,7 +183,7 @@ export function Subject({ subjectId, onBack, onOpenIsland, onOpenParent }: Props
             👤 I&apos;m a grown-up
           </Btn>
           <p className="mt-4 text-sm font-bold text-amber-700">
-            Nothing you have already done is affected — your stars, coins and streak all stay.
+            Nothing you have already done is affected. Your stars, coins and streak all stay.
           </p>
         </Card>
       ) : (

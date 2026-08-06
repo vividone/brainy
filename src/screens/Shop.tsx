@@ -76,7 +76,7 @@ export function Shop({ onBack }: { onBack: () => void }) {
             {characterById(worn.character).name} &amp; {petById(worn.pet).name.split(' ')[0]}
           </p>
           <p className="text-sm font-bold text-brand-500">
-            Tap anything to try it on. Everything here is just for fun — it never changes the questions
+            Tap anything to try it on. Everything here is just for fun. It never changes the questions
             or makes anything easier.
           </p>
         </div>

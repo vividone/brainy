@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Brainy — daily practice that Nigerian children actually want to do</title>
+    <title>Brainy: daily practice that Nigerian children actually want to do</title>
     <meta
       name="description"
       content="Short daily maths, reasoning and English practice for Basic 1–6, matched to the Nigerian, British or American curriculum. Works offline. No ads, and your child's answers never leave the device."
@@ -18,7 +18,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Brainy" />
     <meta property="og:url" content="https://brainy.fortbridge.app/" />
-    <meta property="og:title" content="Brainy — daily practice children want to do" />
+    <meta property="og:title" content="Brainy: daily practice children want to do" />
     <meta
       property="og:description"
       content="Curriculum-matched practice for Basic 1–6 in maths, reasoning and English. Five minutes a day. Works offline. Your child's answers never leave the device."
@@ -327,6 +327,43 @@
         font-weight: 600;
       }
 
+      /* Amber for "not yet", the same meaning that colour carries in the offer
+         block, so the badges below cannot be mistaken for live links. */
+      .soon {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        border-radius: 999px;
+        padding: 0.15rem 0.6rem;
+        color: #b45309;
+        background: #fffbeb;
+        border: 2px solid #fde68a;
+      }
+      .stores {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.9rem;
+        /* The pill sits directly above and labels the pair, so the two need to
+           read as one unit — hence the tight gap here and the wider one above
+           the pill. */
+        margin-top: 0.7rem;
+      }
+      /*
+       * The official badges are wide lockups, not square icons, and the two are
+       * drawn to different widths — Apple 120x40, Google 135x40. Matching their
+       * height is therefore what makes the pair sit level. Sized here rather
+       * than by editing the artwork, because both stores' brand rules forbid
+       * recolouring, cropping or redrawing it.
+       */
+      .store {
+        height: 44px;
+        width: auto;
+      }
+
       .subjects {
         display: grid;
         /* Stepped rather than auto-fit: at 768 auto-fit fitted four columns of
@@ -618,7 +655,7 @@
           <span class="eyebrow">Quests, coins and real school skills</span>
           <h1>Five minutes a day. And they ask for one more.</h1>
           <p class="lede">
-            Brainy turns their curriculum into a short daily game for ages 5 to 11 — Maths,
+            Brainy turns their curriculum into a short daily game for ages 5 to 11. Maths,
             Quantitative and Verbal Reasoning, and English Grammar, pitched at your child's class and
             getting harder as they get better.
           </p>
@@ -644,8 +681,8 @@
         <div class="step">
           <h3>You set it up</h3>
           <p>
-            Enter their first name and age. Brainy works out the class — a 7-year-old is Basic 3 here,
-            Year 3 in Britain, Grade 2 in America — and you can change it.
+            Enter their first name and age. Brainy works out the class (a 7-year-old is Basic 3 here,
+            Year 3 in Britain, Grade 2 in America), and you can change it.
           </p>
         </div>
         <div class="step">
@@ -670,7 +707,7 @@
         <h2>Built on the relevant curriculum</h2>
         <p class="sub">
  All three curricula are
-          built in — <b>Nigerian UBE</b> (Basic 1–6), the <b>British National Curriculum</b> (Years 1–6)
+          built in: <b>Nigerian UBE</b> (Basic 1–6), the <b>British National Curriculum</b> (Years 1–6)
           and <b>American Common Core</b> (Kindergarten–Grade 5). Switch at any time: each child keeps
           separate progress in each one, so nothing is lost either way.
         </p>
@@ -701,7 +738,7 @@
             <li><b>Class readiness.</b> How much of their own year they have actually mastered.</li>
             <li><b>What is slipping.</b> Skills they had, then stopped practising.</li>
             <li><b>The real questions they missed</b>, with what they answered.</li>
-            <li><b>One thing to try at home</b> for each weak topic — away from the screen.</li>
+            <li><b>One thing to try at home</b> for each weak topic, away from the screen.</li>
             <li><b>Retention</b>, measured properly: did it stick when it came back a week later?</li>
           </ul>
         </div>
@@ -726,7 +763,7 @@
           <div class="ico">🎯</div>
           <h3>It adapts quietly</h3>
           <p>
-            Questions get harder as they improve and easier when they struggle — without ever telling
+            Questions get harder as they improve and easier when they struggle, without ever telling
             the child that happened. You can pin the level yourself if you prefer.
           </p>
         </div>
@@ -743,7 +780,7 @@
           <h3>No timer by default</h3>
           <p>
             Timing a child who is still building fluency mostly measures anxiety. There is a race mode
-            if they want one — you turn it on, and you set the length.
+            if they want one. You turn it on, and you set the length.
           </p>
         </div>
         <div class="card">
@@ -759,7 +796,7 @@
           <h3>Brothers and sisters</h3>
           <p>
             Several children on one tablet, each with their own progress, coins and report. Moving to a
-            new device is an export and a restore.
+            new device is a sign-in.
           </p>
         </div>
       </div>
@@ -774,38 +811,62 @@
             on. Here is the whole list, in plain words.
           </p>
           <ul class="ticks">
-            <li><b>Your child never has an account.</b> No login, no password, nothing to sign in to —
-              you hold the account, and no version of Brainy will give them one.</li>
+            <li><b>Your child never has an account.</b> No login, no password, nothing to sign in to.
+              You hold the account, and no version of Brainy will give them one.</li>
             <li><b>Their answers stay on the tablet.</b> What they got wrong, when they played, the
-              questions they were asked — that lives in this browser and is never uploaded. There is no
-              setting that changes it.</li>
+              questions they were asked: all of it lives in this browser and is never uploaded. There is
+              no setting that changes it.</li>
             <li><b>Optional: keep their scores in your account.</b> Off unless you turn it on. It exists
-              because installing to a home screen on an iPhone otherwise loses their work — so with it
-              on, a new tablet picks up where the last one left off. We keep mastery scores, coins and
+              because installing to a home screen on an iPhone otherwise loses their work. With it on,
+              a new tablet picks up where the last one left off. We keep mastery scores, coins and
               their streak; we refuse their session history and anything they typed, and the server
               rejects an upload containing them.</li>
             <li><b>Your email, when you register.</b> Your access is attached to it, so it can be
               restored if this tablet is lost or replaced, and so a free place is held for you rather
               than for whoever happens to have the code. We write to you about your own access and
-              nothing else — there is no mailing list.</li>
+              nothing else. There is no mailing list.</li>
             <li><b>Optional: anonymous usage data.</b> Also off unless you turn it on, asked in plain
               words during setup with the box unticked. How often Brainy is opened, how many questions
               were answered, which topics score worst, and a random code so one tablet is not counted
-              twice — never a name, an age, or anything typed. Switching it off deletes the code and
+              twice. Never a name, an age, or anything typed. Switching it off deletes the code and
               the records kept under it.</li>
             <li><b>No advertising</b>, in any version, ever.</li>
             <li><b>No third-party code in the app at all.</b> These marketing pages count visits with
-              Google Analytics, like most websites — the app itself has no analytics, no Google script
+              Google Analytics, like most websites. The app itself has no analytics, no Google script
               and nothing embedded, and the build refuses to publish if that ever changes.</li>
             <li><b>No chat and no contact</b> with other children. There is nobody else in the app.</li>
           </ul>
           <p style="margin-top: 1.25rem; color: var(--violet-100); font-weight: 600">
             Two of those are choices, and both are reversible from the grown-up area in one tap.
-            Turning either off does not just stop us collecting — it deletes what was collected.
+            Turning either off stops us collecting and deletes what was already collected.
           </p>
           <p style="margin-top: 1.5rem">
             <a class="btn ghost" href="/privacy.html">Read the full privacy notice</a>
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      The stores.
+
+      Brainy is a web app first — that is what lets it work offline, update
+      without a review queue and cost nothing to hand out. This section exists
+      because parents look for an app icon before they look for a URL. The
+      badges are images rather than links on purpose: there is nothing to link
+      to yet, and no date is promised because neither review queue is ours.
+    -->
+    <section class="tint" id="apps">
+      <div class="wrap center">
+        <h2>Works in any browser today</h2>
+        <p class="sub" style="margin-bottom: 0">
+          Open Brainy on a phone, tablet or laptop and add it to the home screen. It plays offline and
+          behaves like an installed app, because it is one.
+        </p>
+        <p style="margin: 1.6rem 0 0"><span class="soon">Coming soon</span></p>
+        <div class="stores">
+          <img class="store" src="/img/appstore.svg" alt="App Store" width="120" height="40" />
+          <img class="store" src="/img/googleplay.svg" alt="Google Play" width="135" height="40" />
         </div>
       </div>
     </section>
@@ -820,7 +881,7 @@
           </p>
           <p class="price"><s>₦5,000</s> Free for a year</p>
           <p style="font-weight: 700; color: var(--muted); margin: 0">
-            Maths is free for everybody, always — no card, no time limit.
+            Maths is free for everybody, always. No card, no time limit.
           </p>
           <p style="font-weight: 700; color: var(--muted); margin-top: 0.4rem">
             Register below and, while places remain, every other subject opens too for twelve months.
@@ -850,7 +911,7 @@
             </button>
             <p class="fine" id="join-msg" role="status"></p>
             <p class="fine">
-              One licence covers one child. We store your address, not your child's work — their
+              One licence covers one child. We store your address, not your child's work. Their
               answers never leave the tablet. No marketing lists, and no passing it on.
             </p>
             <p class="fine">
@@ -861,7 +922,7 @@
           </form>
 
           <p style="margin-top: 1.5rem">
-            <a class="btn" href="/play/">Or open Brainy and register on the tablet</a>
+            <a class="btn" href="/play/">Or open Brainy and register on any device</a>
           </p>
         </div>
       </div>

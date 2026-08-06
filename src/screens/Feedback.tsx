@@ -55,7 +55,7 @@ const FEEDBACK_KINDS = [
     id: 'praise',
     emoji: '💚',
     label: 'Something is working well',
-    hint: 'Genuinely useful — it tells us what not to change.',
+    hint: 'Genuinely useful. It tells us what not to change.',
   },
 ] as const
 
@@ -75,7 +75,7 @@ export function FeedbackCard({ summary }: { summary: string }) {
 
   const asText = () =>
     [
-      `Brainy feedback — ${chosen?.label ?? kind}`,
+      `Brainy feedback: ${chosen?.label ?? kind}`,
       contact.trim() ? `contact: ${contact.trim()}` : null,
       '',
       message.trim(),
@@ -87,7 +87,7 @@ export function FeedbackCard({ summary }: { summary: string }) {
   if (state === 'sent') {
     return (
       <Card className="p-5 border-emerald-300 bg-emerald-50">
-        <p className="text-lg font-black text-emerald-900">Thank you — that came through.</p>
+        <p className="text-lg font-black text-emerald-900">Thank you, that came through.</p>
         <p className="text-sm font-semibold text-emerald-800">
           Reports about specific questions are the most useful thing we get.
         </p>
@@ -152,17 +152,17 @@ export function FeedbackCard({ summary }: { summary: string }) {
             rows={4}
             placeholder={
               kind === 'wrong'
-                ? 'e.g. Quarter to 8 — the clock showed 7:45 but it marked quarter past as correct'
+                ? 'e.g. Quarter to 8: the clock showed 7:45 but it marked quarter past as correct'
                 : 'A sentence or two is plenty.'
             }
             className="w-full rounded-2xl border-2 border-slate-300 p-3 font-semibold text-slate-800 outline-none focus:border-slate-900"
           />
           <p className="mt-1 text-xs font-semibold text-slate-400">
-            Please leave out your child&apos;s name or anything personal — we do not need it.
+            Please leave out your child&apos;s name or anything personal. We do not need it.
           </p>
           {named.length > 0 && (
             <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
-              That mentions {named.join(' and ')}. We would rather not receive a child&apos;s name —
+              That mentions {named.join(' and ')}. We would rather not receive a child&apos;s name, so
               could you take it out? You can still send it as it is.
             </p>
           )}
@@ -218,7 +218,7 @@ export function FeedbackCard({ summary }: { summary: string }) {
                   await navigator.clipboard.writeText(asText())
                   setCopyNote('Copied. Paste it into WhatsApp or an email to us.')
                 } catch {
-                  setCopyNote('Could not copy — select the text above instead.')
+                  setCopyNote('Could not copy. Select the text above instead.')
                 }
               }}
             >
@@ -229,7 +229,7 @@ export function FeedbackCard({ summary }: { summary: string }) {
 
           {state === 'failed' && (
             <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
-              That did not go through — you may be offline. Nothing you typed is lost: use
+              That did not go through. You may be offline. Nothing you typed is lost: use
               <strong> Copy instead</strong> and send it to us however you like.
             </p>
           )}

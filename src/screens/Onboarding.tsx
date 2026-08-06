@@ -246,7 +246,7 @@ export function Onboarding() {
         {step === 0 && (
           <div className="space-y-4">
             <p className="font-bold text-brand-700">
-              {APP_NAME} gives your child short daily practice — five to ten minutes — in maths,
+              {APP_NAME} gives your child short daily practice, five to ten minutes, in maths,
               reasoning and more, matched to their school year.
             </p>
             <ul className="space-y-2.5">
@@ -283,7 +283,7 @@ export function Onboarding() {
             <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
               <p className="font-black text-brand-900">Used Brainy before?</p>
               <p className="text-sm font-semibold text-brand-500 mt-0.5">
-                Sign in with your email and we will put your licence back. No password — we send a code.
+                Sign in with your email and we will put your licence back. There is no password: we send a code.
               </p>
               <Btn variant="secondary" size="md" className="mt-3" onClick={() => setStep(1)}>
                 Sign in
@@ -341,7 +341,7 @@ export function Onboarding() {
               <>
                 <p className="font-semibold text-brand-600">
                   This account is yours, not {firstName}&apos;s. It is how your access comes back if this
-                  tablet is lost, replaced, or you add a second one — and it is the only personal detail
+                  tablet is lost, replaced, or you add a second one, and it is the only personal detail
                   Brainy stores. There is no password: we email you a six-digit code.
                 </p>
 
@@ -407,7 +407,7 @@ export function Onboarding() {
                       />
                       <p className="mt-2 text-sm font-semibold text-brand-500">
                         It is in the subject line too, so you may not need to open the email. Nothing
-                        arrived? Check the address above for a typo — we cannot tell you whether an
+                        arrived? Check the address above for a typo. We cannot tell you whether an
                         address exists, so a mistyped one looks exactly like a slow one.
                       </p>
                     </div>
@@ -453,7 +453,7 @@ export function Onboarding() {
             )}
             {deferred && !signedIn && (
               <p className="rounded-2xl bg-brand-50 p-3 text-sm font-bold text-brand-700">
-                No problem — {firstName} can start now, and maths works with no account at all. The
+                No problem. {firstName} can start now, and maths works with no account at all. The
                 grown-up area will remind you, and until then a new tablet cannot get your access back.
               </p>
             )}
@@ -476,7 +476,7 @@ export function Onboarding() {
                 </p>
                 {licence?.code && (
                   <p className="mt-2 text-sm font-bold text-emerald-800">
-                    Your family code is <span className="tracking-wider">{licence.code}</span> — emailed to
+                    Your family code is <span className="tracking-wider">{licence.code}</span>, emailed to
                     you as well.
                   </p>
                 )}
@@ -484,7 +484,7 @@ export function Onboarding() {
             ) : (
               <>
                 <p className="font-semibold text-brand-600">
-                  <b className="text-brand-900">Maths is free, permanently</b> — {firstName}&apos;s class
+                  <b className="text-brand-900">Maths is free, permanently</b>: {firstName}&apos;s class
                   and every earlier class as revision, with no card and no time limit. The other subjects
                   need a code or a licence, and you can sort that out now or whenever you like.
                 </p>
@@ -583,7 +583,7 @@ export function Onboarding() {
                 {restoredLearners.map((l) => (
                   <li key={l.id} className="font-bold text-emerald-800">
                     • {l.name}
-                    {l.age ? `, ${l.age}` : ''} —{' '}
+                    {l.age ? `, ${l.age}` : ''} ·{' '}
                     {curricula.find((c) => c.id === l.curriculumId)?.yearBands.find((b) => b.id === l.yearBand)
                       ?.label ?? l.yearBand}
                   </li>
@@ -684,7 +684,7 @@ export function Onboarding() {
                 </div>
                 <p className="mt-3 text-sm font-semibold text-brand-500">
                   Change it if {firstName} is ahead or repeating a year. Earlier classes stay available as
-                  revision either way — you can change all of this later.
+                  revision either way, and you can change all of this later.
                 </p>
               </div>
             )}
@@ -725,7 +725,7 @@ export function Onboarding() {
               </button>
             </div>
             <p className="mt-3 text-sm font-semibold text-brand-500">
-              This guards the grown-up area, where the progress report and all the settings live —
+              This guards the grown-up area, where the progress report and all the settings live:
               difficulty, session length, timers and read-aloud. Pick something {firstName} will not guess.
             </p>
 
@@ -748,7 +748,7 @@ export function Onboarding() {
                   </span>
                   <span className="block text-sm font-semibold text-brand-600 mt-1">
                     Sends how often Brainy is opened, how many questions were answered, and which topics
-                    score worst — plus a random code so the same tablet is not counted twice. Never{' '}
+                    score worst, plus a random code so the same tablet is not counted twice. Never{' '}
                     {firstName}&apos;s name, age, or anything they type.
                   </span>
                   <span className="block text-sm font-semibold text-brand-500 mt-1">
@@ -878,7 +878,7 @@ export function Onboarding() {
 
       {step === 0 && (
         <p className="mt-4 text-center text-xs font-semibold text-brand-400">
-          Your child&apos;s work — their answers, progress and report — stays in this browser on this
+          Your child&apos;s work, their answers, progress and report, stays in this browser on this
           device. The account holds your email address and what you are entitled to, and nothing about
           your child unless you later ask us to keep it.
         </p>

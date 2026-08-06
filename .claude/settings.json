@@ -27,7 +27,19 @@
       "Read(//tmp/**)",
       "Bash(curl -sI https://brainy.fortbridge.app/)",
       "Bash(git push *)",
-      "Bash(grep -v \"^\\\\s*[0-9]*:\\\\s*/\\\\*\")"
+      "Bash(grep -v \"^\\\\s*[0-9]*:\\\\s*/\\\\*\")",
+      "WebFetch(domain:classbasic.com)",
+      "Bash(sed 's/smoke-entry.ts/coverage-entry.ts/; s/kolo., .smoke.mjs./kolo\", \"coverage.mjs\"\\)/' scripts/smoke.mjs)",
+      "Bash(node scripts/coverage.mjs)",
+      "Bash(grep -n \"^      \\\\.[a-z-]*\\\\s*{\\\\|^      \\\\.[a-z-]*,\\\\s*$\" site/index.html)",
+      "Bash(sed -i 's/subject\\\\.title/subject.name/; s/strand?\\\\.title/strand?.name/' scripts/coverage-entry.ts)",
+      "Bash(python -c ' *)",
+      "Bash(sed -i \"s|item.options.map\\(\\(o\\) => o.label\\).join\\(\\\\\" | \\\\\"\\)|x|\" scripts/sample-entry.ts)",
+      "Bash(node scripts/sample.mjs ng.maths.data.central-tendency ng.maths.data.probability)",
+      "Bash(node scripts/sample.mjs ng.maths.data.central-tendency ng.maths.data.probability ng.maths.measure.temperature ng.maths.shapes.angle-pairs)",
+      "Bash(grep -vE \":[0-9]+:\\\\s*\\(\\\\*|//|/\\\\*\\)\")",
+      "Bash(node --check server/lib/email.js)",
+      "Bash(grep -iB4 \"receipt goes out\\\\|family is told\")"
     ]
   }
 }

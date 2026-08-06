@@ -216,7 +216,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
           <p className="font-black text-amber-900">Finish registering</p>
           <p className="mt-0.5 text-sm font-semibold text-amber-800">
             Setup could not reach us, so this device has no account yet. Without one we cannot
-            restore your access if the tablet is lost. Tap to finish — it takes a moment.
+            restore your access if the tablet is lost. Tap to finish. It takes a moment.
           </p>
         </button>
       )}
@@ -339,7 +339,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <p className="mt-1 text-xs font-semibold text-slate-400">
-              First-try accuracy per week. It can dip when they move up a level — that is the app making
+              First-try accuracy per week. It can dip when they move up a level. That is the app making
               things harder, not them getting worse.
             </p>
 
@@ -447,7 +447,7 @@ export function Parent({ onBack }: { onBack: () => void }) {
           )}
 
           <Card className="p-5 border-slate-200">
-            <h2 className="font-black text-slate-900 mb-3">Mastery by topic — {subject.name}</h2>
+            <h2 className="font-black text-slate-900 mb-3">Mastery by topic: {subject.name}</h2>
             <div className="space-y-3">
               {strandRows.map((row) => {
                 const pct = Math.round(row.mean * 100)
@@ -804,7 +804,7 @@ function KeepProgressSwitch({ token }: { token: string }) {
           <div className="min-w-0">
             <p className="font-black text-slate-800">Keep their progress in my account</p>
             <p className="mt-1 text-sm font-semibold text-slate-600">
-              So a new tablet — or this one after installing it to the home screen — picks up exactly
+              So a new tablet, or this one after installing it to the home screen, picks up exactly
               where they left off. We keep <b>mastery scores, stars, coins, streak and badges</b>.
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -837,8 +837,8 @@ function KeepProgressSwitch({ token }: { token: string }) {
 
       <Modal open={confirmOff} onClose={() => setConfirmOff(false)} title="Stop keeping their progress?">
         <p className="font-bold text-slate-600">
-          What we are holding will be deleted. Nothing on this tablet changes — every star, coin and
-          streak stays exactly where it is — but a new tablet will start them again from the beginning.
+          What we are holding will be deleted. Nothing on this tablet changes: every star, coin and
+          streak stays exactly where it is. But a new tablet will start them again from the beginning.
         </p>
         <div className="mt-5 flex gap-3">
           <Btn variant="secondary" size="lg" full onClick={() => setConfirmOff(false)}>
@@ -913,7 +913,7 @@ function AccountCard() {
         </div>
         <p className="mt-3 text-xs font-semibold text-slate-400">
           Signing out forgets your email on this device. It does not cancel anything, and it does not
-          touch a single thing your child has done — their progress is on this tablet either way.
+          touch a single thing your child has done. Their progress is on this tablet either way.
         </p>
 
         <KeepProgressSwitch token={token} />
@@ -1076,8 +1076,8 @@ function AccessTab() {
         return {
           good: true,
           text: result.emailed
-            ? 'Done — everything is open, and we have emailed your code to you.'
-            : 'Done — everything is open. Your family code is at the top of this screen.',
+            ? 'Done. Everything is open, and we have emailed your code to you.'
+            : 'Done. Everything is open. Your family code is at the top of this screen.',
         }
       }
       return {
@@ -1092,7 +1092,7 @@ function AccessTab() {
       const result = await revalidate(licence.code, installId)
       if (result.ok && result.licence) {
         setLicence(result.licence)
-        return { good: true, text: 'Checked — this is up to date.' }
+        return { good: true, text: 'Checked. This is up to date.' }
       }
       /*
        * `gone` is the one answer that removes anything: the server positively
@@ -1126,8 +1126,8 @@ function AccessTab() {
            fix. */
         if (result.licence.status === 'active') setLicence(result.licence)
         const base = result.licence.status === 'active'
-          ? 'You have a free place — everything is open.'
-          : 'Thank you — we have your address and will be in touch.'
+          ? 'You have a free place, so everything is open.'
+          : 'Thank you. We have your address and will be in touch.'
         return {
           good: true,
           text: result.note ?? (result.emailed ? `${base} Check your email for a copy.` : base),
@@ -1148,7 +1148,7 @@ function AccessTab() {
       year: 'numeric',
     })
     if (d < 0) return `Ran out on ${on}.`
-    return `Runs until ${on} — ${d} day${d === 1 ? '' : 's'} to go.`
+    return `Runs until ${on}, ${d} day${d === 1 ? '' : 's'} to go.`
   }
 
   return (
@@ -1159,13 +1159,13 @@ function AccessTab() {
       {/* ---- What they have ---- */}
       <Card className={`p-5 ${full ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200'}`}>
         <h2 className="font-black text-slate-900 mb-1">
-          {full ? 'Everything is open' : 'Maths is open — the rest is not'}
+          {full ? 'Everything is open' : 'Maths is open, the rest is not'}
         </h2>
         <p className="text-sm font-semibold text-slate-600">
           {full
             ? `${licence?.planLabel ?? 'Full access'}. ${expiryLine() ?? ''}`
             : licence
-              ? `${licence.planLabel ?? 'Your plan'} — ${expiryLine()}`
+              ? `${licence.planLabel ?? 'Your plan'}. ${expiryLine()}`
               : 'Your child’s class in maths, and every earlier class of it, is free permanently. The other subjects need a code or a licence.'}
         </p>
 
@@ -1200,7 +1200,7 @@ function AccessTab() {
             </div>
             <p className="mt-3 text-xs font-semibold text-slate-400">
               Use this code to open Brainy on another tablet. It works offline once activated, and is
-              checked with us about once a week — never in the middle of a quest.
+              checked with us about once a week, never in the middle of a quest.
             </p>
           </div>
         )}
@@ -1211,7 +1211,7 @@ function AccessTab() {
         <h2 className="font-black text-slate-900 mb-1">Your email address</h2>
         <p className="text-sm font-semibold text-slate-500 mb-3">
           The only personal detail Brainy ever stores, and it is yours, not your child’s. It exists so
-          your access can be restored on a new tablet and so we can reach you about it — never for
+          your access can be restored on a new tablet and so we can reach you about it, never for
           marketing, and never passed on.
         </p>
         <input
@@ -1289,7 +1289,7 @@ function AccessTab() {
             </div>
             {!emailValid && (
               <p className="mt-2 text-xs font-bold text-slate-400">
-                Add your email address above first — the receipt goes there.
+                Add your email address above first: the receipt goes there.
               </p>
             )}
             <p className="mt-3 text-xs font-semibold text-slate-400">
@@ -1299,7 +1299,7 @@ function AccessTab() {
           </>
         ) : (
           <p className="rounded-2xl bg-slate-50 p-3 font-bold text-slate-600">
-            Payments are not switched on yet. Leave your email above and we will send you a code — the
+            Payments are not switched on yet. Leave your email above and we will send you a code. The
             first twenty families get a free year of every subject.
           </p>
         )}
@@ -1327,11 +1327,11 @@ function AccessTab() {
         <h2 className="font-black text-slate-900 mb-2">What is free, for everyone</h2>
         <ul className="space-y-2 text-sm font-semibold text-slate-600">
           <li>
-            <b className="text-slate-900">Maths, permanently</b> — your child’s class and every earlier
+            <b className="text-slate-900">Maths, permanently</b>: your child’s class and every earlier
             class as revision. No time limit, no trial, no card.
           </li>
           <li>
-            <b className="text-slate-900">Everything already earned</b> — stars, coins, characters and
+            <b className="text-slate-900">Everything already earned</b>: stars, coins, characters and
             streaks are never taken away, whatever your plan does.
           </li>
           <li>
@@ -1347,7 +1347,7 @@ function AccessTab() {
         title="Remove the licence from this tablet?"
       >
         <p className="font-bold text-slate-600">
-          The other subjects will close on this device. Nothing is cancelled and nothing is refunded —
+          The other subjects will close on this device. Nothing is cancelled and nothing is refunded:
           your code keeps working, and typing it back in reopens everything. Progress is untouched.
         </p>
         <div className="mt-5 flex gap-3">
@@ -1436,7 +1436,7 @@ function TransferCard({
     <Card className="p-5 border-slate-200">
       <h2 className="font-black text-slate-900 mb-1">Or pay by bank transfer</h2>
       <p className="text-sm font-semibold text-slate-500 mb-3">
-        Transfer the amount to the account below, then tell us — someone checks it against the account
+        Transfer the amount to the account below, then tell us. Someone checks it against the account
         and emails your access code, usually the same day.
       </p>
 
@@ -1464,7 +1464,7 @@ function TransferCard({
         </div>
         <p className="mt-2 text-sm font-bold text-slate-600">
           {offer.plans
-            .map((p) => `${p.label} — ${formatMoney(p.amount, offer.currency)}`)
+            .map((p) => `${p.label}: ${formatMoney(p.amount, offer.currency)}`)
             .join(' · ')}
         </p>
         {offer.transfer.instructions && (
@@ -1477,7 +1477,7 @@ function TransferCard({
           <p className="font-black text-amber-900">We are checking your transfer</p>
           <p className="text-sm font-semibold text-amber-800 mt-0.5">
             Sent {friendlyDate(new Date(submittedAt).getTime()).toLowerCase()}. Your code arrives by
-            email once the money is confirmed — then type it into the box above. Nothing is unlocked
+            email once the money is confirmed, then type it into the box above. Nothing is unlocked
             until then.
           </p>
           <Btn variant="secondary" size="sm" className="mt-2" onClick={() => setOpen(true)}>
@@ -1493,7 +1493,7 @@ function TransferCard({
       )}
       {!emailValid && !submittedAt && (
         <p className="mt-2 text-xs font-bold text-slate-400">
-          Add your email address above first — the code goes there.
+          Add your email address above first: the code goes there.
         </p>
       )}
 
@@ -1564,7 +1564,7 @@ function TransferCard({
                 /* Checked here as well as on the server, so a parent finds out
                    before waiting for an upload to fail. */
                 if (file.size > 1_500_000) {
-                  return setProblem('That file is a bit big — anything under 1.5 MB is fine.')
+                  return setProblem('That file is a bit big. Anything under 1.5 MB is fine.')
                 }
                 setProblem(null)
                 const { base64, type } = await readAsBase64(file)
@@ -1736,7 +1736,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         )}
         <p className="mt-2 text-xs font-semibold text-slate-400">
           Includes {includedBands(curriculum.id, profile.yearBand).length} year band
-          {includedBands(curriculum.id, profile.yearBand).length === 1 ? '' : 's'} of content — earlier years
+          {includedBands(curriculum.id, profile.yearBand).length === 1 ? '' : 's'} of content, and earlier years
           stay in the mix as revision.
         </p>
       </Card>
@@ -1744,7 +1744,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
       <Card className="p-5 border-slate-200">
         <h2 className="font-black text-slate-900 mb-1">Difficulty</h2>
         <p className="text-xs font-semibold text-slate-400 mb-3">
-          Auto aims for about 8 right out of 10 — hard enough to be learning, easy enough to stay
+          Auto aims for about 8 right out of 10: hard enough to be learning, easy enough to stay
           willing. Pin a level if you would rather choose it yourself.
         </p>
 
@@ -1768,7 +1768,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         <p className="mt-3 text-sm font-bold text-slate-500">
           {settings.difficultyOverride === null
             ? autoHint
-            : `Every question will be pitched at level ${settings.difficultyOverride}. Mastery is still tracked, but the level will not move on its own — including when he gets several wrong in a row.`}
+            : `Every question will be pitched at level ${settings.difficultyOverride}. Mastery is still tracked, but the level will not move on its own, including when he gets several wrong in a row.`}
         </p>
       </Card>
 
@@ -1791,7 +1791,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
 
         <Row
           label="Beat the Clock"
-          hint="Adds a countdown to each question. Off by default — timing tends to measure anxiety at this age."
+          hint="Adds a countdown to each question. Off by default, because timing tends to measure anxiety at this age."
         >
           <Toggle on={settings.timedMode} onToggle={() => updateSettings({ timedMode: !settings.timedMode })} />
         </Row>
@@ -1942,7 +1942,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           🔒 Lock now
         </Btn>
         <p className="mt-2 text-xs font-semibold text-slate-400">
-          This is a soft lock, not a security feature — an older child who knows their way around a
+          This is a soft lock, not a security feature. An older child who knows their way around a
           browser could clear its storage. It is here so &ldquo;not now&rdquo; sticks without taking
           the tablet away.
         </p>
@@ -1959,7 +1959,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         <h2 className="font-black text-slate-900 mb-1">Help improve Brainy</h2>
         <p className="text-sm font-semibold text-slate-500 mb-3">
           There is no tracking in Brainy, so the only way we learn what is working is if you tell us.
-          This builds a short summary with no name, no dates and nothing your child typed — just which
+          This builds a short summary with no name, no dates and nothing your child typed, just which
           topics are going badly, which is how we find questions that are wrong or badly pitched. Read
           it before you send it.
         </p>
@@ -1969,7 +1969,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
             <p className="font-black text-slate-800">Share anonymous usage data</p>
             <p className="text-xs font-semibold text-slate-500">
               Off unless you turn it on. When it is on, Brainy sends how often it is opened, how many
-              questions were answered, and which topics score worst — plus a random code so the same
+              questions were answered, and which topics score worst, plus a random code so the same
               tablet is not counted twice. Never your child&apos;s name, age, or anything they typed.
               Turning it off deletes the code and asks us to delete what was already sent.
             </p>
@@ -1998,7 +1998,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
               setForgetNote(
                 (await sendForget(installId))
                   ? 'Sharing is off, and the records we already had have been deleted.'
-                  : 'Sharing is off, so nothing more will be sent. We could not reach our server to delete the records already sent — they carry no name, and the code that linked them to this tablet is now gone.',
+                  : 'Sharing is off, so nothing more will be sent. We could not reach our server to delete the records already sent. They carry no name, and the code that linked them to this tablet is now gone.',
               )
             }}
             className={`mt-1 grid h-11 w-16 shrink-0 items-center rounded-full border-2 transition ${settings.shareUsage ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
@@ -2029,7 +2029,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
                     await navigator.clipboard.writeText(summaryText)
                     setCopied('Copied. Paste it wherever you like.')
                   } catch {
-                    setCopied('Could not copy — select the text above instead.')
+                    setCopied('Could not copy. Select the text above instead.')
                   }
                 }}
               >
@@ -2047,7 +2047,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
                     children: [summaryText],
                     installId: useStore.getState().device.installId ?? undefined,
                   })
-                  setCopied(ok ? 'Sent. Thank you.' : 'Could not send — copy it and message us instead.')
+                  setCopied(ok ? 'Sent. Thank you.' : 'Could not send. Copy it and message us instead.')
                 }}
               >
                 Send it now
@@ -2169,14 +2169,14 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
         {settings.licence && (
           <p className="mt-3 rounded-xl bg-amber-50 p-3 font-bold text-amber-900">
             Your access code <b>{settings.licence.code}</b> is removed from this device too. The
-            licence itself is not cancelled — write the code down and you can enter it again here or
+            licence itself is not cancelled. Write the code down and you can enter it again here or
             on another device.
           </p>
         )}
         {settings.shareUsage && (
           <p className="mt-3 rounded-xl bg-slate-100 p-3 font-bold text-slate-700">
             You are sharing anonymous usage. We will ask our server to delete those records too
-            before wiping this device — after that the link to them is gone for good.
+            before wiping this device. After that the link to them is gone for good.
           </p>
         )}
 

@@ -645,7 +645,7 @@ check('nothing is granted yet', (await call(activateRoute, {}, { method: 'GET', 
 const settled = await call(activateRoute, {}, { method: 'GET', url: `/api/activate?reference=${REFERENCE}` })
 check('coming back from Paystack grants it', settled.body?.licence?.full, true)
 check('on the plan that was paid for', settled.body?.licence?.plan, 'annual')
-check('a receipt goes out', emailsTo('buyer@example.com')[0]?.subject, 'Your Brainy licence — payment received')
+check('a receipt goes out', emailsTo('buyer@example.com')[0]?.subject, 'Your Brainy licence: payment received')
 check('naming the amount', emailsTo('buyer@example.com')[0]?.text.includes('₦5,000'), true)
 check('and carrying the code', emailsTo('buyer@example.com')[0]?.text.includes(settled.body.licence.code), true)
 
@@ -716,7 +716,7 @@ const claimed = await call(payRequest, {
 check('a claim is accepted', claimed.status, 200)
 // The whole point of the flow: telling us is not paying us.
 check('but grants nothing', claimed.body?.status, 'pending')
-check('the family is told so by email', emailsTo('kemi@example.com')[0]?.subject, 'We have your payment details — checking now')
+check('the family is told so by email', emailsTo('kemi@example.com')[0]?.subject, 'We have your payment details: checking now')
 check('and told plainly nothing is open', emailsTo('kemi@example.com')[0]?.text.includes('Nothing is unlocked yet'), true)
 check(
   'they have no licence yet',

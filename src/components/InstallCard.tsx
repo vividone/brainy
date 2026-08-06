@@ -41,7 +41,7 @@ export function InstallCard({ compact }: { compact?: boolean }) {
       <p className="font-black text-brand-900">Add Brainy to the home screen first</p>
       <p className="mt-0.5 text-sm font-semibold text-brand-600">
         It then opens like a normal app, full screen, and plays with no internet at all. Doing this
-        before you set up saves you repeating it — on an iPhone or iPad especially, the installed app
+        before you set up saves you repeating it. On an iPhone or iPad especially, the installed app
         starts with its own fresh storage.
       </p>
 
@@ -71,7 +71,7 @@ export function InstallCard({ compact }: { compact?: boolean }) {
 
       {outcome === 'dismissed' && (
         <p className="mt-2 text-sm font-semibold text-brand-500">
-          No problem — you can install it later from your browser’s menu.
+          No problem, you can install it later from your browser’s menu.
         </p>
       )}
     </Card>

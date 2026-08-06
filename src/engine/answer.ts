@@ -101,7 +101,7 @@ const labelOf = (choices: { id: string; label?: string }[], id: string) =>
 
 /** Render a response for the parent zone. */
 export function describeResponse(item: Item, response: Response): string {
-  if (response === null || response === undefined) return '—'
+  if (response === null || response === undefined) return '(blank)'
   switch (item.type) {
     case 'multiple-choice':
       return labelOf(item.choices, String(response))
@@ -110,17 +110,17 @@ export function describeResponse(item: Item, response: Response): string {
     case 'order':
       return Array.isArray(response)
         ? response.map((id) => labelOf(item.tokens, id)).join(', ')
-        : '—'
+        : '(blank)'
     case 'tap-many':
       return Array.isArray(response)
         ? response.map((id) => labelOf(item.options, id)).join(', ')
-        : '—'
+        : '(blank)'
     case 'match':
       return typeof response === 'object' && !Array.isArray(response)
         ? Object.entries(response)
             .map(([l, r]) => `${labelOf(item.left, l)}→${labelOf(item.right, r)}`)
             .join(', ')
-        : '—'
+        : '(blank)'
     default:
       return String(response)
   }
