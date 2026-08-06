@@ -34,7 +34,9 @@ const DAY = 86_400_000
  * the statement used by a real run are built from those same parts, so there is
  * no second hand-written query that can drift out of agreement with the first.
  */
-const RULES = [
+/* Exported so the smoke test counts the rules rather than hardcoding how many
+   there are — see the assertion in scripts/api-smoke.mjs. */
+export const RULES = [
   {
     label: 'usage events',
     days: 400,
@@ -117,6 +119,22 @@ const RULES = [
     table: 'admin_audit',
     where: 'created_at < $1',
     why: 'Two years covers any dispute about who granted what.',
+  },
+  {
+    label: 'sign-in codes',
+    days: 1,
+    table: 'auth_codes',
+    where: 'created_at < $1',
+    why: 'A code is dead after fifteen minutes. Keeping the row a day is generous.',
+  },
+  {
+    label: 'revoked device tokens',
+    days: 90,
+    table: 'device_tokens',
+    where: 'revoked_at is not null and revoked_at < $1',
+    why:
+      'Kept revoked rather than deleted for three months, so a token that resurfaces is positively ' +
+      'refused rather than merely unrecognised. After that there is nothing to tell apart.',
   },
 ]
 

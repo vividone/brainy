@@ -126,6 +126,31 @@ export interface DeviceSettings {
    * arrives as a code by email once a human has confirmed the money.
    */
   transferSubmittedAt: string | null
+  /**
+   * The parent's account on this device.
+   *
+   * `authToken` is a bearer credential, and localStorage is exposed to XSS by
+   * nature — which is why the app ships no third-party script and the CSP
+   * forbids one. That is the mitigation, stated rather than implied. It is
+   * revocable per device from the server, so a lost tablet is one revocation and
+   * not a rotation for the whole family.
+   *
+   * Deliberately NOT included in an exported backup: a backup file gets emailed
+   * around, and a token in one would be a signed-in session travelling by
+   * attachment. A restored device asks the parent to sign in, which costs them a
+   * six-digit code and buys exactly that.
+   */
+  authToken: string | null
+  /** Shown in the grown-up area so a parent knows which account they are in. */
+  parentEmail: string | null
+  /**
+   * Whether this account has agreed to keep a child's progress off the device.
+   *
+   * Mirrored from the server rather than owned here — the server decides, this is
+   * a cache so the UI can render without a round trip. False until a parent says
+   * otherwise, and until Phase 3 nothing reads it but the settings screen.
+   */
+  keepProgress: boolean
 }
 
 /** The merged view the screens actually consume. */
@@ -229,6 +254,19 @@ interface Actions {
    * longer exists. A failed check must never call this.
    */
   setLicence: (licence: StoredLicence | null) => void
+  /**
+   * Record a successful sign-in. Also adopts the licence the server returned,
+   * which is what makes signing in on a new tablet restore paid access.
+   */
+  signedIn: (p: {
+    token: string
+    email: string
+    keepProgress?: boolean
+    licence?: StoredLicence
+  }) => void
+  /** Forget the account on this device. Never touches a child's progress. */
+  signedOut: () => void
+  setKeepProgress: (on: boolean) => void
   recordAnswer: (skillId: string, outcome: AttemptOutcome) => void
   /** Remember a question so it is not served again for a while. */
   recordSeen: (skillId: string, signature: string) => void
@@ -283,6 +321,9 @@ const defaultDevice = (): DeviceSettings => ({
   lockNote: '',
   licence: null,
   transferSubmittedAt: null,
+  authToken: null,
+  parentEmail: null,
+  keepProgress: false,
 })
 
 export const emptyLearnerData = (): LearnerData => ({
@@ -347,6 +388,9 @@ const DEVICE_KEYS = new Set<keyof DeviceSettings>([
   'lockNote',
   'licence',
   'transferSubmittedAt',
+  'authToken',
+  'parentEmail',
+  'keepProgress',
 ])
 
 /** Monday-of-week key, used for streak freezes and the weekly summary. */
@@ -467,6 +511,27 @@ export const useStore = create<Store>()(
         markPinged: (patch) => set((s) => ({ device: { ...s.device, ...patch } })),
 
         setLicence: (licence) => set((s) => ({ device: { ...s.device, licence } })),
+
+        signedIn: ({ token, email, keepProgress, licence }) =>
+          set((s) => ({
+            device: {
+              ...s.device,
+              authToken: token,
+              parentEmail: email,
+              keepProgress: keepProgress ?? s.device.keepProgress,
+              /* A sign-in returns the family's current licence, which is the
+                 authoritative copy — it is why signing in on a new tablet
+                 restores paid subjects without typing a code. */
+              licence: licence ?? s.device.licence,
+            },
+          })),
+
+        signedOut: () =>
+          set((s) => ({
+            device: { ...s.device, authToken: null, parentEmail: null, keepProgress: false },
+          })),
+
+        setKeepProgress: (on) => set((s) => ({ device: { ...s.device, keepProgress: on } })),
 
         setLocked: (locked, note) =>
           set((s) => ({
@@ -761,6 +826,12 @@ export const useStore = create<Store>()(
            * new tablet, so the file carries the access code and should be
            * treated as one. That is said plainly in the privacy notice
            * rather than left for a parent to work out.
+           *
+           * The sign-in token does NOT travel, and that is a deliberate line:
+           * a backup is a file people email to themselves, and a token in one
+           * would be a live signed-in session moving around as an attachment.
+           * Restoring gets you the children and the licence; getting back into
+           * the account costs a six-digit code, which is a fair price.
            */
           const {
             installId: _id,
@@ -768,6 +839,7 @@ export const useStore = create<Store>()(
             lastSharedWeek: _week,
             lastOpenPing: _ping,
             activationSent: _sent,
+            authToken: _token,
             ...device
           } = s.device
           return JSON.stringify(

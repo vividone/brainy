@@ -338,7 +338,7 @@ export async function ensureSchema() {
      * Parent sign-in: a six-digit code, emailed.
      *
      * Only a hash of the code is stored, for the same reason a password is
-     * hashed — a leaked table must not be a set of working sign-ins. `attempts`
+     * hashed — a leaked table must not be a set of working sign-ins. the attempt count
      * is what stops a six-digit space being walked in a few seconds, and it is
      * counted per code rather than per caller so it cannot be reset by changing
      * network.
@@ -362,7 +362,7 @@ export async function ensureSchema() {
      * every other device a family owns — the tablet that was lost, not the one
      * still in use. Again only a hash: this is a bearer credential.
      *
-     * `label` is whatever the client reported about itself, for the parent to
+     * The label is whatever the client reported about itself, for the parent to
      * recognise ("Chrome on Android"). Never a device fingerprint.
      */
     create table if not exists device_tokens (
@@ -385,7 +385,7 @@ export async function ensureSchema() {
      * just in the copy. The id is the one the client already generated, so a
      * learner keeps its identity across devices without a mapping table.
      *
-     * `deleted_at` is a soft delete: a parent who removes a child by accident on
+     * A null deleted_at is a soft delete: a parent who removes a child by accident on
      * one tablet has thirty days before the row goes, and until then the other
      * tablet does not silently resurrect it.
      */
@@ -402,6 +402,25 @@ export async function ensureSchema() {
       deleted_at    timestamptz
     );
     create index if not exists learners_parent_idx on learners (parent_id);
+
+    /*
+     * Account preferences — currently one, and the important one.
+     *
+     * A separate table rather than a column on the parents table because it
+     * already exists in production and ensureSchema() only ever creates: adding
+     * a column would need an ALTER, which means a migration story this project
+     * does not have yet. A new table costs a join and needs no migration at all.
+     *
+     * keep_progress false is the default and the state every new account starts
+     * in. It is the switch that decides whether the learners table is ever
+     * written to, so it is the technical form of "an account alone uploads
+     * nothing about your child".
+     */
+    create table if not exists account_prefs (
+      parent_id     bigint primary key references parents (id),
+      keep_progress boolean not null default false,
+      updated_at    timestamptz not null default now()
+    );
   `)
     .catch((err) => {
       ready = undefined

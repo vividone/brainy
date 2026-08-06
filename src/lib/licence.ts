@@ -174,17 +174,33 @@ export function readAsBase64(file: File): Promise<{ base64: string; type: string
   })
 }
 
-/** `₦5,000` from 500000 kobo. */
+/**
+ * `₦5,000` from 500000 kobo.
+ *
+ * `narrowSymbol` matters more than it looks: left to the device's own locale, a
+ * browser set to anything other than Nigerian English renders NGN as the letters
+ * "NGN 5,000" rather than the symbol. A Nigerian parent seeing a currency code
+ * where a naira sign belongs reads it as a foreign price, which is the opposite
+ * of the intended impression. The locale is still the device's, so grouping and
+ * decimals stay familiar — only the symbol is pinned.
+ */
 export function formatMoney(minor: number, currency: string): string {
   const value = minor / 100
+  const options: Intl.NumberFormatOptions = {
+    style: 'currency',
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+  }
   try {
-    return value.toLocaleString(undefined, {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
-    })
+    return value.toLocaleString(undefined, options)
   } catch {
-    return `${currency} ${value.toLocaleString()}`
+    /* `narrowSymbol` throws on older engines rather than degrading. */
+    try {
+      return value.toLocaleString(undefined, { ...options, currencyDisplay: 'symbol' })
+    } catch {
+      return `${currency} ${value.toLocaleString()}`
+    }
   }
 }
 

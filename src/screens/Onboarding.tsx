@@ -1,11 +1,28 @@
 /**
- * First run — parent-led.
+ * First run — parent-led, and account-first.
  *
- * Deliberately addressed to the grown-up, not the child. A 5-to-11-year-old
- * cannot judge their own school year, choose a curriculum or set a PIN, and a
- * parent needs to know what this thing does with their child's data before
- * handing over a tablet. The child's only decision is their character and pet, and
- * the last step hands the device over explicitly.
+ * Addressed to the grown-up throughout. A 5-to-11-year-old cannot judge their own
+ * school year, choose a curriculum or set a PIN, and a parent needs to know what
+ * this thing does with their child's data before handing over a tablet. The
+ * child's only decision is their character and pet, and the last step hands the
+ * device over explicitly.
+ *
+ * Two things changed shape here, both for the same underlying reason — the app
+ * used to have nowhere to put anything, and now it does:
+ *
+ * **The account comes second, before anything about the child.** It is what makes
+ * a lost tablet recoverable and a licence portable, so asking for it after a
+ * parent has already invested five screens of effort gets it skipped. Signing in
+ * is also the *only* thing on this screen a returning parent needs, which is why
+ * it is offered on the very first one.
+ *
+ * **Installing is offered first of all.** On iOS a home-screen app has its own
+ * storage container, so setting up in Safari and installing afterwards means
+ * starting over. Doing it in this order costs nothing and removes the problem.
+ *
+ * The order of the rest is deliberate too: nothing about the child is entered
+ * until the grown-up's own business is settled, so a parent who abandons setup
+ * half way has told us nothing about a child.
  */
 
 import { useRef, useState } from 'react'
@@ -14,48 +31,64 @@ import { APP_NAME, CHARACTERS, PETS } from '../game/characters'
 import { Character } from '../components/Character'
 import { Pet } from '../components/Pet'
 import { Mascot } from '../components/Mascot'
+import { InstallCard } from '../components/InstallCard'
 import { Btn, Card, Screen } from '../components/ui'
 import { useStore } from '../state/store'
 import { sfx } from '../lib/sound'
-import { activate, signUp } from '../lib/licence'
+import { activate, checkout, formatMoney, prices, type Prices } from '../lib/licence'
+import { requestCode, verifyCode } from '../lib/account'
 
 const STEPS = [
   { key: 'welcome', title: 'Welcome' },
-  { key: 'child', title: 'About your child' },
-  { key: 'class', title: 'Curriculum and class' },
   { key: 'account', title: 'Your account' },
+  { key: 'access', title: 'What is open' },
+  { key: 'child', title: 'About your child' },
   { key: 'pin', title: 'Your grown-up code' },
   { key: 'buddy', title: 'Over to them' },
 ] as const
 
+const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
 export function Onboarding() {
   const completeOnboarding = useStore((s) => s.completeOnboarding)
   const importSave = useStore((s) => s.importSave)
+  const setLicence = useStore((s) => s.setLicence)
+  const signedInAction = useStore((s) => s.signedIn)
+  const licence = useStore((s) => s.device.licence)
+  const authToken = useStore((s) => s.device.authToken)
+  const installId = useStore((s) => s.device.installId)
+
   const restoreRef = useRef<HTMLInputElement>(null)
   const [restoreNote, setRestoreNote] = useState<string | null>(null)
   const curricula = listCurricula()
 
-  const setLicence = useStore((st) => st.setLicence)
-  const licence = useStore((st) => st.device.licence)
-  const installId = useStore((st) => st.device.installId)
+  const [step, setStep] = useState(0)
 
-  /* Registration */
+  /* ---- the grown-up's account ---- */
   const [parentEmail, setParentEmail] = useState('')
   const [parentName, setParentName] = useState('')
-  const [haveCode, setHaveCode] = useState(false)
-  const [accessCode, setAccessCode] = useState('')
-  const [accountBusy, setAccountBusy] = useState(false)
-  const [accountError, setAccountError] = useState<string | null>(null)
-  /*
-   * Set only when the server could not be reached. Registration is the path,
-   * not a suggestion — but Brainy is sold on working without a connection, and
-   * refusing to finish setup would lock out exactly the families in
-   * poor-coverage areas the product is for. They get in, and the grown-up area
-   * keeps asking until it is done.
+  const [code, setCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  /**
+   * Set only after a request to the server has actually failed.
+   *
+   * An account is required — but Brainy is sold on working with no connection,
+   * and a hard block would strand exactly the families in poor-coverage areas the
+   * product is for, at the first screen, forever. So a *failure* opens a way past;
+   * being offline is not a choice offered up front, and the grown-up area keeps
+   * asking until it is done.
    */
   const [deferred, setDeferred] = useState(false)
+  const signedIn = Boolean(authToken)
 
-  const [step, setStep] = useState(0)
+  /* ---- access ---- */
+  const [offer, setOffer] = useState<Prices | null>(null)
+  const [accessCode, setAccessCode] = useState('')
+  const [accessNote, setAccessNote] = useState<string | null>(null)
+
+  /* ---- the child ---- */
   const [name, setName] = useState('')
   const [age, setAge] = useState<number | null>(null)
   const [curriculumId, setCurriculumId] = useState(curricula[0]?.id ?? 'ng-ube')
@@ -64,6 +97,7 @@ export function Onboarding() {
   const [characterId, setCharacterId] = useState(CHARACTERS[0].id)
   const [petId, setPetId] = useState(PETS[0].id)
   const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(true)
   /* Unticked on purpose. A pre-ticked box is not consent. */
   const [shareUsage, setShareUsage] = useState(false)
   const [done, setDone] = useState(false)
@@ -74,13 +108,13 @@ export function Onboarding() {
   const suggested = age === null ? null : bandForAge(curriculumId, age)
   const effectiveBand = bandOverride ?? suggested?.id ?? ''
   const firstName = name.trim() || 'your child'
+  const unlocked = licence?.full === true
 
-  const registered = Boolean(licence)
   const canContinue = [
     true,
-    name.trim().length > 0 && age !== null,
-    Boolean(effectiveBand),
-    registered || deferred,
+    signedIn || deferred,
+    true,
+    name.trim().length > 0 && age !== null && Boolean(effectiveBand),
     /^\d{4}$/.test(pin),
     true,
   ][step]
@@ -97,6 +131,36 @@ export function Onboarding() {
       parentPin: pin,
       shareUsage,
     })
+  }
+
+  /** Ask for a six-digit code. Also used by "send it again". */
+  const askForCode = async () => {
+    setBusy('code')
+    setProblem(null)
+    const result = await requestCode(parentEmail.trim())
+    setBusy(null)
+    if (result.ok) {
+      setCodeSent(true)
+      setCode('')
+    } else setProblem(result.error ?? 'We could not send a code.')
+  }
+
+  const submitCode = async () => {
+    setBusy('verify')
+    setProblem(null)
+    const result = await verifyCode(parentEmail.trim(), code.trim(), parentName.trim() || undefined)
+    setBusy(null)
+    if (!result.ok) return setProblem(result.error ?? 'That code was not accepted.')
+
+    signedInAction({
+      token: result.token!,
+      email: result.account?.email ?? parentEmail.trim(),
+      keepProgress: result.account?.keepProgress,
+      licence: result.licence,
+    })
+    /* Prices are only needed once we know whether they already have access. */
+    void prices().then(setOffer)
+    setStep(2)
   }
 
   return (
@@ -128,8 +192,8 @@ export function Onboarding() {
         {step === 0 && (
           <div className="space-y-4">
             <p className="font-bold text-brand-700">
-              {APP_NAME} gives your child short daily practice — five to ten minutes — in maths, reasoning and
-              more, matched to their school year.
+              {APP_NAME} gives your child short daily practice — five to ten minutes — in maths,
+              reasoning and more, matched to their school year.
             </p>
             <ul className="space-y-2.5">
               {[
@@ -137,8 +201,8 @@ export function Onboarding() {
                 ['📊', 'You get a report', 'See what they are strong at, what to help with, and how to help.'],
                 [
                   '🔒',
-                  "Nothing about them leaves this device",
-                  'No account for your child, no tracking, no ads. Ever.',
+                  'Your child never signs in',
+                  'You have the account. They have no login, and nothing they type ever leaves the tablet.',
                 ],
                 ['✈️', 'Works offline', 'Once loaded, it plays with no internet at all.'],
               ].map(([emoji, title, body]) => (
@@ -153,27 +217,32 @@ export function Onboarding() {
                 </li>
               ))}
             </ul>
-            <p className="text-sm font-semibold text-brand-400">Setting up takes about a minute.</p>
+
+            <InstallCard />
 
             {/*
-              Moving from another device.
-
-              Restoring used to mean creating a throwaway child first, because
-              the grown-up area is only reachable after setup — which is
-              exactly backwards for the one person who already has a backup.
+              The returning parent — a new tablet, or the installed app opening
+              blank for the first time. This is the single most valuable button on
+              the screen for them and the least interesting for everybody else, so
+              it is prominent but second.
             */}
             <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
-              <p className="font-black text-brand-900">Already using Brainy on another device?</p>
+              <p className="font-black text-brand-900">Used Brainy before?</p>
               <p className="text-sm font-semibold text-brand-500 mt-0.5">
-                Export a backup there (grown-up area → Settings), then restore it here. Everything
-                comes across: progress, coins, streaks and the report.
+                Sign in with your email and we will put your licence back. No password — we send a code.
               </p>
-              <Btn
-                variant="secondary"
-                size="md"
-                className="mt-3"
-                onClick={() => restoreRef.current?.click()}
-              >
+              <Btn variant="secondary" size="md" className="mt-3" onClick={() => setStep(1)}>
+                Sign in
+              </Btn>
+            </div>
+
+            <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
+              <p className="font-black text-brand-900">Have a backup file?</p>
+              <p className="text-sm font-semibold text-brand-500 mt-0.5">
+                Exported from another tablet in the grown-up area. Brings progress, coins and streaks
+                across as well.
+              </p>
+              <Btn variant="secondary" size="md" className="mt-3" onClick={() => restoreRef.current?.click()}>
                 ⬆ Restore a backup
               </Btn>
               <input
@@ -190,20 +259,261 @@ export function Onboarding() {
                 }}
               />
               {restoreNote && (
-                <p className="mt-2 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">
-                  {restoreNote}
-                </p>
+                <p className="mt-2 rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">{restoreNote}</p>
               )}
             </div>
           </div>
         )}
 
-        {/* ---- 1. Child ---- */}
+        {/* ---- 1. Account ---- */}
         {step === 1 && (
+          <div className="space-y-4">
+            {signedIn ? (
+              <div className="rounded-2xl border-3 border-emerald-300 bg-emerald-50 p-4">
+                <p className="font-black text-emerald-900">Signed in as {parentEmail.trim()}</p>
+                <p className="mt-1 font-semibold text-emerald-800">
+                  {unlocked
+                    ? 'Every subject is open on this tablet.'
+                    : 'Maths is open. You can add a code or a licence on the next screen.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-brand-600">
+                  This account is yours, not {firstName}&apos;s. It is how your access comes back if this
+                  tablet is lost, replaced, or you add a second one — and it is the only personal detail
+                  Brainy stores. There is no password: we email you a six-digit code.
+                </p>
+
+                <div>
+                  <label htmlFor="p-email" className="block font-bold text-brand-700 mb-2">
+                    Your email
+                  </label>
+                  <input
+                    id="p-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={parentEmail}
+                    onChange={(e) => setParentEmail(e.target.value.slice(0, 120))}
+                    placeholder="you@example.com"
+                    disabled={codeSent}
+                    className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
+                      font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none
+                      disabled:bg-brand-50 disabled:text-brand-500"
+                  />
+                </div>
+
+                {!codeSent ? (
+                  <>
+                    <div>
+                      <label htmlFor="p-name" className="block font-bold text-brand-700 mb-2">
+                        Your name <span className="font-semibold text-brand-400">(optional)</span>
+                      </label>
+                      <input
+                        id="p-name"
+                        value={parentName}
+                        onChange={(e) => setParentName(e.target.value.slice(0, 60))}
+                        placeholder="So we know what to call you"
+                        className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
+                          font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
+                      />
+                    </div>
+                    <Btn
+                      size="lg"
+                      full
+                      disabled={!EMAIL_OK.test(parentEmail.trim()) || busy === 'code'}
+                      onClick={askForCode}
+                    >
+                      {busy === 'code' ? 'Sending…' : 'Email me a code'}
+                    </Btn>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label htmlFor="p-code" className="block font-bold text-brand-700 mb-2">
+                        The six-digit code we just emailed
+                      </label>
+                      <input
+                        id="p-code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="123456"
+                        className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-3xl
+                          font-black tracking-[0.4em] text-brand-900 placeholder:text-brand-200
+                          focus:border-brand-500 outline-none"
+                      />
+                      <p className="mt-2 text-sm font-semibold text-brand-500">
+                        It is in the subject line too, so you may not need to open the email. Nothing
+                        arrived? Check the address above for a typo — we cannot tell you whether an
+                        address exists, so a mistyped one looks exactly like a slow one.
+                      </p>
+                    </div>
+                    <Btn size="lg" full disabled={code.length !== 6 || busy === 'verify'} onClick={submitCode}>
+                      {busy === 'verify' ? 'Checking…' : 'Sign in'}
+                    </Btn>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={askForCode}
+                        disabled={busy === 'code'}
+                        className="flex-1 text-sm font-bold text-brand-500 hover:underline"
+                      >
+                        {busy === 'code' ? 'Sending…' : 'Send it again'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCodeSent(false)
+                          setCode('')
+                          setProblem(null)
+                        }}
+                        className="flex-1 text-sm font-bold text-brand-500 hover:underline"
+                      >
+                        Use a different email
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {problem && (
+              <div className="rounded-2xl bg-amber-50 p-4">
+                <p className="font-bold text-amber-900">{problem}</p>
+                {/*
+                  Only offered once a request has actually failed. Presenting a way
+                  past this screen before then would make registering look
+                  optional, which is the thing this step exists to change.
+                */}
+                <button onClick={() => setDeferred(true)} className="mt-2 text-sm font-bold text-amber-900 underline">
+                  Carry on without an account for now
+                </button>
+              </div>
+            )}
+            {deferred && !signedIn && (
+              <p className="rounded-2xl bg-brand-50 p-3 text-sm font-bold text-brand-700">
+                No problem — {firstName} can start now, and maths works with no account at all. The
+                grown-up area will remind you, and until then a new tablet cannot get your access back.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ---- 2. Access ---- */}
+        {step === 2 && (
+          <div className="space-y-4">
+            {unlocked ? (
+              <div className="rounded-2xl border-3 border-emerald-300 bg-emerald-50 p-4">
+                <p className="font-black text-emerald-900">
+                  {licence?.plan === 'free-forever' ? 'You have one of the free family places' : 'Everything is open'}
+                </p>
+                <p className="mt-1 font-semibold text-emerald-800">
+                  Every subject is open for one child.{' '}
+                  {licence?.expiresAt
+                    ? `Runs until ${new Date(licence.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`
+                    : 'It never expires.'}
+                </p>
+                {licence?.code && (
+                  <p className="mt-2 text-sm font-bold text-emerald-800">
+                    Your family code is <span className="tracking-wider">{licence.code}</span> — emailed to
+                    you as well.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-brand-600">
+                  <b className="text-brand-900">Maths is free, permanently</b> — {firstName}&apos;s class
+                  and every earlier class as revision, with no card and no time limit. The other subjects
+                  need a code or a licence, and you can sort that out now or whenever you like.
+                </p>
+
+                <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
+                  <p className="font-black text-brand-900">Have a code?</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <input
+                      value={accessCode}
+                      onChange={(e) => setAccessCode(e.target.value.toUpperCase().slice(0, 40))}
+                      placeholder="FAMILY-7K3M"
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                      className="h-14 flex-1 min-w-[11rem] rounded-2xl border-2 border-brand-300 px-4 font-black
+                        tracking-wider text-brand-900 placeholder:text-brand-200 outline-none focus:border-brand-500"
+                    />
+                    <Btn
+                      size="md"
+                      disabled={accessCode.trim().length < 4 || busy === 'redeem'}
+                      onClick={async () => {
+                        setBusy('redeem')
+                        setAccessNote(null)
+                        const result = await activate({
+                          code: accessCode.trim(),
+                          email: parentEmail.trim() || undefined,
+                          installId,
+                        })
+                        setBusy(null)
+                        if (result.ok && result.licence) {
+                          setLicence(result.licence)
+                          setAccessCode('')
+                        } else setAccessNote(result.error ?? 'That code was not accepted.')
+                      }}
+                    >
+                      {busy === 'redeem' ? 'Checking…' : 'Use it'}
+                    </Btn>
+                  </div>
+                </div>
+
+                {offer?.enabled && offer.plans.length > 0 && (
+                  <div className="rounded-2xl border-2 border-brand-200 bg-white p-4">
+                    <p className="font-black text-brand-900">Or open everything now</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {offer.plans.map((plan) => (
+                        <Btn
+                          key={plan.id}
+                          size="md"
+                          variant={plan.id === 'annual' ? 'primary' : 'secondary'}
+                          disabled={!EMAIL_OK.test(parentEmail.trim()) || busy === plan.id}
+                          onClick={async () => {
+                            setBusy(plan.id)
+                            setAccessNote(null)
+                            const result = await checkout({
+                              email: parentEmail.trim(),
+                              plan: plan.id,
+                              installId,
+                            })
+                            setBusy(null)
+                            if (result.ok && result.url) window.location.assign(result.url)
+                            else setAccessNote(result.error ?? 'Could not start the payment.')
+                          }}
+                        >
+                          {busy === plan.id ? 'Opening…' : `${plan.label} · ${formatMoney(plan.amount, offer.currency)}`}
+                        </Btn>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-brand-400">
+                      Card payment through Paystack. Prefer a bank transfer? The grown-up area takes those,
+                      once setup is done.
+                    </p>
+                  </div>
+                )}
+
+                {accessNote && <p className="rounded-2xl bg-amber-50 p-3 font-bold text-amber-900">{accessNote}</p>}
+
+                <p className="text-sm font-semibold text-brand-500">
+                  Nothing here is required. Tap Next and {firstName} starts on maths.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ---- 3. The child ---- */}
+        {step === 3 && (
           <div className="space-y-5">
             <div>
               <label htmlFor="child-name" className="block font-bold text-brand-700 mb-2">
-                Your child's first name
+                Your child&apos;s first name
               </label>
               <input
                 id="child-name"
@@ -240,14 +550,9 @@ export function Onboarding() {
                 ))}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ---- 2. Curriculum and class ---- */}
-        {step === 2 && (
-          <div className="space-y-5">
             <div>
-              <p className="font-bold text-brand-700 mb-2">Which curriculum does {firstName} follow?</p>
+              <p className="font-bold text-brand-700 mb-2">Which curriculum do they follow?</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 {curricula.map((c) => (
                   <button
@@ -271,8 +576,7 @@ export function Onboarding() {
             {suggested && (
               <div className="rounded-2xl bg-brand-50 border-2 border-brand-200 p-4">
                 <p className="font-bold text-brand-700">
-                  At {age}, that is usually{' '}
-                  <span className="text-brand-900 font-black">{suggested.label}</span>.
+                  At {age}, that is usually <span className="text-brand-900 font-black">{suggested.label}</span>.
                 </p>
                 <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {bands.map((b) => (
@@ -298,181 +602,48 @@ export function Onboarding() {
           </div>
         )}
 
-        {/* ---- 3. PIN ---- */}
-        {step === 3 && (
-          <div>
-            {registered ? (
-              <div className="rounded-2xl border-3 border-emerald-300 bg-emerald-50 p-4">
-                <p className="font-black text-emerald-900">You are all set.</p>
-                <p className="mt-1 font-semibold text-emerald-800">
-                  Your access code is <b className="tracking-wider">{licence?.code}</b>. We have
-                  emailed it to you as well — keep it somewhere safe. It is how you move to a new
-                  tablet without losing anything.
-                </p>
-              </div>
-            ) : haveCode ? (
-              <div>
-                <label htmlFor="code" className="block font-bold text-brand-700 mb-2">
-                  Your access code
-                </label>
-                <input
-                  id="code"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value.toUpperCase().slice(0, 24))}
-                  placeholder="BRAINY-XXXX"
-                  autoComplete="off"
-                  className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-2xl
-                    font-black tracking-widest text-brand-900 placeholder:text-brand-200
-                    focus:border-brand-500 outline-none"
-                />
-                <p className="mt-2 text-sm font-semibold text-brand-500">
-                  From an earlier tablet, or from the email we sent when you signed up.
-                </p>
-                <Btn
-                  size="lg"
-                  full
-                  className="mt-3"
-                  disabled={accessCode.trim().length < 4 || accountBusy}
-                  onClick={async () => {
-                    setAccountBusy(true)
-                    setAccountError(null)
-                    const result = await activate({
-                      code: accessCode.trim(),
-                      email: parentEmail.trim() || undefined,
-                      installId,
-                    })
-                    setAccountBusy(false)
-                    if (result.ok && result.licence) setLicence(result.licence)
-                    else setAccountError(result.error ?? 'That code was not accepted.')
-                  }}
-                >
-                  {accountBusy ? 'Checking…' : 'Use this code'}
-                </Btn>
-                <button
-                  onClick={() => { setHaveCode(false); setAccountError(null) }}
-                  className="mt-3 w-full text-sm font-bold text-brand-500 hover:underline"
-                >
-                  I do not have a code — register instead
-                </button>
-              </div>
-            ) : (
-              <div>
-                <p className="font-semibold text-brand-600 mb-3">
-                  This is your account, not {firstName}&apos;s. {firstName} never signs in to
-                  anything — we only need a way to reach you and to give your access back if this
-                  tablet is ever lost or replaced.
-                </p>
-                <label htmlFor="p-email" className="block font-bold text-brand-700 mb-2">
-                  Your email
-                </label>
-                <input
-                  id="p-email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  value={parentEmail}
-                  onChange={(e) => setParentEmail(e.target.value.slice(0, 120))}
-                  placeholder="you@example.com"
-                  className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
-                    font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
-                />
-                <label htmlFor="p-name" className="mt-3 block font-bold text-brand-700 mb-2">
-                  Your name <span className="font-semibold text-brand-400">(optional)</span>
-                </label>
-                <input
-                  id="p-name"
-                  value={parentName}
-                  onChange={(e) => setParentName(e.target.value.slice(0, 60))}
-                  placeholder="So we know what to call you"
-                  className="w-full h-14 rounded-2xl border-3 border-brand-300 bg-white px-4 text-lg
-                    font-bold text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
-                />
-
-                <Btn
-                  size="lg"
-                  full
-                  className="mt-4"
-                  disabled={!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(parentEmail.trim()) || accountBusy}
-                  onClick={async () => {
-                    setAccountBusy(true)
-                    setAccountError(null)
-                    const result = await signUp({
-                      email: parentEmail.trim(),
-                      name: parentName.trim() || undefined,
-                      children: 1,
-                      installId,
-                    })
-                    setAccountBusy(false)
-                    if (result.ok && result.licence) setLicence(result.licence)
-                    else setAccountError(result.error ?? 'We could not create your account.')
-                  }}
-                >
-                  {accountBusy ? 'Creating your account…' : 'Create my account'}
-                </Btn>
-
-                <p className="mt-3 text-sm font-semibold text-brand-500">
-                  No card needed. Maths is free for everybody; while free places remain, your
-                  account opens the rest too.
-                </p>
-
-                <button
-                  onClick={() => { setHaveCode(true); setAccountError(null) }}
-                  className="mt-3 w-full text-sm font-bold text-brand-500 hover:underline"
-                >
-                  I already have an access code
-                </button>
-              </div>
-            )}
-
-            {accountError && (
-              <div className="mt-3 rounded-2xl bg-amber-50 p-4">
-                <p className="font-bold text-amber-900">{accountError}</p>
-                {/*
-                  Only offered once a request has actually failed. Presenting a
-                  way past this screen before then would make registering look
-                  optional, which is the thing this step exists to change.
-                */}
-                <button
-                  onClick={() => setDeferred(true)}
-                  className="mt-2 text-sm font-bold text-amber-900 underline"
-                >
-                  Carry on for now and finish this later
-                </button>
-              </div>
-            )}
-            {deferred && !registered && (
-              <p className="mt-3 rounded-2xl bg-brand-50 p-3 text-sm font-bold text-brand-700">
-                No problem — {firstName} can start now. The grown-up area will remind you to finish
-                registering.
-              </p>
-            )}
-          </div>
-        )}
-
+        {/* ---- 4. Grown-up code ---- */}
         {step === 4 && (
           <div>
             <label htmlFor="pin" className="block font-bold text-brand-700 mb-2">
               Choose a 4-digit code
             </label>
-            <input
-              id="pin"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              inputMode="numeric"
-              placeholder="1234"
-              className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white px-4 text-3xl font-black
-                tracking-[0.5em] text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
-              style={{ borderWidth: 3 }}
-            />
+            {/*
+              Visible while it is being chosen, unlike the same field in Settings.
+              A typo here becomes a parent locked out of their own settings, and
+              there is no existing secret to shield yet.
+            */}
+            <div className="relative">
+              <input
+                id="pin"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                type={showPin ? 'text' : 'password'}
+                inputMode="numeric"
+                placeholder="1234"
+                className="w-full h-16 rounded-2xl border-3 border-brand-300 bg-white pl-4 pr-14 text-3xl font-black
+                  tracking-[0.5em] text-brand-900 placeholder:text-brand-200 focus:border-brand-500 outline-none"
+                style={{ borderWidth: 3 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin((v) => !v)}
+                aria-pressed={showPin}
+                aria-label={showPin ? 'Hide the code' : 'Show the code'}
+                className="absolute right-0 top-0 grid h-16 w-12 place-items-center text-xl text-brand-400"
+              >
+                {showPin ? '🙈' : '👁'}
+              </button>
+            </div>
             <p className="mt-3 text-sm font-semibold text-brand-500">
               This guards the grown-up area, where the progress report and all the settings live —
               difficulty, session length, timers and read-aloud. Pick something {firstName} will not guess.
             </p>
 
             {/*
-              The one consent request, asked plainly and left unticked.
-              A pre-ticked box is not consent, particularly for a children's
-              product, and this is the only thing that ever leaves the device.
+              The usage-data consent, asked plainly and left unticked. Separate
+              from the account: signing in tells us who to email, this decides
+              whether anonymous counts are collected at all.
             */}
             <div className="mt-5 rounded-2xl border-2 border-brand-200 bg-brand-50 p-4">
               <label className="flex items-start gap-3 cursor-pointer">
@@ -487,9 +658,9 @@ export function Onboarding() {
                     Help improve Brainy with anonymous usage data
                   </span>
                   <span className="block text-sm font-semibold text-brand-600 mt-1">
-                    Sends how often Brainy is opened, how many questions were answered, and which
-                    topics score worst — plus a random code so the same tablet is not counted twice.
-                    Never {firstName}&apos;s name, age, or anything they type.
+                    Sends how often Brainy is opened, how many questions were answered, and which topics
+                    score worst — plus a random code so the same tablet is not counted twice. Never{' '}
+                    {firstName}&apos;s name, age, or anything they type.
                   </span>
                   <span className="block text-sm font-semibold text-brand-500 mt-1">
                     Entirely optional, and you can change it any time in the grown-up area.
@@ -500,12 +671,12 @@ export function Onboarding() {
           </div>
         )}
 
-        {/* ---- 4. Hand over ---- */}
+        {/* ---- 5. Hand over ---- */}
         {step === 5 && !done && (
           <div className="space-y-5">
             <div>
               <p className="font-bold text-brand-700 mb-2">
-                Last thing, and this one is {firstName}'s: who would they like to be?
+                Last thing, and this one is {firstName}&apos;s: who would they like to be?
               </p>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {CHARACTERS.filter((c) => c.price === 0).map((c) => (
@@ -575,6 +746,9 @@ export function Onboarding() {
             full
             disabled={!canContinue}
             onClick={() => {
+              /* Prices are fetched on the way into the access step, not at mount:
+                 a family who never reaches it never makes the request. */
+              if (step === 1 && !offer) void prices().then(setOffer)
               if (step < STEPS.length - 1) return setStep(step + 1)
               if (!done) {
                 sfx.unlock()
@@ -588,7 +762,7 @@ export function Onboarding() {
               : step < STEPS.length - 1
                 ? 'Next'
                 : done
-                  ? `Start playing 🚀`
+                  ? 'Start playing 🚀'
                   : 'Finish setup'}
           </Btn>
         </div>
@@ -596,9 +770,9 @@ export function Onboarding() {
 
       {step === 0 && (
         <p className="mt-4 text-center text-xs font-semibold text-brand-400">
-          {APP_NAME} stores everything in this browser on this device, and nothing about your child ever
-          leaves it. Maths is free with no sign-up; the other subjects need a code or a licence, which a
-          grown-up can sort out later.
+          Your child&apos;s work — their answers, progress and report — stays in this browser on this
+          device. The account holds your email address and what you are entitled to, and nothing about
+          your child unless you later ask us to keep it.
         </p>
       )}
     </Screen>

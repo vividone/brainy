@@ -904,7 +904,15 @@ check('unauthorised refused', (await call(retain, {}, { method: 'POST', url: '/a
 const dryRun = await call(retain, {}, { method: 'POST', url: '/api/cron/retain?dry=1', headers: cronHeaders })
 check('dry run allowed', dryRun.status, 200)
 check('dry run says so', dryRun.body?.dry, true)
-check('every rule ran', Object.keys(dryRun.body?.rows ?? {}).length, 10)
+/*
+ * Counted from the rules themselves, not from a number typed here. Every rule is
+ * a piece of SQL that only ever runs on a schedule in production, so "all of them
+ * are valid against the real schema" is the whole reason this test exists — and a
+ * hardcoded total just means the assertion goes stale the next time one is added,
+ * which teaches you to edit the number rather than read the failure.
+ */
+const { RULES } = await import('../server/routes/cron/retain.js')
+check('every rule ran', Object.keys(dryRun.body?.rows ?? {}).length, RULES.length)
 
 /*
  * The assertion that matters. A retention job that quietly deletes nothing

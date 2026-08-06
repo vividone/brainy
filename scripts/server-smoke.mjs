@@ -237,6 +237,135 @@ for (let i = 0; i < 20; i++) {
 check('code guessing is throttled by socket address', throttled > 0, true)
 
 /* ------------------------------------------------------------------ *
+ * Parent accounts
+ *
+ * Sign-up and sign-in are one flow, so these assertions are mostly about the
+ * things that must NOT work: a wrong code, a dead code, a token that has been
+ * revoked, and — the one that matters most — an account that exists without
+ * anything about a child attached to it.
+ * ------------------------------------------------------------------ */
+
+console.log('\nParent accounts')
+
+/*
+ * Codes are emailed, and email is switched off in this harness — so read the code
+ * out of the database the way nobody in production can. Hashed with a pepper, so
+ * the test brute-forces the six digits rather than reversing anything, which is
+ * itself a demonstration that the stored form is not the code.
+ */
+const { one: dbOne } = await import('../server/lib/db.js')
+import crypto2 from 'node:crypto'
+const codeFor = async (address) => {
+  const row = await dbOne(
+    `select code_hash from auth_codes where email = $1 and consumed_at is null order by id desc limit 1`,
+    [address],
+  )
+  if (!row) return null
+  for (let n = 0; n < 1_000_000; n++) {
+    const guess = String(n).padStart(6, '0')
+    const hash = crypto2
+      .createHmac('sha256', process.env.ADMIN_SESSION_SECRET)
+      .update(`${address}:${guess}`)
+      .digest('hex')
+    if (hash === row.code_hash) return guess
+  }
+  return null
+}
+
+check('a malformed address is refused', (await call('/api/auth/code', { method: 'POST', body: { email: 'nope' } })).status, 400)
+
+const asked = await call('/api/auth/code', { method: 'POST', body: { email: 'Ada@Example.com' } })
+check('asking for a code is accepted', asked.status, 200)
+check('and says how long it lasts', asked.json?.expiresInMinutes, 15)
+
+const code = await codeFor('ada@example.com')
+check('a code was stored, hashed', typeof code === 'string' && code.length === 6, true)
+
+check(
+  'a wrong code is refused',
+  (await call('/api/auth/verify', { method: 'POST', body: { email: 'ada@example.com', code: '000000' } })).status,
+  401,
+)
+
+const verified = await call('/api/auth/verify', {
+  method: 'POST',
+  body: { email: 'ada@example.com', code, label: 'Chrome on Android' },
+})
+check('the right code signs in', verified.status, 200)
+check('a device token comes back', String(verified.json?.token ?? '').startsWith('bpt_'), true)
+check('the account is new', verified.json?.account?.isNew, true)
+check('with a licence attached', typeof verified.json?.licence?.code, 'string')
+// The promise, asserted: an account on its own holds nothing about a child.
+check('and no progress consent', verified.json?.account?.keepProgress, false)
+
+const TOKEN = verified.json.token
+check(
+  'the same code cannot be used twice',
+  (await call('/api/auth/verify', { method: 'POST', body: { email: 'ada@example.com', code } })).status,
+  401,
+)
+
+console.log('\nWhat the token opens')
+check('no token, no account', (await call('/api/account')).status, 401)
+check(
+  'a made-up token is refused',
+  (await call('/api/account', { headers: { authorization: 'Bearer bpt_not-a-real-token' } })).status,
+  401,
+)
+
+const mine = await call('/api/account', { headers: { authorization: `Bearer ${TOKEN}` } })
+check('a real token opens the account', mine.status, 200)
+check('it is theirs', mine.json?.account?.email, 'ada@example.com')
+check('we hold no children', mine.json?.children?.length, 0)
+
+check(
+  'consent can be given',
+  (await call('/api/account/keep-progress', { method: 'POST', body: { on: true }, headers: { authorization: `Bearer ${TOKEN}` } })).json?.keepProgress,
+  true,
+)
+check(
+  'and taken back',
+  (await call('/api/account/keep-progress', { method: 'POST', body: { on: false }, headers: { authorization: `Bearer ${TOKEN}` } })).json?.keepProgress,
+  false,
+)
+
+console.log('\nSigning out')
+check('signing out is accepted', (await call('/api/auth/signout', { method: 'POST', headers: { authorization: `Bearer ${TOKEN}` } })).status, 200)
+check(
+  'and the token stops working',
+  (await call('/api/account', { headers: { authorization: `Bearer ${TOKEN}` } })).status,
+  401,
+)
+
+/* Signing in again is the recovery path — the whole point of the feature. */
+const again = await codeFor('ada@example.com').then(async (c) =>
+  c
+    ? await call('/api/auth/verify', { method: 'POST', body: { email: 'ada@example.com', code: c } })
+    : await call('/api/auth/code', { method: 'POST', body: { email: 'ada@example.com' } }).then(async () => {
+        const fresh = await codeFor('ada@example.com')
+        return await call('/api/auth/verify', { method: 'POST', body: { email: 'ada@example.com', code: fresh } })
+      }),
+)
+check('they can sign in again', again.status, 200)
+check('and it is the same account', again.json?.account?.isNew, false)
+check('with the same licence', again.json?.licence?.code, verified.json.licence.code)
+
+console.log('\nGuessing at codes')
+await call('/api/auth/code', { method: 'POST', body: { email: 'bola@example.com' } })
+let refusedAt = 0
+for (let i = 1; i <= 7; i++) {
+  const attempt = await call('/api/auth/verify', {
+    method: 'POST',
+    body: { email: 'bola@example.com', code: String(100000 + i) },
+  })
+  if (!refusedAt && /Too many/i.test(attempt.json?.error ?? '')) refusedAt = i
+}
+// Five guesses, then the code is dead — a six-digit space is only safe if it cannot be walked.
+check('a code dies after five wrong tries', refusedAt, 6)
+const stillThere = await codeFor('bola@example.com')
+check('and is consumed, not left live', stillThere, null)
+
+/* ------------------------------------------------------------------ *
  * Failing closed on missing configuration
  * ------------------------------------------------------------------ */
 

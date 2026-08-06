@@ -153,8 +153,47 @@ const HOW_TO_USE_TEXT = (url) =>
 const SIGN_OFF = '\n\nWe only ever use your address for your access to Brainy — never for marketing, and we do not pass it on. Reply to this email if anything is wrong; a person reads it.\n'
 
 /* ------------------------------------------------------------------ *
- * The four messages
+ * The messages
  * ------------------------------------------------------------------ */
+
+/**
+ * The six-digit sign-in code.
+ *
+ * The most time-critical email the product sends: somebody is staring at a form
+ * waiting for it. So the code goes in the **subject line as well as the body** —
+ * on a phone that means it can be read from the notification without opening
+ * anything, which is the difference between fifteen seconds and giving up.
+ *
+ * It also has to work as a warning. A parent who receives this without asking is
+ * being told, in the one channel we know reaches them, that somebody typed their
+ * address into Brainy — so the email says what to do about that, which is
+ * nothing, because a code alone grants no access.
+ */
+export function sendSignInCode({ email: address, code, minutes }) {
+  return send({
+    to: address,
+    tag: 'signin',
+    subject: `${code} is your Brainy sign-in code`,
+    text: `Your Brainy sign-in code is:
+
+    ${code}
+
+Type it into Brainy to finish signing in. It works once and expires in ${minutes} minutes.
+
+If you did not ask for this, you can ignore it — the code is useless on its own, nobody can get into
+your account without it, and we will not email you again unless you ask. Nothing about your child is
+in this email or in your account unless you have chosen to keep their progress there.${SIGN_OFF}`,
+    html: wrap(
+      'Your sign-in code',
+      `${p('Type this into Brainy to finish signing in:')}
+       <div style="margin:18px 0;padding:18px;background:#f5f3ff;border:2px dashed #7c3aed;border-radius:12px;text-align:center">
+         <p style="margin:0;font-size:34px;font-weight:800;letter-spacing:0.22em;font-family:Consolas,'SFMono-Regular',monospace">${esc(code)}</p>
+       </div>
+       ${p(`It works once, and expires in ${esc(minutes)} minutes.`)}
+       ${p('<b>Did not ask for this?</b> Ignore it. The code is useless on its own, nobody can reach your account without it, and we will not email you again unless you ask.')}`,
+    ),
+  })
+}
 
 /**
  * "Here is your code" — the one email that must never go missing.

@@ -18,8 +18,10 @@
  * Fastify's 404 — so the route accepts the method and lets the handler refuse it.
  */
 
+import account from './routes/account.js'
 import activate from './routes/activate.js'
 import admin from './routes/admin.js'
+import auth from './routes/auth.js'
 import event from './routes/event.js'
 import forget from './routes/forget.js'
 import payInitialise from './routes/pay/initialise.js'
@@ -46,6 +48,15 @@ export const ROUTES = [
   /* Accounts, licences and codes. */
   { url: '/api/signup', methods: ['GET', 'POST'], handler: signup, bodyLimit: SMALL },
   { url: '/api/activate', methods: ['GET', 'POST'], handler: activate, bodyLimit: SMALL },
+
+  /*
+   * Parent sign-in. Small bodies by definition — an email and six digits — and
+   * deliberately tight, because these are the two unauthenticated routes that can
+   * cause an email to be sent.
+   */
+  { url: '/api/auth/*', methods: ['GET', 'POST'], handler: auth, bodyLimit: 8 * KB },
+  { url: '/api/account', methods: ['GET', 'POST', 'DELETE'], handler: account, bodyLimit: SMALL },
+  { url: '/api/account/*', methods: ['GET', 'POST', 'DELETE'], handler: account, bodyLimit: SMALL },
 
   /* Money. */
   { url: '/api/pay/initialise', methods: ['GET', 'POST'], handler: payInitialise, bodyLimit: SMALL },

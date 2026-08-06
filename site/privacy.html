@@ -128,6 +128,11 @@
               <td><strong>Contract</strong> — we cannot give you access without a way to restore it</td>
             </tr>
             <tr>
+              <td>A six-digit sign-in code, and a token on the device it signed in</td>
+              <td>Yours</td>
+              <td><strong>Contract</strong> — it is how you prove the account is yours, and how a new tablet gets your access back</td>
+            </tr>
+            <tr>
               <td>Payment records</td>
               <td>Yours</td>
               <td><strong>Contract</strong>, then <strong>legal obligation</strong> — tax and accounting</td>
@@ -140,7 +145,11 @@
             <tr>
               <td>Visits to this website</td>
               <td>Yours</td>
-              <td><strong>Consent</strong> — the cookie banner, off until you accept</td>
+              <td>
+                <strong>Legitimate interest</strong> — knowing which of these pages people read. There
+                is no cookie banner; <a href="#analytics">how to block it</a> is below, and blocking it
+                costs you nothing
+              </td>
             </tr>
           </tbody>
         </table>
@@ -164,6 +173,34 @@
         If setup cannot reach us — no signal, or we are down — Brainy lets you carry on anyway and
         asks again in the grown-up area later, because an app sold on working offline should not
         refuse to start when it is offline. Nothing about your child is sent when it does reach us.
+      </p>
+
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">How signing in works</h3>
+      <p>
+        There is no password. You give us your email address, we send a six-digit code, and typing it
+        back proves the address is yours — which is the same thing a password reset would have proved,
+        with fewer steps and nothing to forget. That code works once and expires after fifteen minutes,
+        and five wrong guesses kill it.
+      </p>
+      <p>
+        Once you are in, the device keeps a long random <strong>token</strong> so it stays signed in.
+        Two things worth being straight about:
+      </p>
+      <ul>
+        <li>
+          It is stored in the browser on that device, which means a script running on the page could
+          read it. Brainy loads no third-party script anywhere in the app, and the security policy we
+          publish with it forbids one — that is the protection, and we would rather state it than imply
+          the token is safer than it is.
+        </li>
+        <li>
+          Each device gets its own, so signing out on a tablet you have lost does not disturb the one
+          in your hand. <strong>Sign out</strong> in the grown-up area revokes that device immediately.
+        </li>
+      </ul>
+      <p>
+        We keep a rough label for each signed-in device — "Chrome on Android", say — purely so you can
+        tell them apart. It is not a fingerprint and cannot identify the device to anybody else.
       </p>
 
       <h2>What is stored on your device</h2>
@@ -433,6 +470,8 @@
             <tr><td>Failed access-code attempts</td><td>30 days</td><td>Rate limiting needs days. These are hashed, never the IP itself</td></tr>
             <tr><td>An uploaded bank transfer receipt</td><td>13 months</td><td>The payment record stays for accounting; the picture of your banking app does not</td></tr>
             <tr><td>Abandoned checkouts</td><td>30 days</td><td>A payment not completed within a month was abandoned</td></tr>
+            <tr><td>A six-digit sign-in code</td><td>1 day</td><td>It is dead after fifteen minutes; the row is cleared the next day</td></tr>
+            <tr><td>A signed-out device's token</td><td>90 days</td><td>Kept revoked, not deleted, so a token that turns up again is refused rather than unrecognised</td></tr>
             <tr><td>Payment records</td><td>7 years</td><td>Tax and accounting rules require it. This one we cannot shorten</td></tr>
             <tr><td>Your licence and email</td><td>While the licence lives</td><td>It is what proves your access exists. For a free-forever family that is indefinite, which is the point of the promise</td></tr>
           </tbody>

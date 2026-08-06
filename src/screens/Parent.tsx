@@ -37,6 +37,7 @@ import {
   submitTransfer,
   type Prices,
 } from '../lib/licence'
+import { requestCode, signOut, verifyCode } from '../lib/account'
 import { useEntitlement } from '../state/entitlement'
 import { isoWeek } from '../state/weekly'
 import { FeedbackCard } from './Feedback'
@@ -745,6 +746,157 @@ function ChildrenTab() {
  * is shut. So it leads with what they have, says plainly what is free for ever,
  * and only then offers to sell anything.
  */
+/**
+ * The account, in the grown-up area.
+ *
+ * Three jobs, in order of how often each is needed: tell a parent which account
+ * this tablet is signed in to, let them sign in if it is not, and let them sign
+ * out. The middle one matters most — it is the recovery path for a tablet that
+ * was set up before accounts existed, or where setup was completed offline, and
+ * it is the same six-digit flow as first run rather than a second mechanism.
+ *
+ * Signing out is deliberately blunt about what it does and does not do: it forgets
+ * the account on this device and touches nothing a child has done.
+ */
+function AccountCard() {
+  const token = useStore((s) => s.device.authToken)
+  const parentEmail = useStore((s) => s.device.parentEmail)
+  const signedInAction = useStore((s) => s.signedIn)
+  const signedOutAction = useStore((s) => s.signedOut)
+  const setLicence = useStore((s) => s.setLicence)
+
+  const [open, setOpen] = useState(false)
+  const [email, setEmail] = useState(parentEmail ?? '')
+  const [code, setCode] = useState('')
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [note, setNote] = useState<{ good: boolean; text: string } | null>(null)
+
+  if (token) {
+    return (
+      <Card className="p-5 border-slate-200">
+        <h2 className="font-black text-slate-900 mb-1">Your account</h2>
+        <p className="text-sm font-semibold text-slate-600">
+          Signed in as <b className="text-slate-900">{parentEmail}</b>. This is what puts your access
+          back on a new tablet.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Btn
+            variant="secondary"
+            size="sm"
+            disabled={busy === 'out'}
+            onClick={async () => {
+              setBusy('out')
+              await signOut(token)
+              signedOutAction()
+              setBusy(null)
+            }}
+          >
+            {busy === 'out' ? 'Signing out…' : 'Sign out of this tablet'}
+          </Btn>
+        </div>
+        <p className="mt-3 text-xs font-semibold text-slate-400">
+          Signing out forgets your email on this device. It does not cancel anything, and it does not
+          touch a single thing your child has done — their progress is on this tablet either way.
+        </p>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-5 border-amber-300 bg-amber-50">
+      <h2 className="font-black text-amber-900 mb-1">No account on this tablet</h2>
+      <p className="text-sm font-semibold text-amber-800">
+        Without one we cannot put your access back if this tablet is lost or replaced, and you cannot
+        open Brainy on a second one. It takes a moment: no password, just a code by email.
+      </p>
+
+      {!open ? (
+        <Btn size="md" className="mt-3" onClick={() => setOpen(true)}>
+          Sign in or create an account
+        </Btn>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value.slice(0, 120))}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            disabled={sent}
+            className="w-full h-12 rounded-2xl border-2 border-amber-300 bg-white px-3 font-bold
+              text-slate-900 outline-none focus:border-amber-500 disabled:text-slate-500"
+          />
+          {sent && (
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-white px-3 text-2xl font-black
+                tracking-[0.3em] text-slate-900 outline-none focus:border-amber-500"
+            />
+          )}
+          <div className="flex flex-wrap gap-2">
+            {!sent ? (
+              <Btn
+                size="md"
+                disabled={!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) || busy === 'code'}
+                onClick={async () => {
+                  setBusy('code')
+                  setNote(null)
+                  const result = await requestCode(email.trim())
+                  setBusy(null)
+                  if (result.ok) setSent(true)
+                  else setNote({ good: false, text: result.error ?? 'Could not send a code.' })
+                }}
+              >
+                {busy === 'code' ? 'Sending…' : 'Email me a code'}
+              </Btn>
+            ) : (
+              <Btn
+                size="md"
+                disabled={code.length !== 6 || busy === 'verify'}
+                onClick={async () => {
+                  setBusy('verify')
+                  setNote(null)
+                  const result = await verifyCode(email.trim(), code)
+                  setBusy(null)
+                  if (!result.ok) {
+                    return setNote({ good: false, text: result.error ?? 'That code was not accepted.' })
+                  }
+                  signedInAction({
+                    token: result.token!,
+                    email: result.account?.email ?? email.trim(),
+                    keepProgress: result.account?.keepProgress,
+                    licence: result.licence,
+                  })
+                  /* A sign-in carries the family's current licence, so a tablet
+                     that was set up offline gets its paid subjects here. */
+                  if (result.licence) setLicence(result.licence)
+                  setNote({ good: true, text: 'Signed in. Your access is up to date.' })
+                }}
+              >
+                {busy === 'verify' ? 'Checking…' : 'Sign in'}
+              </Btn>
+            )}
+            <Btn variant="secondary" size="md" onClick={() => { setOpen(false); setSent(false); setNote(null) }}>
+              Cancel
+            </Btn>
+          </div>
+          {note && (
+            <p className={`rounded-2xl p-3 font-bold ${note.good ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+              {note.text}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 function AccessTab() {
   const { full, licence } = useEntitlement()
   const setLicence = useStore((s) => s.setLicence)
@@ -864,6 +1016,9 @@ function AccessTab() {
 
   return (
     <div className="mt-4 space-y-4">
+      {/* ---- Who they are signed in as ---- */}
+      <AccountCard />
+
       {/* ---- What they have ---- */}
       <Card className={`p-5 ${full ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200'}`}>
         <h2 className="font-black text-slate-900 mb-1">
