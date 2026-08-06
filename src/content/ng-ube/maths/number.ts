@@ -6,6 +6,7 @@ import { entry, mc, order, tapMany, thing } from '../../shared/authoring'
 import { capitalise, numberToWords, ordinalShort, ordinalWord, toRoman } from '../../shared/words'
 import { earlyNumberSkills } from './early'
 import { upperNumberSkills } from './upper'
+import { b6NumberSkills } from './upper-b6'
 
 const countTo200: SkillDef = {
   id: 'ng.maths.number.count-200',
@@ -416,5 +417,6 @@ export const numberStrand: StrandDef = {
     compareOrder,
     roman,
     ...upperNumberSkills,
+    ...b6NumberSkills,
   ],
 }

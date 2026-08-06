@@ -5,6 +5,7 @@ import type { Item, SkillDef, StrandDef } from '../../../engine/types'
 import { entry, mc, order, person } from '../../shared/authoring'
 import { DAYS, DAYS_IN_MONTH, MONTHS, ordinalShort } from '../../shared/words'
 import { upperMeasureSkills } from './upper'
+import { b5MeasureSkills } from './upper-b6'
 
 const length: SkillDef = {
   id: 'ng.maths.measure.length',
@@ -391,5 +392,6 @@ export const measurementStrand: StrandDef = {
     orderEvents,
     dateReading,
     ...upperMeasureSkills,
+    ...b5MeasureSkills,
   ],
 }
