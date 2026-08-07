@@ -692,6 +692,34 @@ VIEWS.transfers = async () => {
     </div>`)
     card.querySelector('#acct-copy').onclick = () => copy(acct.accountNumber)
     box.append(card)
+
+    /*
+     * The website's donation section, on or off from here.
+     *
+     * A switch rather than another environment variable: this is a decision that
+     * gets reversed, and asking for a redeploy to reverse it is how a section
+     * stays up for a month after somebody wanted it down. It shows the same
+     * account as above, which is why it lives beside it.
+     */
+    const on = Boolean(data.donations?.enabled)
+    const ask = el(`<div class="card">
+      <h3>Asking for donations on the website</h3>
+      <p style="margin:0 0 0.8rem;font-weight:600">
+        ${on
+          ? 'The <b>Help keep it free</b> section is <b>showing</b> on brainy.fortbridge.app, with the account above in it.'
+          : 'The <b>Help keep it free</b> section is <b>hidden</b>. Nobody is being asked for anything.'}
+      </p>
+      <button class="${on ? 'danger' : ''}" id="don-go">${on ? 'Hide it' : 'Show it'}</button>
+      <p class="note">
+        Takes effect on the next page load, and changes nothing a family has already paid.
+        Turning it off does not touch bank transfers for licences.
+      </p>
+    </div>`)
+    ask.querySelector('#don-go').onclick = (e) =>
+      act(e.target, on ? 'Hidden from the website.' : 'Showing on the website.', () =>
+        api('/admin/settings', { method: 'POST', body: { key: 'donations', on: !on } }),
+      )
+    box.append(ask)
   } else {
     box.append(
       el(`<div class="card" style="border-color:#fde68a;background:#fffbeb">

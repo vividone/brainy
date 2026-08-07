@@ -103,7 +103,15 @@ if (supportBox) {
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
       const t = data && data.ok ? data.transfer : null
-      if (!t || !t.enabled) return
+      /*
+       * Two conditions, both required: an operator has to have switched the ask
+       * on, and there has to be an account to send it to. Either missing and the
+       * section stays hidden, which is why it ships hidden rather than shown.
+       */
+      if (!t || !t.enabled || !data.donations || !data.donations.enabled) return
+      document.getElementById('support').hidden = false
+      const navLink = document.getElementById('nav-support')
+      if (navLink) navLink.hidden = false
       const rows = [
         ['Bank', t.bank],
         ['Account name', t.accountName],

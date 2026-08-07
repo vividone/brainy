@@ -24,6 +24,7 @@ import {
 } from '../../lib/licence.js'
 import { initialise, secretKey } from '../../lib/paystack.js'
 import { noteAttempt, rateLimited } from '../../lib/auth.js'
+import { flag } from '../../lib/settings.js'
 
 const baseUrl = (req) => {
   const configured = process.env.PUBLIC_BASE_URL
@@ -52,6 +53,10 @@ export default async function handler(req, res) {
         .map(([id, plan]) => ({ id, label: plan.label, amount: plan.amount, months: plan.months })),
       /* Where to send a bank transfer, when card checkout is not the answer. */
       transfer: bankDetails(),
+      /* Whether the website should ask for donations. Flipped from the
+         dashboard, not from an environment variable, so it can be turned off
+         the moment it feels wrong rather than at the next deploy. */
+      donations: { enabled: await flag('donations') },
     })
   }
 

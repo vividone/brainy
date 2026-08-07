@@ -453,6 +453,22 @@ export async function ensureSchema() {
     );
 
     /*
+     * Switches an operator can flip without a deploy.
+     *
+     * One row per setting, values as text so a boolean today does not stop this
+     * holding a message tomorrow. It exists because the alternative for "should
+     * the website ask for donations" was another environment variable, and this
+     * project has already lost hours to variables set on the wrong platform: the
+     * database is the one place both the API and the dashboard already agree on.
+     */
+    create table if not exists app_settings (
+      key        text primary key,
+      value      text not null,
+      updated_by text,
+      updated_at timestamptz not null default now()
+    );
+
+    /*
      * Columns added to tables that already exist somewhere.
      *
      * create table if not exists cannot add one, and this project still has no

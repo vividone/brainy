@@ -16,6 +16,7 @@
  */
 
 import { NoDatabase, all, audit, explain, one, query } from '../lib/db.js'
+import { FLAG_DEFAULTS, flag, setFlag } from '../lib/settings.js'
 import { clip, email as parseEmail, num, pathParts, readJson, searchParams } from '../lib/http.js'
 import {
   clearSession,
@@ -211,6 +212,7 @@ async function overview(req, res) {
     },
     paystack: { configured: Boolean(process.env.PAYSTACK_SECRET_KEY) },
     transfer: bankDetails(),
+    donations: { enabled: await flag('donations') },
     transfersPending: waiting?.pending ?? 0,
     signupCoupon,
     prices: Object.fromEntries(
@@ -345,7 +347,13 @@ async function transfers(req, res) {
      reading the two side by side, and an operator who has to go and find the
      account number elsewhere is an operator who eventually checks it against the
      wrong one. */
-  return res.status(200).json({ ok: true, currency: CURRENCY(), transfer: bankDetails(), transfers: rows })
+  return res.status(200).json({
+    ok: true,
+    currency: CURRENCY(),
+    transfer: bankDetails(),
+    donations: { enabled: await flag('donations') },
+    transfers: rows,
+  })
 }
 
 /**
@@ -514,6 +522,24 @@ async function createCoupon(req, admin, res) {
   )
   await audit(admin.email, 'coupon.created', code, `${plan} · ${maxUses} use(s)`)
   return res.status(200).json({ ok: true, coupon: row })
+}
+
+/**
+ * Flip one of the dashboard switches.
+ *
+ * Only the flags this build knows about, by name, so a typo cannot write a row
+ * nothing ever reads and leave somebody believing they turned something off.
+ */
+async function setSetting(req, admin, res) {
+  const body = await readJson(req, 4 * 1024).catch(() => ({}))
+  const key = clip(body?.key, 40)
+  if (!key || !Object.hasOwn(FLAG_DEFAULTS, key)) {
+    return res.status(400).json({ ok: false, error: 'Unknown setting.' })
+  }
+  const on = Boolean(body?.on)
+  await setFlag(key, on, admin.email)
+  await audit(admin.email, 'setting.changed', key, on ? 'on' : 'off')
+  return res.status(200).json({ ok: true, key, enabled: on })
 }
 
 /**
@@ -785,6 +811,9 @@ export default async function handler(req, res) {
         return await approveTransfer(req, admin, res)
       case 'POST transfers/decline':
         return await declineTransfer(req, admin, res)
+
+      case 'POST settings':
+        return await setSetting(req, admin, res)
 
       case 'POST coupons':
         return await createCoupon(req, admin, res)

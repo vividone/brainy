@@ -686,7 +686,7 @@
           <a href="#subjects">Subjects</a>
           <a href="#parents">For parents</a>
           <a href="#privacy">Privacy</a>
-          <a href="#support">Support us</a>
+          <a href="#support" id="nav-support" hidden>Support us</a>
           <a class="btn" href="/play/">Open Brainy</a>
         </nav>
       </div>
@@ -983,7 +983,9 @@
       than written here, so there is one place they live and no chance of a stale
       number taking somebody's money to the wrong bank.
     -->
-    <section class="tint" id="support">
+    <!-- hidden until the API says donations are on: an ask for money should
+         fail closed, so a broken fetch shows nothing rather than a half-built box -->
+    <section class="tint" id="support" hidden>
       <div class="wrap center">
         <h2>Help keep it free</h2>
         <p class="sub" style="margin-inline: auto">

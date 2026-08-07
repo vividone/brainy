@@ -57,7 +57,11 @@
       "Bash(curl -s --max-time 20 https://api-brainy.fortbridge.app/api/pay/initialise)",
       "Bash(node --check server/routes/admin.js)",
       "Bash(grep -rhoE \"name: '[^']+',\\\\s*$\" src/content/ng-ube/index.ts)",
-      "Bash(grep -v \"^\\\\s*$\")"
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(node --check server/routes/pay/initialise.js)",
+      "Bash(grep -n \"console.log\\('\\\\\\\\\\\\\\\\nCoupons'\\)\" scripts/api-smoke.mjs)",
+      "Bash(node scripts/sample.mjs uk.maths.y4.negative-numbers uk.maths.y4.roman-numerals uk.maths.y4.hundredths)",
+      "Bash(node scripts/sample.mjs uk.maths.y4.negative-numbers)"
     ]
   }
 }

@@ -733,6 +733,32 @@ check(
   (await call(payInit, {}, { method: 'GET' })).body?.transfer?.accountNumber,
   '0123456789',
 )
+/*
+ * The donation section, which an operator turns on and off from the dashboard.
+ *
+ * The website ships that section hidden and reveals it only on this answer, so
+ * "off" has to actually come back off — a flag that silently defaults to on
+ * after being switched off would put an ask for money back on the page.
+ */
+check('donations start on', (await call(payInit, {}, { method: 'GET' })).body?.donations?.enabled, true)
+check(
+  'an unknown setting is refused',
+  (await call(admin, { key: 'nope', on: true }, { url: '/api/admin/settings', headers: authed })).status,
+  400,
+)
+check(
+  'switching them off is accepted',
+  (await call(admin, { key: 'donations', on: false }, { url: '/api/admin/settings', headers: authed })).status,
+  200,
+)
+check('and the website is told', (await call(payInit, {}, { method: 'GET' })).body?.donations?.enabled, false)
+check(
+  'switching them back on works too',
+  (await call(admin, { key: 'donations', on: true }, { url: '/api/admin/settings', headers: authed }))
+    .body?.enabled,
+  true,
+)
+
 check('GET refused on the claim route', (await call(payRequest, {}, { method: 'GET' })).status, 405)
 check('a claim needs an email', (await call(payRequest, { plan: 'annual' })).status, 400)
 check('and a real plan', (await call(payRequest, { email: 'kemi@example.com', plan: 'gold' })).status, 400)

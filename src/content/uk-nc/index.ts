@@ -12,6 +12,14 @@ import { numericDistractors } from '../../engine/rng'
 import type { Curriculum, Item, Locale, SkillDef } from '../../engine/types'
 import { entry, mc, money, order, person, sayMaths, thing } from '../shared/authoring'
 import { numberToWords } from '../shared/words'
+import {
+  ukY4Calculation,
+  ukY4Fractions,
+  ukY4Geometry,
+  ukY4Measurement,
+  ukY4Number,
+  ukY4Statistics,
+} from './maths-y4'
 
 const ukLocale: Locale = {
   tag: 'en-GB',
@@ -208,20 +216,55 @@ export const ukNc: Curriculum = {
       icon: '🔢',
       color: 'violet',
       available: true,
+      /*
+       * One strand per National Curriculum domain, rather than the two the
+       * Year 3 proof-of-concept had. The domains are the document's own
+       * headings, so a year's statutory content always has somewhere obvious
+       * to go and a gap shows up as an empty island rather than as content
+       * quietly filed under the wrong heading.
+       */
       strands: [
         {
           id: 'uk.maths.number',
           name: 'Number Island',
-          blurb: 'Place value and ordering to 1000',
+          blurb: 'Place value, ordering, rounding and Roman numerals',
           theme: 'market',
-          skills: [numbersTo1000, placeValue, compareOrder],
+          skills: [numbersTo1000, placeValue, compareOrder, ...ukY4Number],
         },
         {
           id: 'uk.maths.calc',
           name: 'Calculation Falls',
-          blurb: 'Column methods, tables and money',
+          blurb: 'Column methods and times tables',
           theme: 'falls',
-          skills: [addSubtract, timesTables, poundsPence],
+          skills: [addSubtract, timesTables, ...ukY4Calculation],
+        },
+        {
+          id: 'uk.maths.fractions',
+          name: 'Fraction Grove',
+          blurb: 'Fractions, tenths and hundredths',
+          theme: 'grove',
+          skills: [...ukY4Fractions],
+        },
+        {
+          id: 'uk.maths.measure',
+          name: 'Measure Bay',
+          blurb: 'Money, units and perimeter',
+          theme: 'bay',
+          skills: [poundsPence, ...ukY4Measurement],
+        },
+        {
+          id: 'uk.maths.shapes',
+          name: 'Shape City',
+          blurb: 'Angles, symmetry and coordinates',
+          theme: 'city',
+          skills: [...ukY4Geometry],
+        },
+        {
+          id: 'uk.maths.data',
+          name: 'Data Beach',
+          blurb: 'Charts and tables',
+          theme: 'beach',
+          skills: [...ukY4Statistics],
         },
       ],
     },

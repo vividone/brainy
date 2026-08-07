@@ -13,6 +13,7 @@
     "smoke:api": "node scripts/api-smoke.mjs",
     "smoke:server": "node scripts/server-smoke.mjs",
     "coverage": "node scripts/coverage.mjs",
+    "content:track": "node scripts/content-track.mjs",
     "sample": "node scripts/sample.mjs",
     "preflight": "node scripts/preflight.mjs",
     "icons": "node scripts/make-icons.mjs",
