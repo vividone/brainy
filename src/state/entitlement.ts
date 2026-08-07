@@ -6,6 +6,14 @@
  * revision is the same subject — is free permanently, for everybody. The other
  * subjects are what a licence buys.
  *
+ * A licence covers **a family, not a child**. `subjectOpen` takes what is open
+ * and which subject, never which child is playing, and that is the design rather
+ * than an oversight: siblings share one tablet far more often than they get one
+ * each, and per-seat access would mean a five-year-old locked out of a subject
+ * her brother is halfway through. There is nothing to enforce here, so there is
+ * nothing to add — the `children` count on a licence records family size and
+ * grants nothing. See prd.md §14.3.
+ *
  * Two things this deliberately never does:
  *
  *  - interrupt a session. Locking happens where a level is *chosen*, so a quest

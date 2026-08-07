@@ -444,6 +444,40 @@ check(
     ?.length,
   1,
 )
+/*
+ * A coupon can grant any period, not only the three the plans name.
+ *
+ * The pair that matters: the expiry has to be the coupon's period rather than
+ * the plan's, and the label the parent is shown has to agree with it. A
+ * three-month code issued on the annual plan used to say "One year" directly
+ * above a date three months away.
+ */
+console.log('\nA coupon with its own access period')
+const oddCoupon = await call(
+  admin,
+  { plan: 'free-forever', months: 3, maxUses: 1, note: 'a term, on the house' },
+  { url: '/api/admin/coupons', headers: authed },
+)
+check('a three-month code is created', oddCoupon.status, 200)
+check('and stores its own period', oddCoupon.body?.coupon?.months, 3)
+
+const termly = await call(activateRoute, { code: oddCoupon.body.coupon.code, email: 'ngozi@example.com' })
+check('it grants access', termly.body?.licence?.full, true)
+const grantedMonths = Math.round(
+  (new Date(termly.body.licence.expiresAt) - new Date(termly.body.licence.startedAt)) / 2_629_800_000,
+)
+check('for three months, not a year', grantedMonths, 3)
+check('and it says three months', termly.body?.licence?.planLabel, 'Three months')
+
+/* Never-expires stays available, and is not confused with "no period given". */
+const forever = await call(
+  admin,
+  { plan: 'annual', months: null, maxUses: 1, note: 'annual plan, no end' },
+  { url: '/api/admin/coupons', headers: authed },
+)
+const endless = await call(activateRoute, { code: forever.body.coupon.code, email: 'tunde@example.com' })
+check('an explicit never has no expiry', endless.body?.licence?.expiresAt, null)
+
 const trail = await call(admin, {}, { method: 'GET', url: '/api/admin/audit', headers: authed })
 check('every change is logged', trail.body?.audit?.length > 0, true)
 check(

@@ -451,6 +451,22 @@ export async function ensureSchema() {
       keep_progress boolean not null default true,
       updated_at    timestamptz not null default now()
     );
+
+    /*
+     * Columns added to tables that already exist somewhere.
+     *
+     * create table if not exists cannot add one, and this project still has no
+     * migration tool, so new columns arrive as idempotent ALTERs kept together
+     * here rather than scattered through the definitions above. Both Postgres
+     * and the pg-mem the tests run on support this form, so it costs nothing on
+     * a fresh database and does the right thing on an old one.
+     *
+     * plan_months: how long a grant was for, in months, recorded so a licence can
+     * describe itself honestly. A coupon may grant any period now, so the plan
+     * name alone no longer says how long anything lasts - a three-month code on
+     * the annual plan would otherwise tell the parent "One year".
+     */
+    alter table subscriptions add column if not exists plan_months int;
   `)
     .catch((err) => {
       ready = undefined

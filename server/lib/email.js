@@ -206,8 +206,8 @@ export function sendLicence(licence, { reason } = {}) {
   const greeting = licence.name ? `Hello ${licence.name},` : 'Hello,'
   const opening =
     reason === 'free-place'
-      ? 'You have one of the free family places, so every subject is open for one child, permanently.'
-      : `Every subject is now open for one child. ${licence.planLabel ?? ''}`.trim()
+      ? 'You have one of the free family places, so every subject is open for every child on your tablet.'
+      : `Every subject is now open, for every child on your tablet. ${licence.planLabel ?? ''}`.trim()
 
   return send({
     to: licence.email,
@@ -278,7 +278,7 @@ export function sendReceipt(licence, payment) {
     subject: 'Your Brainy licence: payment received',
     text: `${greeting}
 
-Thank you. We have received ${amount} for ${licence.planLabel ?? payment.plan}, and every subject is now open for one child. ${expiryLine(licence)}
+Thank you. We have received ${amount} for ${licence.planLabel ?? payment.plan}, and every subject is now open, for every child on your tablet. ${expiryLine(licence)}
 
     ${licence.code}
 

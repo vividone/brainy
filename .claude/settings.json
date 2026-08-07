@@ -42,7 +42,19 @@
       "Bash(grep -iB4 \"receipt goes out\\\\|family is told\")",
       "Bash(grep -vE \":\\\\s*\\(\\\\*|//|/\\\\*\\)\")",
       "Bash(node --check server/lib/accounts.js)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(node scripts/sample.mjs ng.maths.number.indices ng.maths.number.approximation)",
+      "Bash(node --check server/lib/licence.js)",
+      "Bash(node scripts/sample.mjs ng.maths.number.indices)",
+      "Bash(node --check scripts/api-smoke.mjs)",
+      "Bash(node scripts/sample.mjs ng.maths.money.percent-change ng.maths.measure.scale)",
+      "Bash(node -e \"console.log\\(Object.entries\\(require\\('./package.json'\\).scripts\\).map\\(\\([k,v]\\)=>k+': '+v\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({dev:p.devDependencies,deps:p.dependencies},null,1\\)\\)\")",
+      "Bash(npx vite *)",
+      "Bash(node scripts/build-site.mjs)",
+      "Bash(curl -s -o /dev/null -w \"app: %{http_code}\\\\n\" http://localhost:4400/play/)",
+      "Bash(curl -s --max-time 20 https://brainy.fortbridge.app/api/pay/initialise)",
+      "Bash(curl -s --max-time 20 https://api-brainy.fortbridge.app/api/pay/initialise)"
     ]
   }
 }

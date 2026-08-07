@@ -195,6 +195,34 @@ export async function expireIfDue(sub) {
  * `full` is computed here, on the server, so the client is never the authority
  * on what "active" means — it caches an answer rather than deciding one.
  */
+const NAMED_MONTHS = {
+  1: 'One month',
+  3: 'Three months',
+  6: 'Six months',
+  12: 'One year',
+  18: 'Eighteen months',
+  24: 'Two years',
+  36: 'Three years',
+}
+
+/**
+ * What to call this licence, in a way that cannot contradict its own expiry date.
+ *
+ * A coupon can now grant any number of months, so the plan name is no longer a
+ * duration: a three-month code issued on the annual plan would otherwise tell a
+ * parent "One year" directly above "Runs until 5 November". The plan's own label
+ * is used only when the period actually matches it, and for anything that never
+ * expires. Older rows have no recorded period and fall back to the plan, which is
+ * what they were granted under anyway.
+ */
+export function labelFor(sub) {
+  const plan = PLANS[sub.plan]
+  if (!sub.expires_at) return plan?.label ?? null
+  const months = sub.plan_months
+  if (months == null || months === plan?.months) return plan?.label ?? null
+  return NAMED_MONTHS[months] ?? `${months} months`
+}
+
 export function licencePayload(sub, parent) {
   const active = sub.status === 'active' && !past(sub.expires_at)
   return {
@@ -202,12 +230,14 @@ export function licencePayload(sub, parent) {
     plan: sub.plan,
     status: sub.status,
     full: active,
+    /* Family size, not an allowance: a licence opens every subject for every
+       child on the tablet. Sent because the dashboard counts it, never checked. */
     children: sub.children ?? 1,
     email: parent?.email ?? null,
     name: parent?.name ?? null,
     startedAt: sub.started_at ? new Date(sub.started_at).toISOString() : null,
     expiresAt: sub.expires_at ? new Date(sub.expires_at).toISOString() : null,
-    planLabel: PLANS[sub.plan]?.label ?? null,
+    planLabel: labelFor(sub),
   }
 }
 
@@ -261,6 +291,7 @@ export async function grant({ subscription, plan, months, source, couponCode, no
        started_at  = $5,
        expires_at  = $6,
        note        = coalesce($7, note),
+       plan_months = $8,
        updated_at  = now()
      where id = $1
      returning *`,
@@ -272,6 +303,9 @@ export async function grant({ subscription, plan, months, source, couponCode, no
       startedAt,
       expiresAt,
       note ?? null,
+      /* What this grant was worth, so the licence can say so. Null alongside a
+         null expiry is simply "for ever", which needs no number. */
+      months ?? null,
     ],
   )
 }

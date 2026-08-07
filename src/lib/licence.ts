@@ -25,6 +25,10 @@ export interface Licence {
   status: LicenceStatus
   /** The server's own verdict at the moment it answered. */
   full: boolean
+  /**
+   * How many children the family has told us about. Informational only: access
+   * is per family, so this grants and limits nothing. See state/entitlement.ts.
+   */
   children: number
   email: string | null
   name: string | null

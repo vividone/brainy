@@ -255,6 +255,20 @@ const copy = async (text) => {
 
 const statusTag = (status) => `<span class="tag ${esc(status)}">${esc(status)}</span>`
 
+/*
+ * How long a code actually grants, which is no longer the same question as which
+ * plan it is on. `months` overrides the plan when it is set; when it is not, the
+ * plan's own length applies, and for the two open-ended plans that is for ever.
+ */
+const PLAN_MONTHS = { 'free-forever': null, annual: 12, lifetime: null }
+const grantsFor = (c) => {
+  const months = c.months ?? PLAN_MONTHS[c.plan]
+  if (months == null) return 'never expires'
+  if (months === 12) return '1 year'
+  if (months % 12 === 0) return `${months / 12} years`
+  return `${months} months`
+}
+
 const planTag = (plan) =>
   plan && plan !== 'none' ? `<span class="tag plan">${esc(plan.replace(/-/g, ' '))}</span>` : '<span class="tag pending">no plan</span>'
 
@@ -763,11 +777,26 @@ VIEWS.coupons = async () => {
   const maker = el(`<div class="card">
     <h3>Make a code</h3>
     <div class="row">
-      <div><label for="c-plan">Grants</label><select id="c-plan">
-        <option value="free-forever">Free forever</option>
-        <option value="annual">One year</option>
-        <option value="lifetime">Lifetime</option>
+      <div><label for="c-plan">Counts as</label><select id="c-plan">
+        <option value="free-forever">Free place</option>
+        <option value="annual">Paid, one year</option>
+        <option value="lifetime">Paid, lifetime</option>
       </select></div>
+      <div><label for="c-months">Access for</label><select id="c-months">
+        <option value="">The plan's own length</option>
+        <option value="1">1 month</option>
+        <option value="2">2 months</option>
+        <option value="3">3 months</option>
+        <option value="6">6 months</option>
+        <option value="12">12 months</option>
+        <option value="18">18 months</option>
+        <option value="24">2 years</option>
+        <option value="36">3 years</option>
+        <option value="custom">Some other number of months…</option>
+        <option value="never">Never expires</option>
+      </select></div>
+      <div id="c-custom-wrap" style="display:none"><label for="c-custom">How many months</label>
+        <input id="c-custom" type="number" min="1" max="240" placeholder="e.g. 4" /></div>
       <div><label for="c-uses">How many families</label><input id="c-uses" type="number" min="1" value="1" /></div>
       <div><label for="c-code">Code (blank to generate)</label><input id="c-code" placeholder="FAMILY-2026" /></div>
       <div><label for="c-note">Note</label><input id="c-note" placeholder="first 20 families" /></div>
@@ -778,13 +807,43 @@ VIEWS.coupons = async () => {
       One code can cover a whole batch — twenty uses is the twenty free families, and each family
       can only claim it once however many times they type it.
     </p>
+    <p class="note">
+      <b>Counts as</b> is only how it is reported: a free place shows in the free-families tile and gets
+      the free-place email, the other two count as paid. <b>Access for</b> is how long it actually lasts,
+      and it overrides the plan — so &ldquo;free place&rdquo; for &ldquo;12 months&rdquo; is a free year,
+      not a free forever. Access is counted from the day a family redeems the code, not from today.
+    </p>
   </div>`)
+  /* The custom box only exists once it is asked for. */
+  const periodSelect = maker.querySelector('#c-months')
+  const customWrap = maker.querySelector('#c-custom-wrap')
+  periodSelect.onchange = () => {
+    customWrap.style.display = periodSelect.value === 'custom' ? '' : 'none'
+  }
+
+  /*
+   * Three different things the API needs to be told apart, so they are spelled
+   * out here rather than left to a falsy check: `undefined` means "use whatever
+   * the plan says", `null` means "never expires", and a number is a number.
+   */
+  const chosenMonths = () => {
+    const value = periodSelect.value
+    if (value === '') return undefined
+    if (value === 'never') return null
+    if (value === 'custom') {
+      const n = Number(maker.querySelector('#c-custom').value)
+      return Number.isFinite(n) && n > 0 ? Math.min(240, Math.round(n)) : undefined
+    }
+    return Number(value)
+  }
+
   maker.querySelector('#c-go').onclick = (e) =>
     act(e.target, 'Code created and copied.', async () => {
       const result = await api('/admin/coupons', {
         method: 'POST',
         body: {
           plan: maker.querySelector('#c-plan').value,
+          months: chosenMonths(),
           maxUses: Number(maker.querySelector('#c-uses').value || 1),
           code: maker.querySelector('#c-code').value.trim() || undefined,
           note: maker.querySelector('#c-note').value.trim() || undefined,
@@ -811,7 +870,7 @@ VIEWS.coupons = async () => {
     const spent = c.uses >= c.max_uses
     const tr = el(`<tr style="${c.active && !spent ? '' : 'opacity:0.55'}">
       <td><span class="mono">${esc(c.code)}</span>${c.active ? '' : '<br><span class="tag revoked">off</span>'}</td>
-      <td>${planTag(c.plan)}${c.months ? `<br><span class="note">${fmt(c.months)} months</span>` : ''}</td>
+      <td>${planTag(c.plan)}<br><span class="note">${esc(grantsFor(c))}</span></td>
       <td class="n">${fmt(c.uses)} / ${fmt(c.max_uses)}</td>
       <td>${c.expires_at ? esc(date(c.expires_at)) : '<b>no limit</b>'}</td>
       <td>${esc(c.note ?? '—')}</td>

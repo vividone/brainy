@@ -1384,8 +1384,9 @@ function AccessTab() {
           {full ? 'Renew or extend' : 'Open everything else'}
         </h2>
         <p className="text-sm font-semibold text-slate-500 mb-3">
-          One licence covers one child, every subject and every class in their curriculum. No
-          advertising in any version, and nothing a child can buy from inside the app.
+          One licence covers <b>every child on this tablet</b>, every subject and every class in
+          their curriculum. Brothers and sisters are included, not extra. No advertising in any version,
+          and nothing a child can buy from inside the app.
         </p>
 
         {offer?.enabled && offer.plans.length > 0 ? (
@@ -1423,13 +1424,30 @@ function AccessTab() {
         )}
       </Card>
 
-      {/* ---- Paying by bank transfer ---- */}
-      {offer?.transfer.enabled && !full && (
+      {/*
+        ---- Paying by bank transfer ----
+
+        Shown to a family who has no access yet, and to one whose access has an
+        end date. It used to be hidden the moment `full` went true, which quietly
+        meant a licence could be *bought* by transfer but never renewed by one —
+        on the payment method most Nigerian families actually use. A licence with
+        no expiry is the one case where it stays hidden: there is nothing to renew
+        and a payment form in front of somebody who owes nothing is a trap.
+      */}
+      {offer?.transfer.enabled && (!full || licence?.expiresAt) && (
         <TransferCard
           offer={offer}
           email={email}
           emailValid={emailValid}
-          onSent={() => setMessage({ good: true, text: 'Sent. We will check it and email your code.' })}
+          renewing={Boolean(full)}
+          onSent={() =>
+            setMessage({
+              good: true,
+              text: full
+                ? 'Sent. We will check it and extend your access from the date it runs out.'
+                : 'Sent. We will check it and email your code.',
+            })
+          }
         />
       )}
 
@@ -1507,8 +1525,10 @@ function TransferCard({
   offer,
   email,
   emailValid,
+  renewing,
   onSent,
 }: {
+  renewing?: boolean
   offer: Prices
   email: string
   emailValid: boolean
@@ -1552,10 +1572,14 @@ function TransferCard({
 
   return (
     <Card className="p-5 border-slate-200">
-      <h2 className="font-black text-slate-900 mb-1">Or pay by bank transfer</h2>
+      <h2 className="font-black text-slate-900 mb-1">
+        {renewing ? 'Renew by bank transfer' : 'Or pay by bank transfer'}
+      </h2>
       <p className="text-sm font-semibold text-slate-500 mb-3">
         Transfer the amount to the account below, then tell us. Someone checks it against the account
-        and emails your access code, usually the same day.
+        {renewing
+          ? ' and adds the time on to the end of what you already have, usually the same day. Nothing you have now is disturbed.'
+          : ' and emails your access code, usually the same day.'}
       </p>
 
       <div className="rounded-2xl bg-slate-50 border-2 border-slate-200 p-4">
@@ -1725,6 +1749,47 @@ function TransferCard({
   )
 }
 
+/**
+ * One of the two code boxes.
+ *
+ * At module scope, not inside ChangeCodeCard. Declared in the render body it
+ * would be a new component type on every keystroke, so React would unmount the
+ * input and mount a fresh one — and the parent would lose focus after each digit,
+ * which makes a four-digit field impossible to type into.
+ */
+function CodeField({
+  id,
+  label,
+  value,
+  reveal,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  reveal: boolean
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-black uppercase tracking-wide text-slate-400 mb-1">
+        {label}
+      </label>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+        type={reveal ? 'text' : 'password'}
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="••••"
+        className="h-14 w-44 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black
+          tracking-[0.4em] text-slate-900 outline-none focus:border-slate-900"
+      />
+    </div>
+  )
+}
+
 /** 1234, 0000, 1111 … and 4321. The four a child tries first, and 1234 is the one we ship with. */
 const GUESSABLE = new Set([
   '1234',
@@ -1779,7 +1844,6 @@ function ChangeCodeCard() {
     return () => window.clearTimeout(t)
   }, [peek])
 
-  const digits = (value: string) => value.replace(/\D/g, '').slice(0, 4)
   const complete = /^\d{4}$/.test(next)
   const guessable = complete && GUESSABLE.has(next)
   const mismatch = again.length === 4 && again !== next
@@ -1802,35 +1866,6 @@ function ChangeCodeCard() {
     setAgain('')
     setReveal(false)
   }
-
-  const Field = ({
-    id,
-    label,
-    value,
-    onChange,
-  }: {
-    id: string
-    label: string
-    value: string
-    onChange: (v: string) => void
-  }) => (
-    <div>
-      <label htmlFor={id} className="block text-xs font-black uppercase tracking-wide text-slate-400 mb-1">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(digits(e.target.value))}
-        type={reveal ? 'text' : 'password'}
-        inputMode="numeric"
-        autoComplete="off"
-        placeholder="••••"
-        className="h-14 w-44 rounded-2xl border-2 border-slate-300 px-4 text-2xl font-black
-          tracking-[0.4em] text-slate-900 outline-none focus:border-slate-900"
-      />
-    </div>
-  )
 
   return (
     <Card className="p-5 border-slate-200">
@@ -1861,8 +1896,8 @@ function ChangeCodeCard() {
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap gap-3">
-            <Field id="pin-new" label="New code" value={next} onChange={setNext} />
-            <Field id="pin-again" label="Again, to be sure" value={again} onChange={setAgain} />
+            <CodeField id="pin-new" label="New code" value={next} reveal={reveal} onChange={setNext} />
+            <CodeField id="pin-again" label="Again, to be sure" value={again} reveal={reveal} onChange={setAgain} />
           </div>
 
           <div className="flex flex-wrap gap-2">

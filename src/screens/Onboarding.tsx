@@ -471,7 +471,7 @@ export function Onboarding() {
                   {licence?.plan === 'free-forever' ? 'You have one of the free family places' : 'Everything is open'}
                 </p>
                 <p className="mt-1 font-semibold text-emerald-800">
-                  Every subject is open for one child.{' '}
+                  Every subject is open, for every child on this tablet.{' '}
                   {licence?.expiresAt
                     ? `Runs until ${new Date(licence.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`
                     : 'It never expires.'}
