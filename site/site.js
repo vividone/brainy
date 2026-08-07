@@ -84,3 +84,39 @@ form.addEventListener('submit', async (e) => {
     )
   }
 })
+
+/*
+ * The support section's account details.
+ *
+ * Fetched rather than written into the page, from the same endpoint the app asks
+ * for bank transfers, so there is exactly one place the account lives: three
+ * environment variables on the server. A donation box that had the number typed
+ * into the HTML would be the first thing to go stale after a bank change, and a
+ * wrong account number costs a well-wisher real money.
+ *
+ * Progressive: the section ships with a fallback already in it, so if this fetch
+ * fails nobody meets an empty box.
+ */
+const supportBox = document.getElementById('support-account')
+if (supportBox) {
+  fetch('/api/pay/initialise')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      const t = data && data.ok ? data.transfer : null
+      if (!t || !t.enabled) return
+      const rows = [
+        ['Bank', t.bank],
+        ['Account name', t.accountName],
+        ['Account number', t.accountNumber],
+      ]
+      supportBox.innerHTML = rows
+        .map(
+          ([label, value]) =>
+            `<div class="acct-row"><span>${label}</span><b>${String(value).replace(/[<>&]/g, '')}</b></div>`,
+        )
+        .join('')
+    })
+    .catch(() => {
+      /* Leave the fallback text alone. */
+    })
+}

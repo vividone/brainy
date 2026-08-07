@@ -341,7 +341,11 @@ async function transfers(req, res) {
      limit 200`,
     [status ?? ''],
   )
-  return res.status(200).json({ ok: true, currency: CURRENCY(), transfers: rows })
+  /* The account itself travels with the queue, because checking a transfer means
+     reading the two side by side, and an operator who has to go and find the
+     account number elsewhere is an operator who eventually checks it against the
+     wrong one. */
+  return res.status(200).json({ ok: true, currency: CURRENCY(), transfer: bankDetails(), transfers: rows })
 }
 
 /**

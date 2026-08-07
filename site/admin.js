@@ -269,8 +269,34 @@ const grantsFor = (c) => {
   return `${months} months`
 }
 
+/*
+ * The tag prints how a licence is *billed*, never how long it runs.
+ *
+ * It used to print the plan id with the dashes taken out, which was fine while
+ * a plan implied a duration and became a lie the moment coupons could grant any
+ * period: a three-month free place came out tagged FREE FOREVER. The length is
+ * always beside it — the coupon's granted period, or the family's expiry column —
+ * so the tag has one job and cannot contradict it.
+ */
+/**
+ * A period select's value, in the three states the API distinguishes.
+ *
+ * `undefined` (the blank option) leaves the plan's own length alone, `null`
+ * means it never expires, and a number is that many months. A falsy check would
+ * collapse the first two, which are opposites.
+ */
+const periodValue = (raw) => {
+  if (raw === '') return undefined
+  if (raw === 'never') return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+const PLAN_TAG_TEXT = { 'free-forever': 'free place', annual: 'paid', lifetime: 'paid' }
 const planTag = (plan) =>
-  plan && plan !== 'none' ? `<span class="tag plan">${esc(plan.replace(/-/g, ' '))}</span>` : '<span class="tag pending">no plan</span>'
+  plan && plan !== 'none'
+    ? `<span class="tag plan">${esc(PLAN_TAG_TEXT[plan] ?? plan.replace(/-/g, ' '))}</span>`
+    : '<span class="tag pending">no plan</span>'
 
 /** "in 24 days", "12 days ago", or "never" — the useful form of an expiry. */
 const expiry = (value) => {
@@ -452,10 +478,19 @@ VIEWS.families = async () => {
     <div class="row">
       <div style="flex:2 1 220px"><label for="g-email">Their email</label><input id="g-email" type="email" placeholder="parent@example.com" /></div>
       <div><label for="g-name">Name (optional)</label><input id="g-name" /></div>
-      <div><label for="g-plan">Plan</label><select id="g-plan">
-        <option value="free-forever">Free forever</option>
-        <option value="annual">One year</option>
-        <option value="lifetime">Lifetime</option>
+      <div><label for="g-plan">Counts as</label><select id="g-plan">
+        <option value="free-forever">Free place</option>
+        <option value="annual">Paid</option>
+        <option value="lifetime">Paid, lifetime</option>
+      </select></div>
+      <div><label for="g-months">Access for</label><select id="g-months">
+        <option value="">The plan's own length</option>
+        <option value="1">1 month</option>
+        <option value="3">3 months</option>
+        <option value="6">6 months</option>
+        <option value="12">12 months</option>
+        <option value="24">2 years</option>
+        <option value="never">Never expires</option>
       </select></div>
       <div><label for="g-note">Note</label><input id="g-note" placeholder="why" /></div>
       <div style="flex:0 0 auto"><button id="g-go">Grant</button></div>
@@ -473,6 +508,8 @@ VIEWS.families = async () => {
           email: granter.querySelector('#g-email').value.trim(),
           name: granter.querySelector('#g-name').value.trim() || undefined,
           plan: granter.querySelector('#g-plan').value,
+          /* Undefined means "whatever the plan says", null means never. */
+          months: periodValue(granter.querySelector('#g-months').value),
           note: granter.querySelector('#g-note').value.trim() || undefined,
         },
       })
@@ -577,12 +614,14 @@ VIEWS.families = async () => {
       }
 
       if (f.status === 'pending') {
-        const give = el('<button class="sm">Free forever</button>')
+        /* A free year, which is what the site promises the first twenty families.
+           For any other length, use "Give a family access" above. */
+        const give = el('<button class="sm">Free year</button>')
         give.onclick = (e) =>
           act(e.target, 'Access granted.', () =>
             api('/admin/licence/grant', {
               method: 'POST',
-              body: { email: f.email, plan: 'free-forever' },
+              body: { email: f.email, plan: 'free-forever', months: 12 },
             }),
           )
         acts.append(give)
@@ -621,6 +660,50 @@ VIEWS.transfers = async () => {
       </p>
     </div>`),
   )
+
+  /*
+   * The account, in full, at the top of the tab that needs it.
+   *
+   * The dashboard only ever showed a yes/no for "bank transfer configured",
+   * which answers the wrong question: what an operator needs, and what a parent
+   * will read out over the phone, is the number itself. Shown here rather than in
+   * the health table because this is the page where a transfer is matched against
+   * a statement, and it is the same account the website and the app publish.
+   */
+  const acct = data.transfer ?? {}
+  if (acct.enabled) {
+    const card = el(`<div class="card" style="border-color:#a7f3d0;background:#f0fdf9">
+      <h3>The account parents pay into</h3>
+      <table style="margin-top:0.4rem">
+        <tbody>
+          <tr><th style="width:9rem">Bank</th><td><b>${esc(acct.bank)}</b></td></tr>
+          <tr><th>Account name</th><td><b>${esc(acct.accountName)}</b></td></tr>
+          <tr><th>Account number</th>
+            <td><span class="mono" style="font-size:1.15rem;letter-spacing:0.06em">${esc(acct.accountNumber)}</span></td></tr>
+          ${acct.instructions ? `<tr><th>We tell them</th><td>${esc(acct.instructions)}</td></tr>` : ''}
+        </tbody>
+      </table>
+      <div style="margin-top:0.8rem"><button class="ghost sm" id="acct-copy">Copy the number</button></div>
+      <p class="note">
+        From <code>BANK_NAME</code>, <code>BANK_ACCOUNT_NAME</code> and <code>BANK_ACCOUNT_NUMBER</code>
+        on the server. Change them there and every place that shows this changes with it: the grown-up
+        area, the website's support section, and here.
+      </p>
+    </div>`)
+    card.querySelector('#acct-copy').onclick = () => copy(acct.accountNumber)
+    box.append(card)
+  } else {
+    box.append(
+      el(`<div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <h3>No account is configured</h3>
+        <p style="margin:0;font-weight:600">
+          Set <code>BANK_NAME</code>, <code>BANK_ACCOUNT_NAME</code> and
+          <code>BANK_ACCOUNT_NUMBER</code> on the server. All three, or the transfer option stays
+          hidden from parents and the website's support section says to email us instead.
+        </p>
+      </div>`),
+    )
+  }
 
   box.append(
     el(`<h2>${pending.length ? `${fmt(pending.length)} waiting` : 'Nothing waiting'}</h2>`),
@@ -745,7 +828,7 @@ VIEWS.coupons = async () => {
   const firstRun = el(`<div class="card" style="margin-bottom:1rem;border-color:#c4b5fd">
     <h3>First run — the twenty free places</h3>
     <p style="margin:0 0 0.8rem;font-weight:600">
-      Creates one code with twenty uses, free forever. Then set
+      Creates one code with twenty uses, a free year each. Then set
       <code>SIGNUP_COUPON</code> to it in Vercel and redeploy, and the landing-page form claims a
       place automatically until they are gone.
     </p>
@@ -756,7 +839,7 @@ VIEWS.coupons = async () => {
     act(e.target, 'Created.', async () => {
       const result = await api('/admin/coupons', {
         method: 'POST',
-        body: { plan: 'free-forever', maxUses: 20, note: 'the first twenty families' },
+        body: { plan: 'free-forever', months: 12, maxUses: 20, note: 'the first twenty families' },
       })
       await copy(result.coupon.code)
       /*

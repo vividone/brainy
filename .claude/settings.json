@@ -54,7 +54,10 @@
       "Bash(node scripts/build-site.mjs)",
       "Bash(curl -s -o /dev/null -w \"app: %{http_code}\\\\n\" http://localhost:4400/play/)",
       "Bash(curl -s --max-time 20 https://brainy.fortbridge.app/api/pay/initialise)",
-      "Bash(curl -s --max-time 20 https://api-brainy.fortbridge.app/api/pay/initialise)"
+      "Bash(curl -s --max-time 20 https://api-brainy.fortbridge.app/api/pay/initialise)",
+      "Bash(node --check server/routes/admin.js)",
+      "Bash(grep -rhoE \"name: '[^']+',\\\\s*$\" src/content/ng-ube/index.ts)",
+      "Bash(grep -v \"^\\\\s*$\")"
     ]
   }
 }

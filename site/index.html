@@ -515,6 +515,48 @@
         color: #6ee7b7;
       }
 
+      /*
+       * The account block, shared by the support section. Rows rather than a
+       * table so an account number never wraps mid-number on a phone, which is
+       * the one place a reader must be able to trust their eyes.
+       */
+      .acct {
+        margin: 0 auto;
+        max-width: 26rem;
+        background: #fff;
+        border: 3px solid var(--violet-200);
+        border-radius: 20px;
+        padding: 1.1rem 1.25rem;
+        text-align: left;
+      }
+      .acct-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--violet-100);
+      }
+      .acct-row:last-child {
+        border-bottom: 0;
+      }
+      .acct-row span {
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      .acct-row b {
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        text-align: right;
+      }
+      /* The number itself, which somebody is about to type into a banking app. */
+      .acct-row:last-child b {
+        font-size: 1.3rem;
+        letter-spacing: 0.06em;
+        font-variant-numeric: tabular-nums;
+      }
+
       .offer {
         border: 3px dashed var(--amber);
         background: #fffbeb;
@@ -644,6 +686,7 @@
           <a href="#subjects">Subjects</a>
           <a href="#parents">For parents</a>
           <a href="#privacy">Privacy</a>
+          <a href="#support">Support us</a>
           <a class="btn" href="/play/">Open Brainy</a>
         </nav>
       </div>
@@ -928,6 +971,45 @@
             <a class="btn" href="/play/">Or open Brainy and register on any device</a>
           </p>
         </div>
+      </div>
+    </section>
+
+    <!--
+      Support us.
+
+      Deliberately after the offer and before the footer: nobody should meet an
+      ask for money before they have been given something. The account details
+      are the same ones parents pay into, fetched by site.js from the API rather
+      than written here, so there is one place they live and no chance of a stale
+      number taking somebody's money to the wrong bank.
+    -->
+    <section class="tint" id="support">
+      <div class="wrap center">
+        <h2>Help keep it free</h2>
+        <p class="sub" style="margin-inline: auto">
+          Maths is free for every child, for good, and that costs something to keep true: servers,
+          email, and the hours that go into writing questions a Nigerian seven-year-old actually
+          recognises. If Brainy has been useful and you would like to chip in, this is where.
+        </p>
+
+        <div class="acct" id="support-account">
+          <p class="fine" style="margin: 0">
+            Our account details load here. If they do not appear, email
+            <a href="mailto:brainy@fortbridge.app">brainy@fortbridge.app</a> and we will send them.
+          </p>
+        </div>
+
+        <p class="fine" style="margin: 1rem auto 0; max-width: 34rem">
+          Any amount, once or whenever you like. Put <b>DONATION</b> as the narration so we do not
+          mistake it for a subscription payment, and email us if you would like a thank-you or a word
+          about where it went.
+        </p>
+        <p class="fine" style="margin: 0.6rem auto 0; max-width: 34rem">
+          To be straight with you: Fortbridge Technologies Ltd is a company, not a charity. A donation
+          is a gift rather than a tax-deductible one, it buys no licence and no priority, and it
+          changes nothing about what your child can use. If you would rather pay for something, the
+          licence above is the thing to buy.
+        </p>
       </div>
     </section>
 
