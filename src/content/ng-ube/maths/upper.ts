@@ -214,11 +214,19 @@ const orderOfOperations: SkillDef = {
       })
     }
 
-    const answer = a * b - c
-    return entry(`${a} × ${b} − ${c} = ?`, answer, {
-      speak: sayMaths(`${a} times ${b} minus ${c}`),
+    /*
+     * Keep the subtraction from going below zero. With a·b as low as 4 and c
+     * as high as 9, this branch could ask a Basic 5 child for 2 × 2 − 9 — a
+     * negative answer, three years before negative numbers are taught, and one
+     * the number pad cannot even express. Latent for a long time: the sampler
+     * only reached the combination once new skills shifted the seeds.
+     */
+    const take = Math.min(c, a * b - 1)
+    const answer = a * b - take
+    return entry(`${a} × ${b} − ${take} = ?`, answer, {
+      speak: sayMaths(`${a} times ${b} minus ${take}`),
       maxDigits: 4,
-      explanation: `Multiply first: ${a} × ${b} = ${a * b}, then − ${c} = ${answer}.`,
+      explanation: `Multiply first: ${a} × ${b} = ${a * b}, then − ${take} = ${answer}.`,
     })
   },
 }

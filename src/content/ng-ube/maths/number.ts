@@ -7,6 +7,7 @@ import { capitalise, numberToWords, ordinalShort, ordinalWord, toRoman } from '.
 import { earlyNumberSkills } from './early'
 import { upperNumberSkills } from './upper'
 import { b6NumberSkills } from './upper-b6'
+import { b6NumberSkillsB } from './upper-b6b'
 
 const countTo200: SkillDef = {
   id: 'ng.maths.number.count-200',
@@ -418,5 +419,6 @@ export const numberStrand: StrandDef = {
     roman,
     ...upperNumberSkills,
     ...b6NumberSkills,
+    ...b6NumberSkillsB,
   ],
 }
