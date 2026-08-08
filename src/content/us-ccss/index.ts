@@ -14,6 +14,13 @@ import { numericDistractors } from '../../engine/rng'
 import type { Curriculum, Item, Locale, SkillDef } from '../../engine/types'
 import { entry, mc, money, order, person, sayMaths, thing } from '../shared/authoring'
 import { numberToWords } from '../shared/words'
+import {
+  usG3Fractions,
+  usG3Geometry,
+  usG3Measurement,
+  usG3Number,
+  usG3Ops,
+} from './math-g3'
 
 const usLocale: Locale = {
   tag: 'en-US',
@@ -233,20 +240,47 @@ export const usCcss: Curriculum = {
       icon: '🔢',
       color: 'violet',
       available: true,
+      /*
+       * One strand per Common Core domain. The standards are organised that
+       * way — 3.OA, 3.NBT, 3.NF, 3.MD, 3.G — so a grade's content always has
+       * an obvious home and a gap shows up as an empty island rather than as
+       * a topic quietly filed under the wrong heading.
+       */
       strands: [
         {
           id: 'us.math.number',
           name: 'Number Island',
-          blurb: 'Place value and ordering to 1,000',
+          blurb: 'Place value, rounding and tens',
           theme: 'market',
-          skills: [numbersTo1000, placeValue, compareOrder],
+          skills: [numbersTo1000, placeValue, compareOrder, ...usG3Number],
         },
         {
           id: 'us.math.ops',
           name: 'Operation Falls',
-          blurb: 'Column methods, facts and money',
+          blurb: 'Facts, missing numbers and word problems',
           theme: 'falls',
-          skills: [addSubtract, multiplication, dollarsCents],
+          skills: [addSubtract, multiplication, ...usG3Ops],
+        },
+        {
+          id: 'us.math.fractions',
+          name: 'Fraction Grove',
+          blurb: 'Fractions of a whole, and comparing them',
+          theme: 'grove',
+          skills: [...usG3Fractions],
+        },
+        {
+          id: 'us.math.measure',
+          name: 'Measure Bay',
+          blurb: 'Money, time, area and perimeter',
+          theme: 'bay',
+          skills: [dollarsCents, ...usG3Measurement],
+        },
+        {
+          id: 'us.math.shapes',
+          name: 'Shape City',
+          blurb: 'Sorting and naming shapes',
+          theme: 'city',
+          skills: [...usG3Geometry],
         },
       ],
     },
