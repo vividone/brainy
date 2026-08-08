@@ -61,7 +61,14 @@
       "Bash(node --check server/routes/pay/initialise.js)",
       "Bash(grep -n \"console.log\\('\\\\\\\\\\\\\\\\nCoupons'\\)\" scripts/api-smoke.mjs)",
       "Bash(node scripts/sample.mjs uk.maths.y4.negative-numbers uk.maths.y4.roman-numerals uk.maths.y4.hundredths)",
-      "Bash(node scripts/sample.mjs uk.maths.y4.negative-numbers)"
+      "Bash(node scripts/sample.mjs uk.maths.y4.negative-numbers)",
+      "Bash(node scripts/sample.mjs us.math.g3.unit-fractions us.math.g3.compare-fractions us.math.g3.time)",
+      "Bash(sed -n '/| Subject | Y1/,/skills\\\\*\\\\*/p' CONTENT-UK.md)",
+      "Bash(sed -n '/| Subject | G1/,/skills\\\\*\\\\*/p' CONTENT-US.md)",
+      "Bash(node scripts/emptyband.mjs)",
+      "Bash(node --check scripts/build-site.mjs)",
+      "Bash(node --check scripts/build-curriculum.mjs)",
+      "Bash(sed -n '/<section id=\"subjects\"\\\\|Built on the relevant curriculum/,+16p' site/index.html)"
     ]
   }
 }

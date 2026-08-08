@@ -15,6 +15,7 @@
 
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { buildCurriculumPage } from './build-curriculum.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const site = path.join(root, 'site')
@@ -33,6 +34,15 @@ await cp(site, dist, { recursive: true })
  * as /brand.svg for the site, so changing the owl changes it everywhere.
  */
 await cp(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'brand.svg'))
+
+/*
+ * The curriculum page, rendered from the CONTENT-*.md trackers.
+ *
+ * Built rather than written so it cannot disagree with `npm run content:track`,
+ * which counts the packs themselves. A page that says a class has content when
+ * it does not is worse than no page at all.
+ */
+const packSummary = await buildCurriculumPage({ root, dist })
 /* Browsers probe /favicon.ico at the root whatever the link tags say. */
 await cp(path.join(root, 'public', 'favicon.ico'), path.join(dist, 'favicon.ico'))
 
@@ -149,6 +159,7 @@ if (strayKeys.length > 0) {
 
 const entries = await readdir(dist)
 console.log(`site → dist/ (${entries.join(', ')})`)
+console.log(`curriculum.html: ${packSummary.join(' · ')}`)
 console.log(
   measurementId
     ? `analytics: ${measurementId}, website only (never /play/ or /admin)`
