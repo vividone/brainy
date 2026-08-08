@@ -9,6 +9,7 @@ import { BAND_LABEL, BAND_STYLE, band, currentMastery, difficultyFor } from '../
 import {
   ageOptions,
   bandForAge,
+  playableBands,
   getSkill,
   includedBands,
   listCurricula,
@@ -2098,11 +2099,21 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
               onClick={() => {
                 // Re-derive the class from the child's age rather than
                 // keeping an id that means a different level elsewhere.
-                const band = profile.age
+                /*
+                 * Land on a class that can actually be taught. bandForAge can
+                 * return a year the pack has nothing for — a 7-year-old on the
+                 * American pack maps to Grade 2, which exists, but a
+                 * 5-year-old maps to Kindergarten, which is empty.
+                 */
+                const teachable = playableBands(c.id)
+                const wanted = profile.age
                   ? bandForAge(c.id, profile.age).id
                   : c.yearBands.some((b) => b.id === profile.yearBand)
                     ? profile.yearBand
                     : c.yearBands[Math.min(2, c.yearBands.length - 1)].id
+                const band = teachable.some((b) => b.id === wanted)
+                  ? wanted
+                  : (teachable[0]?.id ?? wanted)
                 store.setCurriculum(c.id, band)
               }}
               className={`min-h-14 rounded-2xl border-2 px-3 text-left font-black transition
@@ -2133,7 +2144,7 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
 
         <p className="mt-4 font-black text-slate-800">Class</p>
         <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {curriculum.yearBands.map((b) => (
+          {playableBands(curriculum.id).map((b) => (
             <button
               key={b.id}
               onClick={() => store.setCurriculum(curriculum.id, b.id)}

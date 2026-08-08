@@ -4,9 +4,9 @@ A gamified curriculum-practice app for primary-school children, by Fortbridge Te
 
 Live at **brainy.fortbridge.app** — marketing site at the root, app at `/play/`. See [DEPLOY.md](DEPLOY.md). Short daily sessions, coins and streaks, a mascot to dress up, and a parent report that says what to help with.
 
-**What is built:** the full structure for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age.
+**What is built:** the full *structure* for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age. Structure is not coverage — see `CONTENT-NG.md`, `CONTENT-UK.md` and `CONTENT-US.md` for what each pack actually contains, generated from the packs themselves by `npm run content:track`.
 
-**What is authored:** **180 skills** across Basic 1–6 — Nigerian Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar, plus compact British and American maths packs. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
+**What is authored:** the **Nigerian pack** carries the product — Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar across all six classes. The **British** (Years 3–4) and **American** (Grades 2–3) packs are maths only and cover two classes each; they began as proof that the engine switches curriculum cleanly, and are not yet something to point a family at. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
 
 Full product spec and architecture: [prd.md](prd.md).
 

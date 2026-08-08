@@ -26,7 +26,7 @@
  */
 
 import { useMemo, useRef, useState } from 'react'
-import { ageOptions, bandForAge, listCurricula } from '../engine/registry'
+import { ageOptions, bandForAge, listCurricula, playableBands } from '../engine/registry'
 import { APP_NAME, CHARACTERS, PETS } from '../game/characters'
 import { Character } from '../components/Character'
 import { Pet } from '../components/Pet'
@@ -127,7 +127,12 @@ export function Onboarding() {
   const [done, setDone] = useState(false)
 
   const curriculum = curricula.find((c) => c.id === curriculumId) ?? curricula[0]
-  const bands = curriculum?.yearBands ?? []
+  /*
+   * Only classes with something in them. The British and American packs do
+   * not cover every year yet, and offering an empty one hands a child a blank
+   * map with no next skill — see bandHasContent in the registry.
+   */
+  const bands = curriculum ? playableBands(curriculum.id) : []
   const ages = ageOptions(curriculumId)
   const suggested = age === null ? null : bandForAge(curriculumId, age)
   const effectiveBand = bandOverride ?? suggested?.id ?? ''

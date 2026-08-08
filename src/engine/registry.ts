@@ -107,10 +107,44 @@ export function bandForAge(curriculumId: string, age: number): YearBandDef {
 
 /** Every age any band covers, for the age picker. */
 export function ageOptions(curriculumId: string): number[] {
-  const bands = getCurriculum(curriculumId).yearBands
+  /*
+   * Only ages whose class can be taught. Offering a 5-year-old the British
+   * pack put them in Year 1, which has no skills at all — an empty map, no
+   * next skill, nothing to do. Refusing the choice is honest; letting a
+   * parent make it and handing their child a blank screen is not.
+   */
+  const bands = getCurriculum(curriculumId).yearBands.filter((b) =>
+    bandHasContent(curriculumId, b.id),
+  )
+  if (bands.length === 0) return []
   const lo = Math.min(...bands.map((b) => b.ageRange[0]))
   const hi = Math.max(...bands.map((b) => b.ageRange[1]))
   return Array.from({ length: hi - lo }, (_, i) => lo + i)
+}
+
+/**
+ * Whether a class has anything a child could actually play.
+ *
+ * Counts skills reachable from that class, which includes earlier classes as
+ * revision — a Year 5 child with no Year 5 content still has real work if
+ * Years 3 and 4 exist. Zero means an empty map: no levels, no next skill, and
+ * a child staring at nothing.
+ *
+ * This exists because the British and American packs are years behind the
+ * Nigerian one. Every class in a pack having content is an assumption that
+ * held while there was one pack and stopped holding the moment there were
+ * three, and nothing in the app noticed.
+ */
+export function bandHasContent(curriculumId: string, yearBandId: string): boolean {
+  const bands = includedBands(curriculumId, yearBandId)
+  return getCurriculum(curriculumId)
+    .subjects.filter((s) => s.available)
+    .some((s) => s.strands.some((st) => st.skills.some((sk) => bands.includes(sk.yearBand))))
+}
+
+/** The classes in a curriculum that can actually be taught today. */
+export function playableBands(curriculumId: string): YearBandDef[] {
+  return getCurriculum(curriculumId).yearBands.filter((b) => bandHasContent(curriculumId, b.id))
 }
 
 export function includedBands(curriculumId: string, yearBandId: string): string[] {
