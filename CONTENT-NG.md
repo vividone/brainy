@@ -20,6 +20,23 @@ Where the Nigerian pack actually stands, and how it got there.
   <skill-id>` prints real questions with their options and answers, and that is
   what catches those. New skills go through both.
 
+<!-- public:start -->
+
+**The fullest of the three, and the one to choose if your child is in a
+Nigerian school.** Four subjects across all six classes: Mathematics,
+Quantitative Reasoning, Verbal Reasoning and English Grammar.
+
+Topics follow the **Lagos State Unified Scheme of Work for Primary Schools
+(2021)**, the state's own curriculum document. We take the topic list and its
+order from it. Every question is written by us.
+
+Coverage is not even, and the table shows where. Basic 3 has the most maths
+because it was built first, for one child. Further subjects are listed in the
+app but not yet written, and they show as locked rather than empty, so a child
+never opens a subject with nothing in it.
+
+<!-- public:end -->
+
 ## Status
 
 **The lead pack, and the only one a family can rely on today.** Four subjects

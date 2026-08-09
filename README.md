@@ -6,7 +6,7 @@ Live at **brainy.fortbridge.app** — marketing site at the root, app at `/play/
 
 **What is built:** the full *structure* for **Basic 1–6 × 7 subjects × 3 curricula** (Nigerian UBE, British National Curriculum, US Common Core), with the class derived from the child's age. Structure is not coverage — see `CONTENT-NG.md`, `CONTENT-UK.md` and `CONTENT-US.md` for what each pack actually contains, generated from the packs themselves by `npm run content:track`.
 
-**What is authored:** the **Nigerian pack** carries the product — Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar across all six classes. The **British** (Years 3–4) and **American** (Grades 2–3) packs are maths only and cover two classes each; they began as proof that the engine switches curriculum cleanly, and are not yet something to point a family at. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
+**What is authored:** the **Nigerian pack** carries the product — Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar across all six classes. The **British** (Years 1–6) and **American** (Kindergarten–Grade 5) packs now carry **maths for every class**, written against the DfE programmes of study and the Common Core standards respectively. Their other subjects are declared but unwritten, so a family following those curricula gets a real maths product and nothing else yet. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
 
 Full product spec and architecture: [prd.md](prd.md).
 
@@ -26,6 +26,7 @@ npm run dev      # http://localhost:5173
 | `npm run serve` | Serve `dist/` exactly as the host will — site at `/`, app at `/play/` |
 | `npm run typecheck` | Types only |
 | `npm run smoke` | **Exercise every question generator** — see below |
+| `npm run badges` | Prove every badge is winnable, and winnable without paying |
 | `npm run smoke:api` | Run the API routes against an in-memory Postgres |
 | `npm run icons` | Regenerate the PWA icons |
 
@@ -42,6 +43,19 @@ Static site, no backend. See **[DEPLOY.md](DEPLOY.md)** for the full runbook, in
 It also warns about skills whose question space is small enough that a child would start memorising rather than learning.
 
 Run it after touching anything in `src/content/`. It catches in two seconds the kind of bug that otherwise surfaces as a child stuck on an unanswerable question.
+
+---
+
+## The badge check
+
+Badges are one table in `src/game/badges.ts`: each one names a metric and a threshold, awarding asks whether the metric has reached it, and the Room asks how far along it is. Both derive from the same row, so a badge that can be shown is a badge that can be won.
+
+`npm run badges` proves two things that a table alone cannot:
+
+1. **No badge is unwinnable.** It builds a child who has done everything and asserts every badge fires. `island-master` shipped for months in the roster and never in the award list — displayed, padlocked, impossible — because the two lived in different files.
+2. **No badge needs a licence.** A free family gets Mathematics and nothing else (prd.md §14.2). The check builds the thinnest free child in the product — Basic 1 Nigerian maths, 7 skills across 2 islands — and asserts the only badges out of reach are the two that need more skills than one class contains, which arrive as the child moves up. A rule like "master every subject" would turn the collection into pay-to-collect without anyone deciding to; this is what catches that.
+
+Run it after touching `src/game/badges.ts`.
 
 ---
 
