@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Contact Brainy</title>
+    <meta
+      name="description"
+      content="Write to the people who make Brainy. A question, a problem, a school enquiry. A person reads every message."
+    />
+    <link rel="icon" type="image/svg+xml" href="/brand.svg" />
+    <link rel="icon" sizes="32x32" href="/favicon.ico" />
+    <meta name="theme-color" content="#7c3aed" />
+    <link rel="canonical" href="https://brainy.fortbridge.app/contact.html" />
+    <style>
+      :root {
+        --violet-50: #f5f3ff;
+        --violet-100: #ede9fe;
+        --violet-200: #ddd6fe;
+        --violet-600: #7c3aed;
+        --violet-700: #6d28d9;
+        --violet-900: #4c1d95;
+        --ink: #1e1b4b;
+        --muted: #5b5580;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Nunito', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+        background: #fff;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap { width: min(680px, 100% - 2.5rem); margin-inline: auto; }
+      a { color: var(--violet-700); }
+      header.nav {
+        border-bottom: 1px solid var(--violet-100);
+        background: rgba(255, 255, 255, 0.9);
+      }
+      .nav-inner { display: flex; align-items: center; gap: 1rem; padding: 0.8rem 0; }
+      .brand {
+        display: flex; align-items: center; gap: 0.6rem; min-height: 44px;
+        font-weight: 900; font-size: 1.25rem; color: var(--violet-900); text-decoration: none;
+      }
+      .brand img { width: 34px; height: 34px; border-radius: 8px; display: block; }
+      .nav-inner .back-link { margin-left: auto; font-weight: 700; text-decoration: none; font-size: 0.95rem; }
+
+      .hero { background: linear-gradient(180deg, var(--violet-50), #fff); padding: 2.75rem 0 1.5rem; }
+      h1 { font-size: clamp(1.9rem, 4.5vw, 2.6rem); line-height: 1.15; margin: 0 0 0.6rem; letter-spacing: -0.02em; }
+      .lede { color: var(--muted); font-weight: 600; font-size: 1.05rem; margin: 0; }
+
+      main { padding: 2rem 0 3rem; }
+      label { display: block; font-weight: 800; margin: 1.1rem 0 0.35rem; }
+      .hint { display: block; font-weight: 600; color: var(--muted); font-size: 0.85rem; margin-top: -0.25rem; margin-bottom: 0.4rem; }
+      input, select, textarea {
+        font: inherit; width: 100%; padding: 0.75rem 0.9rem; border-radius: 14px;
+        border: 2px solid var(--violet-200); background: #fff; color: var(--ink);
+        font-weight: 600; outline: none; min-height: 48px;
+      }
+      input:focus, select:focus, textarea:focus { border-color: var(--violet-600); }
+      textarea { min-height: 9rem; resize: vertical; line-height: 1.6; }
+      /* The bot field. Off screen rather than display:none, which some bots skip. */
+      .trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+      button {
+        font: inherit; font-weight: 800; margin-top: 1.4rem; cursor: pointer;
+        padding: 0.85rem 1.6rem; border-radius: 999px; background: var(--violet-600);
+        color: #fff; border: 2px solid var(--violet-700); box-shadow: 0 4px 0 var(--violet-700);
+      }
+      button:disabled { opacity: 0.55; cursor: default; box-shadow: none; }
+      .msg { margin-top: 1rem; font-weight: 700; border-radius: 14px; padding: 0.85rem 1rem; }
+      .msg.good { background: #ecfdf5; color: #065f46; border: 2px solid #a7f3d0; }
+      .msg.bad { background: #fef2f2; color: #991b1b; border: 2px solid #fecaca; }
+      .fine { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+      .other-ways { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--violet-100); }
+      .other-ways h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+      footer { border-top: 1px solid var(--violet-100); padding: 1.75rem 0 3rem; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+      footer a { font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="/"><img src="/brand.svg" alt="" width="34" height="34" />Brainy</a>
+        <a class="back-link" href="/">← Back to the site</a>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="wrap">
+        <h1>Write to us</h1>
+        <p class="lede">
+          A person reads every message, and we aim to answer within two working days. If something is
+          wrong with a question your child was asked, this is the fastest way to get it fixed.
+        </p>
+      </div>
+    </div>
+
+    <main>
+      <div class="wrap">
+        <form id="contact" novalidate>
+          <label for="c-kind">What is this about?</label>
+          <select id="c-kind" name="kind">
+            <option value="question">A question about Brainy</option>
+            <option value="problem">Something is wrong or broken</option>
+            <option value="school">A school or group of families</option>
+            <option value="press">Press or partnership</option>
+            <option value="other">Something else</option>
+          </select>
+
+          <label for="c-name">Your name</label>
+          <input id="c-name" name="name" autocomplete="name" placeholder="Optional" />
+
+          <label for="c-email">Your email</label>
+          <span class="hint">So we can reply. We use it for that and nothing else.</span>
+          <input id="c-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+
+          <label for="c-message">Your message</label>
+          <span class="hint">
+            Please leave out your child's full name or anything personal about them. We do not need it.
+          </span>
+          <textarea id="c-message" name="message" required placeholder="Tell us what is going on."></textarea>
+
+          <div class="trap" aria-hidden="true">
+            <label for="c-website">Leave this empty</label>
+            <input id="c-website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <button id="c-go" type="submit">Send</button>
+          <p class="msg" id="c-msg" role="status" hidden></p>
+        </form>
+
+        <div class="other-ways">
+          <h2>Other ways to reach us</h2>
+          <p class="fine">
+            Email <a href="mailto:brainy@fortbridge.app">brainy@fortbridge.app</a> directly if you would
+            rather. If you already use Brainy, the grown-up area has a feedback form that can attach an
+            anonymous summary of how it is going, which tells us more than a description can.
+          </p>
+          <p class="fine">
+            Brainy is made by Fortbridge Technologies Ltd, a company registered in Nigeria. What we do
+            with your address is set out in the <a href="/privacy.html">privacy notice</a>.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="/">Back to the site</a> · <a href="/curriculum.html">What is in each curriculum</a> ·
+          <a href="/privacy.html">Privacy notice</a> · <a href="/play/">Open Brainy</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="/contact.js" defer></script>
+  </body>
+</html>

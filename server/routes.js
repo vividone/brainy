@@ -21,6 +21,7 @@
 import account from './routes/account.js'
 import activate from './routes/activate.js'
 import admin from './routes/admin.js'
+import contact from './routes/contact.js'
 import auth from './routes/auth.js'
 import event from './routes/event.js'
 import forget from './routes/forget.js'
@@ -90,6 +91,10 @@ export const ROUTES = [
   /* Scheduled jobs, guarded by CRON_SECRET rather than by who can reach them. */
   { url: '/api/cron/expiring', methods: ['GET', 'POST'], handler: expiring, bodyLimit: SMALL },
   { url: '/api/cron/retain', methods: ['GET', 'POST'], handler: retain, bodyLimit: SMALL },
+
+  /* The website's contact form. Public, rate limited, and it lands in the same
+     feedback table the in-app form uses. */
+  { url: '/api/contact', methods: ['POST'], handler: contact, bodyLimit: SMALL },
 
   /* Anonymous usage numbers. Behind the admin guard. */
   { url: '/api/stats', methods: ['GET'], handler: stats, bodyLimit: SMALL },

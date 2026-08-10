@@ -60,34 +60,13 @@ export const MASCOT_COLOURS = [
 
 export const colourById = (id: string) => MASCOT_COLOURS.find((c) => c.id === id) ?? MASCOT_COLOURS[0]
 
-/* ------------------------------------------------------------------ *
- * Badges
- * ------------------------------------------------------------------ */
-
-export interface Badge {
-  id: string
-  name: string
-  description: string
-  emoji: string
-}
-
-export const BADGES: Badge[] = [
-  { id: 'first-session', name: 'First Steps', description: 'Finished your first quest', emoji: '🌱' },
-  { id: 'streak-3', name: 'Three in a Row', description: 'Played 3 days in a row', emoji: '🔥' },
-  { id: 'streak-7', name: 'Week Warrior', description: 'Played 7 days in a row', emoji: '⚡' },
-  { id: 'streak-14', name: 'Fortnight Hero', description: 'Played 14 days in a row', emoji: '🌟' },
-  { id: 'streak-30', name: 'Unstoppable', description: 'Played 30 days in a row', emoji: '🏆' },
-  { id: 'sharp-sharp', name: 'Sharp Sharp', description: '10 correct answers in a row', emoji: '🎯' },
-  { id: 'perfect', name: 'Perfect Round', description: 'Got every question right first time', emoji: '💯' },
-  { id: 'kolo-full', name: 'Money Box Full', description: 'Saved up 500 coins', emoji: '🪙' },
-  { id: 'century', name: 'Century', description: 'Answered 100 questions', emoji: '💪' },
-  { id: 'five-hundred', name: 'Big Brain', description: 'Answered 500 questions', emoji: '🧠' },
-  { id: 'island-master', name: 'Island Master', description: 'Mastered every skill on an island', emoji: '🏝️' },
-  { id: 'level-5', name: 'Level Five', description: 'Reached level 5', emoji: '🎖️' },
-  { id: 'level-10', name: 'Level Ten', description: 'Reached level 10', emoji: '👑' },
-]
-
-export const badgeById = (id: string): Badge | undefined => BADGES.find((b) => b.id === id)
+/*
+ * Badges used to live here, next to the things coins buy. They moved to
+ * ./badges.ts when they stopped being decoration and became the thing that
+ * unlocks the top of this list — and because keeping the display list in one
+ * file and the award rules in another is what left `island-master` unwinnable
+ * for as long as it existed.
+ */
 
 /* ------------------------------------------------------------------ *
  * Unified shop lookup

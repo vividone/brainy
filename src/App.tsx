@@ -16,6 +16,7 @@ import { Locked } from './screens/Locked'
 import { Unlocked } from './screens/Unlocked'
 import { BROWSER_ANYWAY_KEY, InstallFirst } from './screens/InstallFirst'
 import { installState } from './lib/install'
+import { nudgeFor, setQuestBadge } from './lib/nudge'
 import { useBands, useCurriculum, useProgress } from './state/selectors'
 import { useLearnerData, useProfile, useSettings, useStore, type Awards } from './state/store'
 import { setSoundEnabled } from './lib/sound'
@@ -350,6 +351,19 @@ export default function App() {
     },
     [finishSession],
   )
+
+  /*
+   * A dot on the home-screen icon while today's quest is still to do.
+   *
+   * The only reminder that can reach a child who has not opened the app, short
+   * of push notifications and the permission prompt they need. It costs nothing,
+   * asks for nothing, and platforms that do not support it simply do nothing.
+   *
+   * Keyed on the active child: with siblings sharing a tablet, the badge follows
+   * whoever is playing rather than trying to average two children into one dot.
+   */
+  const streak = useLearnerData().streak
+  useEffect(() => setQuestBadge(nudgeFor(streak).pending), [streak])
 
   const playAgain = useCallback(() => {
     if (lastLaunch?.kind === 'level') startLevel(lastLaunch.level)

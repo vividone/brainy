@@ -76,6 +76,17 @@
       .tabs button[aria-current='true'] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
       .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+      /*
+       * The headline eight: four across, two down, at every width above a phone.
+       *
+       * auto-fit was choosing the column count from the window, so the same eight
+       * numbers landed as 5 + 3 or 6 + 2 depending on how wide the browser
+       * happened to be, and a row that breaks in a different place every time is
+       * a row you have to re-read. The other tile groups keep auto-fit because
+       * they are not eight.
+       */
+      .tiles.grid4 { grid-template-columns: repeat(2, 1fr); }
+      @media (min-width: 760px) { .tiles.grid4 { grid-template-columns: repeat(4, 1fr); } }
       .tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 0.9rem 1rem; }
       .tile b { display: block; font-size: 1.7rem; font-weight: 900; letter-spacing: -0.02em; }
       .tile span { color: var(--muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }

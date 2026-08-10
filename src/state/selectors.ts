@@ -1,5 +1,6 @@
 /** Derived views over the save. Keeps components free of registry plumbing. */
 
+import { useMemo } from 'react'
 import { DEFAULT_CURRICULUM_ID } from '../content'
 import { currentMastery } from '../engine/mastery'
 import {
@@ -12,6 +13,7 @@ import {
   type Level,
 } from '../engine/registry'
 import type { Curriculum, ProgressMap, StrandDef, SubjectDef } from '../engine/types'
+import type { BadgeContext } from '../game/badges'
 import { useLearnerData, useProfile } from './store'
 
 /** The saved curriculum, or the default if that pack is no longer present. */
@@ -39,6 +41,67 @@ export function useLevelStars(): Record<string, number> {
 
 export function useSubject(subjectId: string): SubjectDef | undefined {
   return useCurriculum().subjects.find((s) => s.id === subjectId)
+}
+
+/**
+ * A badge context for screens that *display* badges rather than award them.
+ *
+ * The awarding context is built inside `finishSession`, because only it knows
+ * what the session just did. This one describes the child as they stand, which
+ * is what the Room needs to say "4 of 7 days" against a locked badge — and what
+ * the shop will need to say why an item is not for sale yet.
+ *
+ * `result` and `daysSinceLastSession` are the two fields that only mean
+ * something in the moment a session ends, so they are neutral here. Both feed
+ * only `binary` badges, whose progress is deliberately not shown as a part-full
+ * bar, so a neutral value cannot render a misleading one.
+ */
+export function useBadgeContext(): BadgeContext {
+  const curriculum = useCurriculum()
+  const profile = useProfile()
+  const data = useLearnerData()
+  const progress = useProgress()
+  const levelStars = useLevelStars()
+
+  /* Same guard as useBands: a saved class the pack no longer has falls back to
+     the oldest, rather than matching no subject at all. */
+  const known = curriculum.yearBands.some((b) => b.id === profile.yearBand)
+  const yearBand = known ? profile.yearBand : curriculum.yearBands[curriculum.yearBands.length - 1].id
+
+  /*
+   * Memoised so the object is referentially stable between renders. Callers
+   * derive from this with `badgeProgressAll`, which walks the child's whole
+   * map; handing back a fresh object every render would quietly defeat their
+   * own useMemo and repeat that walk on every keystroke and every tick.
+   */
+  return useMemo(
+    () => ({
+      curriculumId: curriculum.id,
+      yearBand,
+      earned: data.badges,
+      questionsAnswered: data.totals.questions,
+      bestAnswerStreak: data.bestAnswerStreak,
+      streakDays: data.streak.current,
+      coins: data.economy.coins,
+      xp: data.economy.xp,
+      progress,
+      levelStars,
+      daysSinceLastSession: null,
+      result: { total: 0, correctFirstTry: 0 },
+    }),
+    [
+      curriculum.id,
+      yearBand,
+      data.badges,
+      data.totals.questions,
+      data.bestAnswerStreak,
+      data.streak.current,
+      data.economy.coins,
+      data.economy.xp,
+      progress,
+      levelStars,
+    ],
+  )
 }
 
 export interface StrandSummary {

@@ -10,7 +10,7 @@ import type { SessionResult } from '../engine/types'
 import { levelProgress } from '../engine/scoring'
 import { Mascot } from '../components/Mascot'
 import { Btn, Card, Screen, Stars } from '../components/ui'
-import { BADGES } from '../game/cosmetics'
+import { badgeById, type Badge } from '../game/badges'
 import { PRAISE } from '../game/theme'
 import { sfx } from '../lib/sound'
 import { speak } from '../lib/speech'
@@ -50,7 +50,11 @@ export function Results({ result, awards, onPlayAgain, onHome }: Props) {
     return () => timers.forEach(window.clearTimeout)
   }, [result.stars, awards.leveledUpTo, praise, settings.speech])
 
-  const newBadges = BADGES.filter((b) => awards.badges.includes(b.id))
+  /* Mapped from the awarded ids rather than filtered out of the roster, so they
+     appear in the order they were won rather than in roster order. */
+  const newBadges = awards.badges
+    .map(badgeById)
+    .filter((b): b is Badge => Boolean(b))
 
   return (
     <Screen className="max-w-2xl">

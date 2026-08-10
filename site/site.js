@@ -12,6 +12,13 @@ const form = document.getElementById('join')
 const message = document.getElementById('join-msg')
 const button = document.getElementById('join-go')
 
+/*
+ * The sign-up form left with the twenty free places. Everything below it in
+ * this file would otherwise die on the first null, taking the support section
+ * with it, so the whole block is skipped when the form is not on the page.
+ */
+if (form && message && button) {
+
 const say = (text, kind) => {
   message.className = `fine ${kind ?? ''}`
   message.innerHTML = text
@@ -84,6 +91,7 @@ form.addEventListener('submit', async (e) => {
     )
   }
 })
+}
 
 /*
  * The support section's account details.

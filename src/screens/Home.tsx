@@ -23,6 +23,7 @@ import {
 import { subjectsForBand } from '../engine/registry'
 import { subjectOpen, useEntitlement } from '../state/entitlement'
 import { sfx } from '../lib/sound'
+import { nudgeFor } from '../lib/nudge'
 
 interface Props {
   onOpenSubject: (subjectId: string) => void
@@ -39,6 +40,8 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
   const levelStars = useLevelStars()
   const profile = useProfile()
   const { economy, streak } = useLearnerData()
+  /* What today looks like for this child: waiting, at risk, or done. */
+  const nudge = useMemo(() => nudgeFor(streak), [streak])
   const { full } = useEntitlement()
 
   const level = levelProgress(economy.xp)
@@ -114,18 +117,20 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
         <div className="bg-gradient-to-r from-brand-600 to-brand-500 p-5 text-white">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-black uppercase tracking-wide text-brand-100">Today's quest</p>
-              <h2 className="text-2xl sm:text-3xl font-black">Daily Quest</h2>
-              <p className="text-brand-100 font-bold text-sm mt-1">
-                Picked just for you: new skills plus a bit of revision.
+              <p className="text-sm font-black uppercase tracking-wide text-brand-100">
+                {nudge.kind === 'done' ? 'Today' : "Today's quest"}
               </p>
+              <h2 className="text-2xl sm:text-3xl font-black">
+                {nudge.kind === 'done' ? 'Quest complete' : 'Daily Quest'}
+              </h2>
+              <p className="text-brand-100 font-bold text-sm mt-1">{nudge.line}</p>
             </div>
             <span className="text-5xl sm:text-6xl shrink-0" aria-hidden>
-              🎯
+              {nudge.kind === 'done' ? '✅' : nudge.kind === 'streak' ? '🔥' : '🎯'}
             </span>
           </div>
           <Btn variant="gold" size="lg" full className="mt-4" onClick={onDailyQuest}>
-            Start ▶
+            {nudge.action}
           </Btn>
         </div>
       </Card>

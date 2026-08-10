@@ -17,6 +17,7 @@ import type { Difficulty, ProgressMap, SessionResult } from '../engine/types'
 import { DEFAULT_CURRICULUM_ID, DEFAULT_YEAR_BAND } from '../content'
 import type { CosmeticSlot } from '../game/cosmetics'
 import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
+import { evaluateBadges } from '../game/badges'
 import { shopItemById } from '../game/cosmetics'
 import { dayKey, daysBetween } from '../lib/dates'
 import type { StoredLicence } from '../lib/licence'
@@ -825,11 +826,21 @@ export const useStore = create<Store>()(
           })
 
           /* Streak ------------------------------------------------------- */
+          /*
+           * Read before the streak below moves `lastPlayed` on. null on the
+           * very first session ever. This is what `comeback` is awarded from:
+           * a child returning after a week away gets a badge for coming back,
+           * never a penalty for having been gone.
+           */
+          const daysSinceLastSession = d.streak.lastPlayed
+            ? daysBetween(d.streak.lastPlayed, today)
+            : null
+
           const streak = { ...d.streak }
           let freezeUsed = false
           let streakContinued = false
           if (streak.lastPlayed !== today) {
-            const gap = streak.lastPlayed ? daysBetween(streak.lastPlayed, today) : Infinity
+            const gap = daysSinceLastSession ?? Infinity
             if (gap === 1 || streak.lastPlayed === null) {
               streak.current = streak.lastPlayed === null ? 1 : streak.current + 1
               streakContinued = true
@@ -866,22 +877,27 @@ export const useStore = create<Store>()(
           const coinsAfter = d.economy.coins + coins
 
           /* Badges -------------------------------------------------------- */
-          const earned: string[] = []
-          const award = (id: string, when: boolean) => {
-            if (when && !d.badges.includes(id) && !earned.includes(id)) earned.push(id)
-          }
-          award('first-session', d.history.length === 0)
-          award('perfect', result.correctFirstTry === result.total && result.total >= 5)
-          award('sharp-sharp', d.bestAnswerStreak >= 10)
-          award('kolo-full', coinsAfter >= 500)
-          award('century', d.totals.questions >= 100)
-          award('five-hundred', d.totals.questions >= 500)
-          award('streak-3', streak.current >= 3)
-          award('streak-7', streak.current >= 7)
-          award('streak-14', streak.current >= 14)
-          award('streak-30', streak.current >= 30)
-          award('level-5', levelAfter >= 5)
-          award('level-10', levelAfter >= 10)
+          /*
+           * One call, and the rules live in game/badges.ts next to the list the
+           * Room renders. This was a hand-written ladder of `award(...)` lines
+           * that had drifted from that list: `island-master` was displayed and
+           * never granted, because nothing made the two agree. Now they are the
+           * same table, and `npm run badges` fails if any id becomes unwinnable.
+           */
+          const earned = evaluateBadges({
+            curriculumId: cid,
+            yearBand: learner?.yearBand ?? DEFAULT_YEAR_BAND,
+            earned: d.badges,
+            questionsAnswered: d.totals.questions,
+            bestAnswerStreak: d.bestAnswerStreak,
+            streakDays: streak.current,
+            coins: coinsAfter,
+            xp: xpAfter,
+            progress: d.progress[cid] ?? {},
+            levelStars: starsMap,
+            daysSinceLastSession,
+            result,
+          })
 
           const day: DayStat = d.byDay[today] ?? { sessions: 0, questions: 0, correct: 0, ms: 0 }
           const stored: SessionResult = { ...result, stars, xpEarned: xp, coinsEarned: coins }

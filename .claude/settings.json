@@ -68,7 +68,22 @@
       "Bash(node scripts/emptyband.mjs)",
       "Bash(node --check scripts/build-site.mjs)",
       "Bash(node --check scripts/build-curriculum.mjs)",
-      "Bash(sed -n '/<section id=\"subjects\"\\\\|Built on the relevant curriculum/,+16p' site/index.html)"
+      "Bash(sed -n '/<section id=\"subjects\"\\\\|Built on the relevant curriculum/,+16p' site/index.html)",
+      "Bash(cd /c/Users/USER/Documents/Dev/edugame *)",
+      "Bash(node scripts/sample.mjs us.math.g5.unlike-fractions us.math.g4.equivalent-fractions uk.maths.y5.add-fractions)",
+      "Bash(node scripts/sample.mjs us.math.g5.decimal-operations uk.maths.y1.halves-quarters uk.maths.y2.fractions)",
+      "Bash(node scripts/sample.mjs uk.maths.y1.halves-quarters)",
+      "Bash(awk '/<section id=\"free\">/{s=NR} /<\\\\/section>/{if\\(s&&!e\\){print s\" to \"NR; e=1}}' site/index.html)",
+      "Bash(grep -n \"^#\\\\{1,3\\\\} \" prd.md)",
+      "Bash(sed -i \"s|localhost:4600|localhost:4601|\" play.mjs)",
+      "Bash(node play.mjs)",
+      "Bash(GA_MEASUREMENT_ID=G-T76WQTXYYE npx vite build)",
+      "Bash(GA_MEASUREMENT_ID=G-T76WQTXYYE node scripts/build-site.mjs)",
+      "Bash(node step6.mjs)",
+      "Bash(node finish.mjs)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\USER\\AppData\\Local\\Temp\\claude\\c--Users-USER-Documents-Dev-edugame\\942b9d1f-abb1-42a0-a028-7c14c662c5d9\\scratchpad"
     ]
   }
 }

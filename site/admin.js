@@ -326,7 +326,7 @@ VIEWS.overview = async () => {
   box.append(
     el(`<div>
       <p class="sub">Sign-ups, licences and payments · ${esc(when(data.generatedAt))}</p>
-      <div class="tiles">
+      <div class="tiles grid4">
         <div class="tile"><b>${fmt(data.parents.total)}</b><span>Parents signed up</span></div>
         <div class="tile"><b>${fmt(data.parents.new_7d)}</b><span>New this week</span></div>
         <div class="tile"><b>${fmt(byStatus.active ?? 0)}</b><span>Active licences</span></div>

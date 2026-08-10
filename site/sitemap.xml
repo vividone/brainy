@@ -2,5 +2,6 @@
 <urlset xmlns="http://www.sitemap.org/schemas/sitemap/0.9">
   <url><loc>https://brainy.fortbridge.app/</loc><priority>1.0</priority></url>
   <url><loc>https://brainy.fortbridge.app/curriculum.html</loc><priority>0.6</priority></url>
+  <url><loc>https://brainy.fortbridge.app/contact.html</loc><priority>0.5</priority></url>
   <url><loc>https://brainy.fortbridge.app/privacy.html</loc><priority>0.3</priority></url>
 </urlset>

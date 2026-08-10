@@ -1,13 +1,30 @@
 /** My Room — trophies, badges and the dressed-up mascot. Pure reward. */
 
+import { useMemo } from 'react'
 import { Mascot } from '../components/Mascot'
-import { Card, IconBtn, Pill, Screen } from '../components/ui'
-import { BADGES } from '../game/cosmetics'
+import { Card, IconBtn, Pill, ProgressBar, Screen } from '../components/ui'
+import {
+  BADGES,
+  GROUP_LABEL,
+  GROUP_ORDER,
+  badgeProgressAll,
+  badgesInOrder,
+  type BadgeGroup,
+} from '../game/badges'
 import { characterById, petById } from '../game/characters'
 import { levelProgress } from '../engine/scoring'
+import { subjectsForBand } from '../engine/registry'
 import { islandStyle } from '../game/theme'
 import { useLearnerData, useProfile } from '../state/store'
-import { summariseStrands, totalStarsEarned, useBands, useCurriculum, useLevelStars, useProgress } from '../state/selectors'
+import {
+  summariseStrands,
+  totalStarsEarned,
+  useBadgeContext,
+  useBands,
+  useCurriculum,
+  useLevelStars,
+  useProgress,
+} from '../state/selectors'
 
 const ROOM_BACKDROPS: Record<string, string> = {
   'room.sky': 'from-sky-200 via-sky-100 to-white',
@@ -23,12 +40,44 @@ export function Room({ onBack }: { onBack: () => void }) {
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
+  const badgeCtx = useBadgeContext()
 
   const level = levelProgress(economy.xp)
   const stars = totalStarsEarned(levelStars)
-  const maths = curriculum.subjects.find((s) => s.id === 'maths')
-  const strands = maths ? summariseStrands(curriculum.id, maths, bands, progress, levelStars) : []
-  const trophies = strands.filter((s) => s.starsPossible > 0 && s.starsEarned === s.starsPossible)
+
+  /*
+   * Trophies from every subject this child takes, not just maths.
+   *
+   * This read `subjects.find(s => s.id === 'maths')`, which was fine when maths
+   * was the only authored subject and quietly wrong afterwards: a child who
+   * three-starred every level of a Verbal Reasoning island won a trophy that
+   * existed in the data and appeared nowhere on the one screen built to show it.
+   */
+  const trophies = useMemo(
+    () =>
+      subjectsForBand(curriculum.id, profile.yearBand).flatMap((subject) =>
+        summariseStrands(curriculum.id, subject, bands, progress, levelStars)
+          .filter((s) => s.starsPossible > 0 && s.starsEarned === s.starsPossible)
+          .map((s) => ({ strand: s.strand, icon: subject.icon })),
+      ),
+    [curriculum.id, profile.yearBand, bands, progress, levelStars],
+  )
+
+  const held = useMemo(() => new Set(badges), [badges])
+  const progressById = useMemo(() => badgeProgressAll(badgeCtx), [badgeCtx])
+  /* Only ids the roster still knows, so a retired badge can never inflate the
+     count past the total shown beside it. */
+  const earnedCount = BADGES.filter((b) => held.has(b.id)).length
+
+  const byGroup = useMemo(() => {
+    const groups = new Map<BadgeGroup, ReturnType<typeof badgesInOrder>>()
+    for (const badge of badgesInOrder()) {
+      const list = groups.get(badge.group) ?? []
+      list.push(badge)
+      groups.set(badge.group, list)
+    }
+    return GROUP_ORDER.filter((g) => groups.has(g)).map((g) => ({ group: g, badges: groups.get(g)! }))
+  }, [])
 
   const room = economy.equipped.room
   const backdrop = (room && ROOM_BACKDROPS[room]) ?? 'from-brand-100 via-brand-50 to-white'
@@ -78,9 +127,9 @@ export function Room({ onBack }: { onBack: () => void }) {
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         {[
-          { label: 'Questions', value: totals.questions, emoji: '❓' },
-          { label: 'Correct', value: totals.correct, emoji: '✅' },
-          { label: 'Badges', value: badges.length, emoji: '🏅' },
+          { label: 'Questions', value: String(totals.questions), emoji: '❓' },
+          { label: 'Correct', value: String(totals.correct), emoji: '✅' },
+          { label: 'Badges', value: `${earnedCount}/${BADGES.length}`, emoji: '🏅' },
         ].map((s) => (
           <Card key={s.label} className="p-3 text-center">
             <p className="text-2xl">{s.emoji}</p>
@@ -109,6 +158,7 @@ export function Room({ onBack }: { onBack: () => void }) {
                 >
                   <span className="block text-3xl">{style.emoji}</span>
                   <span className="block text-xs font-black text-white drop-shadow">{t.strand.name}</span>
+                  <span className="block text-[10px] font-bold text-white/80">{t.icon}</span>
                 </div>
               )
             })}
@@ -116,22 +166,57 @@ export function Room({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
+      {/*
+        Grouped rather than one flat wall of tiles, and every locked badge says
+        how far along it is. A padlock with no goal behind it is just a reminder
+        of something you have not done; "4 of 7 days" is something to go and do.
+      */}
       <section className="mt-6">
-        <h2 className="text-lg font-black text-brand-900 mb-2">🏅 Badges</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {BADGES.map((b) => {
-            const earned = badges.includes(b.id)
-            return (
-              <Card key={b.id} className={`p-3 flex items-center gap-2 ${earned ? '' : 'opacity-45'}`}>
-                <span className="text-3xl shrink-0">{earned ? b.emoji : '🔒'}</span>
-                <div className="min-w-0">
-                  <p className="font-black text-brand-900 text-sm leading-tight truncate">{b.name}</p>
-                  <p className="text-xs font-bold text-brand-500 leading-tight">{b.description}</p>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+        <h2 className="text-lg font-black text-brand-900 mb-1">🏅 Badges</h2>
+        <p className="text-sm font-bold text-brand-400 mb-3">
+          {earnedCount} of {BADGES.length} won
+        </p>
+
+        {byGroup.map(({ group, badges: list }) => (
+          <div key={group} className="mt-4">
+            <p className="text-xs font-black uppercase tracking-wide text-brand-400 mb-2">
+              {GROUP_LABEL[group]}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {list.map((b) => {
+                const earned = held.has(b.id)
+                const p = progressById[b.id]
+                const showBar = !earned && !b.binary && p.have > 0
+
+                return (
+                  <Card key={b.id} className={`p-3 ${earned ? '' : 'opacity-60'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl shrink-0">{earned ? b.emoji : '🔒'}</span>
+                      <div className="min-w-0">
+                        <p className="font-black text-brand-900 text-sm leading-tight truncate">{b.name}</p>
+                        <p className="text-xs font-bold text-brand-500 leading-tight">{b.description}</p>
+                      </div>
+                    </div>
+
+                    {showBar && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <ProgressBar
+                          pct={p.pct}
+                          className="h-2 flex-1"
+                          barClass="bg-gradient-to-r from-brand-400 to-brand-600"
+                          label={`${b.name} progress`}
+                        />
+                        <span className="text-[11px] font-black text-brand-500 tabular-nums shrink-0">
+                          {p.have}/{p.need}
+                        </span>
+                      </div>
+                    )}
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </section>
     </Screen>
   )
