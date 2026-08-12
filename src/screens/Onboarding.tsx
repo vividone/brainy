@@ -199,6 +199,7 @@ export function Onboarding() {
       token: result.token!,
       email: result.account?.email ?? parentEmail.trim(),
       keepProgress: result.account?.keepProgress,
+      parentPin: result.account?.parentPin,
       licence: result.licence,
     })
 

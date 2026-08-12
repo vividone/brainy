@@ -235,8 +235,35 @@ export async function requireParent(req, res) {
  * signed in and would otherwise start uploading again.
  */
 export async function prefsFor(parentId) {
-  const row = await one(`select keep_progress from account_prefs where parent_id = $1`, [parentId])
-  return { keepProgress: row ? Boolean(row.keep_progress) : true }
+  const row = await one(
+    `select keep_progress, parent_pin from account_prefs where parent_id = $1`,
+    [parentId],
+  )
+  return {
+    keepProgress: row ? Boolean(row.keep_progress) : true,
+    /* null until a family sets one, which means "whatever this device already
+       has" rather than "1234". A device is never handed a code it did not ask
+       for. */
+    parentPin: row?.parent_pin ?? null,
+  }
+}
+
+/**
+ * Put the grown-up code on the account.
+ *
+ * Four digits or nothing: anything else is a bug on the way in, and a code the
+ * pad cannot express would lock a parent out of their own settings on the next
+ * device that adopts it.
+ */
+export async function setParentPin(parentId, pin) {
+  const digits = String(pin ?? '').replace(/\D/g, '')
+  if (digits.length !== 4) return { ok: false, error: 'A grown-up code is four digits.' }
+  await query(
+    `insert into account_prefs (parent_id, parent_pin) values ($1, $2)
+     on conflict (parent_id) do update set parent_pin = excluded.parent_pin, updated_at = now()`,
+    [parentId, digits],
+  )
+  return { ok: true, parentPin: digits }
 }
 
 export async function setKeepProgress(parentId, on) {

@@ -331,6 +331,72 @@ check(
   false,
 )
 
+/*
+ * The grown-up code on the account.
+ *
+ * The assertion that matters is the middle one: a device token is not enough to
+ * reset a forgotten code, because a child holding the tablet has the token too.
+ * The proof is a code emailed to the parent, which is the one thing they cannot
+ * reach. Everything else here is shape.
+ */
+const AUTHED = { authorization: `Bearer ${TOKEN}` }
+check(
+  'a code that is not four digits is refused',
+  (await call('/api/account/pin', { method: 'POST', headers: AUTHED, body: { pin: '12' } })).status,
+  400,
+)
+check(
+  'setting one from inside is allowed',
+  (await call('/api/account/pin', { method: 'POST', headers: AUTHED, body: { pin: '8317' } })).json?.parentPin,
+  '8317',
+)
+check(
+  'and a second tablet is told what it is',
+  (await call('/api/account', { headers: AUTHED })).json?.account?.parentPin,
+  '8317',
+)
+check(
+  'a reset without an emailed code is refused',
+  (await call('/api/account/pin', { method: 'POST', headers: AUTHED, body: { pin: '4242', reset: true, code: '000000' } }))
+    .status,
+  401,
+)
+check(
+  'and the old code still stands',
+  (await call('/api/account', { headers: AUTHED })).json?.account?.parentPin,
+  '8317',
+)
+await call('/api/auth/code', { method: 'POST', body: { email: 'ada@example.com' } })
+/*
+ * Reminders.
+ *
+ * Without VAPID keys the whole feature has to report itself as off rather than
+ * error, because the grown-up area decides whether to offer a switch from this
+ * answer. Offering one that cannot work is worse than not offering it.
+ */
+check('the key route says off without keys', (await call('/api/push/key')).json?.enabled, false)
+check(
+  'subscribing is refused while it is off',
+  (await call('/api/push/subscribe', { method: 'POST', headers: AUTHED, body: {} })).status,
+  503,
+)
+check('and a reminder list needs a token', (await call('/api/push')).status, 401)
+check(
+  'the reminder cron refuses without the secret',
+  (await call('/api/cron/remind')).status,
+  process.env.CRON_SECRET ? 401 : 503,
+)
+
+check(
+  'a reset with one is accepted',
+  (await call('/api/account/pin', {
+    method: 'POST',
+    headers: AUTHED,
+    body: { pin: '4242', reset: true, code: await codeFor('ada@example.com') },
+  })).json?.parentPin,
+  '4242',
+)
+
 console.log('\nSigning out')
 check('signing out is accepted', (await call('/api/auth/signout', { method: 'POST', headers: { authorization: `Bearer ${TOKEN}` } })).status, 200)
 check(

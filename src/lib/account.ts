@@ -24,6 +24,8 @@ const TIMEOUT_MS = 12_000
 const OFFLINE = 'Could not reach us just now. Check the connection and try again.'
 
 export interface Account {
+  /** The family's four-digit grown-up code, or null if they never set one. */
+  parentPin?: string | null
   email: string
   name: string | null
   /** Whether this account keeps a child's progress. False for every new one. */
@@ -273,6 +275,32 @@ export async function pushProgress(
 }
 
 /** Turn keeping a child's progress on or off. Off also deletes what was kept. */
+/**
+ * Set the grown-up code on the account.
+ *
+ * `reset` means the parent has forgotten it and is proving who they are with a
+ * six-digit code from their email instead of with the code they cannot remember.
+ * Without it the device token alone is the proof, which is only good enough for
+ * somebody already past the pad.
+ */
+export async function setParentPin(
+  token: string,
+  pin: string,
+  proof?: { code: string },
+): Promise<{ ok: boolean; parentPin?: string; error?: string }> {
+  try {
+    const { status, data } = await send('/api/account/pin', {
+      method: 'POST',
+      token,
+      body: proof ? { pin, reset: true, code: proof.code } : { pin },
+    })
+    if (status === 200 && data?.ok) return { ok: true, parentPin: String(data.parentPin) }
+    return { ok: false, error: (data?.error as string) ?? `Server returned ${status}.` }
+  } catch {
+    return { ok: false, error: OFFLINE }
+  }
+}
+
 export async function setKeepProgress(
   token: string,
   on: boolean,

@@ -92,6 +92,47 @@ Railway — see *The API service* below. After that move, the only variable Verc
 
 The config also sets the cache headers that matter: hashed assets are immutable for a year, but `sw.js` and the app shell must revalidate every time, or an update never reaches a device that has already installed it.
 
+
+## Scheduled jobs
+
+Three jobs, all on **Railway**, because that is where the database is and because Vercel's Hobby plan
+only allows one cron a day — the reminder pass needs to run hourly to honour the hour each family
+picked.
+
+Railway schedules a job by **starting a service and expecting it to exit**. So each one is a separate
+service in the same project, deployed from this same repo, with a start command instead of a server:
+
+| Service | Start command | Schedule | What it does |
+|---|---|---|---|
+| `cron-remind` | `npm run cron remind` | `0 * * * *` | Sends the daily-quest reminder to families whose chosen hour it now is and who have not played today |
+| `cron-expiring` | `npm run cron expiring` | `0 9 * * *` | Emails a warning about a week before a licence runs out |
+| `cron-retain` | `npm run cron retain` | `0 3 * * 1` | The retention sweep: old codes, revoked tokens, dormant progress |
+
+Each needs `DATABASE_URL` (the private `postgres.railway.internal` one), `CRON_SECRET`, and whatever
+the job itself uses: `RESEND_API_KEY` for the two that email, the three `VAPID_*` variables for
+reminders. Railway's variable references make this one click per service rather than a copy-paste.
+
+**Do not put a schedule on the API service.** Railway would restart it at every firing, and a cron
+that takes the API down every hour is worse than no cron.
+
+The runner is `scripts/cron.mjs`. It calls the same handler the HTTP route calls, with the same
+`CRON_SECRET` guard, so there is one implementation of each job rather than a scheduled copy that
+drifts. It exits non-zero when a run fails, which is what makes a failure visible in Railway's history
+rather than silent.
+
+Run one by hand at any time:
+
+```bash
+railway run npm run cron remind
+```
+
+Or over HTTP, which still works and is useful from a laptop:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://api-brainy.fortbridge.app/api/cron/remind
+```
+
+
 ## The API service
 
 ```
@@ -158,8 +199,10 @@ Nothing needs splitting out.
 **Point Paystack at the API directly**, not through the proxy:
 `https://api-brainy.fortbridge.app/api/webhook`. The signature is an HMAC over the exact bytes, so the
 fewer things between Paystack and the handler the better — and a webhook that keeps working when the
-front end is mid-deploy is worth having. Vercel's cron jobs stay as they are: they call their own
-deployment's `/api/cron/*`, which proxies through and carries the `Authorization` header.
+front end is mid-deploy is worth having.
+
+**Scheduled jobs run on Railway, not Vercel.** See *Scheduled jobs* below; `vercel.json` no longer
+declares any `crons`.
 
 **Optional build slimming.** Nixpacks runs `npm ci`, which installs Vite, Tailwind and TypeScript that
 this service never uses. Setting the Railway variable `NIXPACKS_INSTALL_CMD=npm ci --omit=dev` skips

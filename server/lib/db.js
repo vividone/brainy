@@ -446,6 +446,38 @@ export async function ensureSchema() {
       updated_at    timestamptz not null default now()
     );
 
+    /*
+     * Where to send a reminder, and when the family wants it.
+     *
+     * One row per browser that agreed, not per parent: a family with a tablet and
+     * a phone gets one reminder on each, and revoking one must not silence the
+     * other. The endpoint is the identifier the push service gave us and is
+     * unique on purpose, because a browser that re-subscribes hands back the same
+     * endpoint and must update its row rather than grow a second one.
+     *
+     * A local hour plus an offset rather than a UTC hour: the offset changes
+     * twice a year in Britain and America, and a stored UTC hour would silently
+     * drift an hour every spring. The cron does the arithmetic per row, on a
+     * table with one row per device, which costs nothing.
+     *
+     * The failure count exists so a dead endpoint is dropped rather than retried for
+     * ever. A push service answering 404 or 410 is telling us the browser is
+     * gone, and continuing to write to it is how a sending reputation is lost.
+     */
+    create table if not exists push_subscriptions (
+      id          bigserial primary key,
+      parent_id   bigint not null references parents (id),
+      endpoint    text not null unique,
+      p256dh      text not null,
+      auth        text not null,
+      local_hour  int  not null default 17,
+      tz_offset   int  not null default 0,
+      label       text,
+      failures    int  not null default 0,
+      last_sent   text,
+      created_at  timestamptz not null default now()
+    );
+
     create table if not exists account_prefs (
       parent_id     bigint primary key references parents (id),
       keep_progress boolean not null default true,
@@ -483,6 +515,20 @@ export async function ensureSchema() {
      * the annual plan would otherwise tell the parent "One year".
      */
     alter table subscriptions add column if not exists plan_months int;
+
+    /*
+     * parent_pin: the four-digit grown-up code, held on the account so it can be
+     * reset when a parent forgets it and so a second tablet gets the same one.
+     *
+     * Stored as typed rather than hashed, and that is a deliberate, narrow
+     * decision. It guards a settings screen from a seven-year-old, not an account
+     * from an attacker: there is no money behind it, no personal data a child
+     * could not already see, and the app says so in as many words. A hash of four
+     * digits is ten thousand guesses anyway, so hashing would buy the appearance
+     * of protection rather than protection, at the cost of never being able to
+     * put the code back on a new device.
+     */
+    alter table account_prefs add column if not exists parent_pin text;
   `)
     .catch((err) => {
       ready = undefined

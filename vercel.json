@@ -23,16 +23,6 @@
       "permanent": true
     }
   ],
-  "crons": [
-    {
-      "path": "/api/cron/expiring",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/retain",
-      "schedule": "0 3 * * 1"
-    }
-  ],
   "headers": [
     {
       "source": "/play/assets/(.*)",

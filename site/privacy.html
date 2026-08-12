@@ -294,6 +294,42 @@
         years, we delete the kept progress anyway.
       </p>
 
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">Daily reminders, if you ask for one</h3>
+      <p>
+        The grown-up area can set one notification a day, at an hour you pick, on the days your child
+        has not played yet. It is off until you turn it on, your browser asks permission before anything
+        is set, and one tap in the same place stops it.
+      </p>
+      <p>
+        To send it we keep what your browser gives us: an address the push service assigns to that
+        browser, two keys it needs to decrypt the message, the hour you chose and how far your clock is
+        from UTC. No name and nothing about your child. <strong>The notification itself never mentions
+        your child</strong>, not even their first name, because it appears on a lock screen anybody
+        holding the phone can read. To know whether they have played we look at when their progress last
+        reached us, which we already hold, so nothing new is collected to decide it.
+      </p>
+      <p>
+        Turning it off deletes the row. So does signing out on that device, and so does a push service
+        telling us the browser is gone.
+      </p>
+
+      <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">The grown-up code</h3>
+      <p>
+        The four digits that guard the grown-up area are kept on your account as well as on the tablet.
+        Two reasons, both practical: a second tablet is then guarded by your code rather than by the one
+        Brainy ships with, and a parent who forgets it can set a new one instead of wiping the app. To
+        reset it we email a six-digit code to your address, exactly as signing in does, because that is
+        the one thing a child holding the tablet cannot reach.
+      </p>
+      <p>
+        We store those four digits as you typed them rather than scrambled, and we would rather say so
+        than imply otherwise. It guards a settings screen from a young child, not an account from an
+        attacker: there is no money behind it and nothing there a child could not see by using the app.
+        Scrambling four digits would be ten thousand guesses to undo, so it would buy the look of
+        protection and cost us the ability to put your code back on your next tablet. We never send it
+        in an email and never show it to anyone but you.
+      </p>
+
       <h3 style="font-size:1.05rem;margin-top:1.5rem;font-weight:900">How signing in works</h3>
       <p>
         There is no password. You give us your email address, we send a six-digit code, and typing it

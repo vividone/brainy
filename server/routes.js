@@ -22,6 +22,8 @@ import account from './routes/account.js'
 import activate from './routes/activate.js'
 import admin from './routes/admin.js'
 import contact from './routes/contact.js'
+import push from './routes/push.js'
+import remind from './routes/cron/remind.js'
 import auth from './routes/auth.js'
 import event from './routes/event.js'
 import forget from './routes/forget.js'
@@ -91,6 +93,11 @@ export const ROUTES = [
   /* Scheduled jobs, guarded by CRON_SECRET rather than by who can reach them. */
   { url: '/api/cron/expiring', methods: ['GET', 'POST'], handler: expiring, bodyLimit: SMALL },
   { url: '/api/cron/retain', methods: ['GET', 'POST'], handler: retain, bodyLimit: SMALL },
+  { url: '/api/cron/remind', methods: ['GET', 'POST'], handler: remind, bodyLimit: SMALL },
+
+  /* Daily-quest reminders. The key is public; the rest needs a parent's token. */
+  { url: '/api/push', methods: ['GET', 'POST'], handler: push, bodyLimit: SMALL },
+  { url: '/api/push/*', methods: ['GET', 'POST'], handler: push, bodyLimit: SMALL },
 
   /* The website's contact form. Public, rate limited, and it lands in the same
      feedback table the in-app form uses. */

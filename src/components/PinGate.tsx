@@ -9,9 +9,10 @@
  * into settings, and to make "not now" stick without confiscating the tablet.
  */
 
-import { useState } from 'react'
-import { Card, IconBtn, Screen } from './ui'
+import { useEffect, useState } from 'react'
+import { Btn, Card, IconBtn, Screen } from './ui'
 import { useStore } from '../state/store'
+import { requestCode, setParentPin } from '../lib/account'
 
 interface Props {
   onPass: () => void
@@ -97,6 +98,148 @@ export function PinGate({ onPass, onBack, title, prompt, emoji = '🔒', childre
           </button>
         </div>
       </Card>
+
+      <ForgotCode />
     </Screen>
+  )
+}
+
+/**
+ * "I have forgotten it."
+ *
+ * The way out of a four-digit code with no other way out. It asks the account's
+ * email address for a six-digit code, exactly as signing in does, and then lets
+ * the parent choose a new grown-up code. The old one is never shown: recovery
+ * here means replacing it, not being told it.
+ *
+ * A child can tap this all day and get no further, because the next step is in
+ * their parent's inbox. That is the whole security model, and it is a better one
+ * than the pad it rescues.
+ *
+ * Hidden entirely when this device has no account, because there would be
+ * nowhere to send the code. Those families get the honest instruction instead.
+ */
+function ForgotCode() {
+  const token = useStore((s) => s.device.authToken)
+  const email = useStore((s) => s.device.parentEmail)
+  const updateSettings = useStore((s) => s.updateSettings)
+
+  const [step, setStep] = useState<'closed' | 'sending' | 'code' | 'done'>('closed')
+  const [code, setCode] = useState('')
+  const [pin, setPin] = useState('')
+  const [note, setNote] = useState<string | null>(null)
+
+  /*
+   * Ask for the code once, when the parent opens this and not before. In an
+   * effect rather than in the render body, where React would send a fresh email
+   * on every re-render and twice per open in development.
+   */
+  useEffect(() => {
+    if (step !== 'sending' || !email) return
+    let cancelled = false
+    void requestCode(email).then((result) => {
+      if (cancelled) return
+      setNote(result.ok ? null : (result.error ?? 'We could not send that just now.'))
+      setStep('code')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [step, email])
+
+  if (step === 'closed') {
+    return (
+      <button
+        onClick={() => setStep(token && email ? 'sending' : 'code')}
+        className="mx-auto mt-5 block min-h-11 text-sm font-bold text-brand-400 underline decoration-2 underline-offset-2"
+      >
+        Forgotten the code?
+      </button>
+    )
+  }
+
+  if (!token || !email) {
+    return (
+      <Card className="mt-5 p-5">
+        <p className="font-black text-brand-900">No account on this tablet</p>
+        <p className="mt-1 text-sm font-semibold text-brand-600">
+          A new code is emailed to the account this tablet is signed in to, and this one is not signed
+          in. If you have a backup file, your code is inside it. Otherwise write to
+          brainy@fortbridge.app and we will help.
+        </p>
+      </Card>
+    )
+  }
+
+  if (step === 'sending') {
+    return (
+      <Card className="mt-5 p-5">
+        <p className="font-black text-brand-900">Sending a code to {email}…</p>
+      </Card>
+    )
+  }
+
+  if (step === 'done') {
+    return (
+      <Card className="mt-5 p-5 border-emerald-300 bg-emerald-50">
+        <p className="font-black text-emerald-900">Done. Your new code works now.</p>
+        <p className="mt-1 text-sm font-semibold text-emerald-800">
+          It is saved to your account too, so your other tablets will use it as well.
+        </p>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="mt-5 p-5">
+      <p className="font-black text-brand-900">Check {email}</p>
+      <p className="mt-1 text-sm font-semibold text-brand-600">
+        We have sent a six-digit code. Type it below with the new grown-up code you would like.
+      </p>
+
+      <label htmlFor="fc-code" className="mt-3 block text-xs font-black uppercase tracking-wide text-brand-400">
+        The six-digit code from your email
+      </label>
+      <input
+        id="fc-code"
+        value={code}
+        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        className="mt-1 h-14 w-full rounded-2xl border-2 border-brand-300 px-4 text-2xl font-black tracking-[0.3em] text-brand-900 outline-none focus:border-brand-500"
+      />
+
+      <label htmlFor="fc-pin" className="mt-3 block text-xs font-black uppercase tracking-wide text-brand-400">
+        Your new four-digit grown-up code
+      </label>
+      <input
+        id="fc-pin"
+        value={pin}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+        inputMode="numeric"
+        autoComplete="off"
+        className="mt-1 h-14 w-full rounded-2xl border-2 border-brand-300 px-4 text-2xl font-black tracking-[0.4em] text-brand-900 outline-none focus:border-brand-500"
+      />
+
+      {note && <p className="mt-3 text-sm font-bold text-rose-700">{note}</p>}
+
+      <Btn
+        size="md"
+        full
+        className="mt-4"
+        disabled={code.length !== 6 || pin.length !== 4}
+        onClick={async () => {
+          setNote(null)
+          const result = await setParentPin(token, pin, { code })
+          if (!result.ok) return setNote(result.error ?? 'That did not work.')
+          /* Local and account together: the pad reads the local copy, and every
+             other tablet picks the new one up when it next signs in. */
+          updateSettings({ parentPin: result.parentPin ?? pin })
+          setStep('done')
+        }}
+      >
+        Save the new code
+      </Btn>
+    </Card>
   )
 }

@@ -24,6 +24,13 @@ import { PinGate } from '../components/PinGate'
 import { APP_VERSION, CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { installState } from '../lib/install'
+import {
+  remindersAvailable,
+  reminderState,
+  turnOffReminders,
+  turnOnReminders,
+  type ReminderState,
+} from '../lib/reminders'
 import { useLearnerData, useProfile, useSettings, useStore } from '../state/store'
 import { useBands, useCurriculum, useProgress } from '../state/selectors'
 import { buildAnalytics, buildSharableSummary, type Analytics } from '../state/analytics'
@@ -44,6 +51,7 @@ import {
   pullProgress,
   requestCode,
   setKeepProgress as setKeepProgressOnServer,
+  setParentPin as setParentPinOnServer,
   signOut,
   verifyCode,
 } from '../lib/account'
@@ -993,6 +1001,7 @@ function AccountCard() {
                     token: result.token!,
                     email: result.account?.email ?? email.trim(),
                     keepProgress: result.account?.keepProgress,
+                    parentPin: result.account?.parentPin,
                     licence: result.licence,
                   })
                   /* A sign-in carries the family's current licence, so a tablet
@@ -1826,9 +1835,145 @@ const GUESSABLE = new Set([
  * - The obvious codes are refused, with a suggestion instead of a scolding. A
  *   parent replacing a code their child guessed will otherwise reach for 1111.
  */
+/**
+ * Daily-quest reminders, offered here and nowhere else.
+ *
+ * A browser gives a site one chance at the notification prompt: a parent who
+ * taps "Block" can only undo it in browser settings, which most people never
+ * find. So the ask happens behind the grown-up code, on a button that says what
+ * it is for, and never on a child's screen or during setup.
+ *
+ * It also refuses to offer a switch that cannot work. No push in this browser,
+ * an iPhone still in Safari rather than on the home screen, no keys configured at
+ * our end: each is named, because "nothing happened" is the one outcome a parent
+ * cannot act on.
+ */
+function RemindersCard() {
+  const token = useStore((s) => s.device.authToken)
+  const [state, setState] = useState<ReminderState | 'loading'>('loading')
+  const [available, setAvailable] = useState<boolean | null>(null)
+  const [hour, setHour] = useState(17)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+
+  useEffect(() => {
+    void reminderState().then(setState)
+    void remindersAvailable().then(setAvailable)
+  }, [])
+
+  if (!token) return null
+  if (state === 'loading' || available === null) return null
+
+  const HOURS = [15, 16, 17, 18, 19, 20]
+  const label = (h: number) => `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`
+
+  return (
+    <Card className="p-5 border-slate-200">
+      <h2 className="font-black text-slate-900 mb-1">A daily reminder</h2>
+      <p className="text-sm font-semibold text-slate-500 mb-3">
+        One notification a day, at a time you choose, and only on the days they have not played yet. It
+        says nothing about your child, not even their name.
+      </p>
+
+      {!available && (
+        <p className="rounded-2xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
+          Reminders are not switched on at our end yet. Nothing for you to do; it will appear here when
+          they are.
+        </p>
+      )}
+
+      {available && state === 'needs-install' && (
+        <p className="rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
+          On an iPhone or iPad, reminders only work once Brainy is on the home screen. Add it from
+          Safari’s Share menu, open it from the icon, and this will be waiting.
+        </p>
+      )}
+
+      {available && state === 'unsupported' && (
+        <p className="rounded-2xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
+          This browser cannot send notifications. Everything else works as normal.
+        </p>
+      )}
+
+      {available && state === 'blocked' && (
+        <p className="rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-900">
+          Your browser is set to block notifications from Brainy, and only you can change that, in
+          browser settings for this site. We cannot ask again from here.
+        </p>
+      )}
+
+      {available && state === 'on' && (
+        <>
+          <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">
+            ✓ On for this device.
+          </p>
+          <Btn
+            variant="secondary"
+            size="md"
+            className="mt-3"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              await turnOffReminders(token)
+              setBusy(false)
+              setState('off')
+              setNote('Off. No more reminders on this device.')
+            }}
+          >
+            Turn it off
+          </Btn>
+        </>
+      )}
+
+      {available && state === 'off' && (
+        <>
+          <p className="font-black text-slate-800">Remind us at</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {HOURS.map((h) => (
+              <button
+                key={h}
+                onClick={() => setHour(h)}
+                className={`min-h-11 rounded-2xl border-2 px-4 font-black ${h === hour ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+              >
+                {label(h)}
+              </button>
+            ))}
+          </div>
+          <Btn
+            size="md"
+            className="mt-3"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              setNote(null)
+              const result = await turnOnReminders(token, hour)
+              setBusy(false)
+              if (!result.ok) {
+                setState(await reminderState())
+                return setNote(result.error ?? null)
+              }
+              setState('on')
+              setNote(`Set for ${label(hour)}, on days they have not played.`)
+            }}
+          >
+            {busy ? 'Setting up…' : `Remind me at ${label(hour)}`}
+          </Btn>
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            Your browser will ask permission next. Say no and nothing changes, though we cannot ask a
+            second time.
+          </p>
+        </>
+      )}
+
+      {note && <p className="mt-3 text-sm font-bold text-slate-700">{note}</p>}
+    </Card>
+  )
+}
+
 function ChangeCodeCard() {
   const current = useStore((s) => s.device.parentPin)
   const updateSettings = useStore((s) => s.updateSettings)
+  const token = useStore((s) => s.device.authToken)
 
   const [open, setOpen] = useState(false)
   const [next, setNext] = useState('')
@@ -1919,8 +2064,9 @@ function ChangeCodeCard() {
           {mismatch && <p className="text-sm font-bold text-rose-700">The two do not match.</p>}
 
           <p className="text-xs font-semibold text-slate-400">
-            Write it somewhere. There is no way to reset it from here: the code lives on this tablet, not
-            in your account, which is also why nobody but you can read it.
+            {token
+              ? 'Saved to your account as well, so your other tablets use the same code. Forget it and you can reset it from the code pad with an email.'
+              : 'This tablet has no account, so this code lives here only. Sign in above and it is saved to your account, which is how you would reset it if you forgot it.'}
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -1929,6 +2075,11 @@ function ChangeCodeCard() {
               disabled={!canSave}
               onClick={() => {
                 updateSettings({ parentPin: next })
+                /* The account copy is what a second tablet adopts and what a
+                   forgotten code is reset against. Best effort: a failed upload
+                   must not stop a parent changing the code on the tablet in
+                   their hand, and the next successful change carries it up. */
+                if (token) void setParentPinOnServer(token, next)
                 setSaved(true)
                 close()
               }}
@@ -2283,6 +2434,8 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           />
         </Row>
       </Card>
+
+      <RemindersCard />
 
       <ChangeCodeCard />
 

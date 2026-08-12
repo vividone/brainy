@@ -144,6 +144,22 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        /*
+         * The push and notification-click handlers, pulled into the generated
+         * worker instead of replacing it.
+         *
+         * `generateSW` is what gives Brainy its offline caching, and switching to
+         * injectManifest to add two listeners would mean owning all of that by
+         * hand. importScripts is the seam the plugin provides for exactly this.
+         * The path is relative to the worker's scope, which is /play/, and
+         * push-sw.js ships from public/ so it lands there.
+         *
+         * It is excluded from the precache glob below deliberately: it is loaded
+         * by the worker, not fetched by the page, and precaching a copy of it
+         * would mean two versions of the same file with different lifetimes.
+         */
+        importScripts: ['push-sw.js'],
+        globIgnores: ['**/push-sw.js'],
       },
     }),
   ],

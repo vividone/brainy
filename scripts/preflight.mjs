@@ -182,6 +182,17 @@ async function checkApi() {
   if (cron.status === 401) pass('renewal cron is guarded', '401')
   else if (cron.status === 503) warn('renewal cron', 'CRON_SECRET is not set — no renewal warnings')
   else fail('renewal cron is guarded', `${cron.status} — it must not be open`)
+
+  /* The reminder pass is the one that sends notifications, so an open one would
+     be a stranger's button for pushing to every family we have. */
+  const remind = await get('/api/cron/remind')
+  if (remind.status === 401) pass('reminder cron is guarded', '401')
+  else if (remind.status === 503) warn('reminder cron', 'CRON_SECRET is not set — no daily reminders')
+  else fail('reminder cron is guarded', `${remind.status} — it must not be open`)
+
+  const push = await get('/api/push/key')
+  if (push.json?.enabled) pass('daily reminders are configured', 'VAPID keys present')
+  else warn('daily reminders', 'no VAPID keys — the reminder switch stays hidden from parents')
 }
 
 /* ------------------------------------------------------------------ *

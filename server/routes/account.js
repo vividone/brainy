@@ -18,12 +18,14 @@
 import { NoDatabase, explain, one } from '../lib/db.js'
 import { clip, readJson, searchParams } from '../lib/http.js'
 import {
+  checkCode,
   forgetLearner,
   learnersFor,
   prefsFor,
   requireParent,
   revokeAllTokens,
   setKeepProgress,
+  setParentPin,
 } from '../lib/accounts.js'
 import { ensureSubscription, expireIfDue, licencePayload } from '../lib/licence.js'
 
@@ -38,6 +40,8 @@ async function overview(parent, res) {
       email: parent.email,
       name: parent.name ?? null,
       keepProgress: prefs.keepProgress,
+      /* So a second tablet adopts the family's own code instead of 1234. */
+      parentPin: prefs.parentPin,
     },
     licence: licencePayload(subscription, parent),
     /*
@@ -75,6 +79,41 @@ async function forgetChild(req, parent, res) {
   return res.status(200).json({ ok: true })
 }
 
+/**
+ * Set or reset the four-digit grown-up code.
+ *
+ * Two callers, one route, and the difference is whether a six-digit email code
+ * comes with it:
+ *
+ *  - **Changing it from inside the grown-up area.** The parent is already past
+ *    the pad, so knowing the old code is the proof, and the device token is the
+ *    proof that this is their account.
+ *  - **Resetting it after forgetting it.** The device token proves the account
+ *    but not the person: a child holding the tablet has the token too. So a code
+ *    emailed to the account is required, which is the one thing a child cannot
+ *    reach. Same fifteen-minute expiry and five-attempt limit as signing in,
+ *    because it is literally the same mechanism.
+ *
+ * The old code is never sent back, to this device or any other. Recovery here
+ * means choosing a new one, not being told the one you forgot.
+ */
+async function setPin(req, parent, res) {
+  const body = await readJson(req, 2 * 1024).catch(() => ({}))
+  const pin = String(body?.pin ?? '').replace(/\D/g, '')
+  if (pin.length !== 4) {
+    return res.status(400).json({ ok: false, error: 'A grown-up code is four digits.' })
+  }
+
+  if (body?.reset) {
+    const checked = await checkCode(parent.email, body?.code)
+    if (!checked.ok) return res.status(401).json({ ok: false, error: checked.error })
+  }
+
+  const saved = await setParentPin(parent.id, pin)
+  if (!saved.ok) return res.status(400).json({ ok: false, error: saved.error })
+  return res.status(200).json({ ok: true, parentPin: saved.parentPin })
+}
+
 export default async function handler(req, res) {
   const path = String(req.url ?? '')
     .split('?')[0]
@@ -90,6 +129,7 @@ export default async function handler(req, res) {
     if (path === 'child' && (req.method === 'DELETE' || req.method === 'POST')) {
       return await forgetChild(req, parent, res)
     }
+    if (path === 'pin' && req.method === 'POST') return await setPin(req, parent, res)
     if (path === 'signout-all' && req.method === 'POST') {
       const revoked = await revokeAllTokens(parent.id)
       return res.status(200).json({ ok: true, revoked })

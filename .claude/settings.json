@@ -81,7 +81,19 @@
       "Bash(GA_MEASUREMENT_ID=G-T76WQTXYYE node scripts/build-site.mjs)",
       "Bash(node step6.mjs)",
       "Bash(node finish.mjs)",
-      "Bash(echo \"--- exit $? ---\")"
+      "Bash(echo \"--- exit $? ---\")",
+      "Bash(grep -n \"keep-progress', { method: 'POST'\" -B 3 -A 3 scripts/server-smoke.mjs)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('web-push:', p.dependencies['web-push']\\)\")",
+      "Bash(node -e \"const wp=require\\('web-push'\\); const k=wp.generateVAPIDKeys\\(\\); console.log\\('keys generate ok, public length', k.publicKey.length\\)\")",
+      "Bash(node -e \"const v=require\\('./vercel.json'\\); console.log\\('vercel crons:', JSON.stringify\\(v.crons ?? 'none'\\)\\)\")",
+      "Bash(node --check scripts/cron.mjs)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('vercel.json','utf8'\\)\\); console.log\\('vercel.json valid, crons:', require\\('./vercel.json'\\).crons ?? 'none'\\)\")",
+      "Bash(node scripts/cron.mjs)",
+      "Bash(echo \"--- exit above: $?\")",
+      "Bash(CRON_SECRET=test node scripts/cron.mjs remind)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(CRON_SECRET=test DATABASE_URL= node scripts/cron.mjs nonsense)",
+      "Bash(node --check scripts/preflight.mjs)"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\AppData\\Local\\Temp\\claude\\c--Users-USER-Documents-Dev-edugame\\942b9d1f-abb1-42a0-a028-7c14c662c5d9\\scratchpad"

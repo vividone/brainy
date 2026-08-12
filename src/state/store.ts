@@ -345,6 +345,8 @@ interface Actions {
     email: string
     keepProgress?: boolean
     licence?: StoredLicence
+    /** The family's grown-up code, if the account has one. */
+    parentPin?: string | null
   }) => void
   /** Forget the account on this device. Never touches a child's progress. */
   signedOut: () => void
@@ -684,12 +686,19 @@ export const useStore = create<Store>()(
 
         setLicence: (licence) => set((s) => ({ device: { ...s.device, licence } })),
 
-        signedIn: ({ token, email, keepProgress, licence }) =>
+        signedIn: ({ token, email, keepProgress, licence, parentPin }) =>
           set((s) => ({
             device: {
               ...s.device,
               authToken: token,
               parentEmail: email,
+              /*
+               * Adopt the family's own code, so a second tablet is guarded by the
+               * same four digits rather than by 1234. Only when the account has
+               * one: absent means "leave this device alone", never "reset to the
+               * default".
+               */
+              parentPin: /^\d{4}$/.test(String(parentPin ?? '')) ? String(parentPin) : s.device.parentPin,
               keepProgress: keepProgress ?? s.device.keepProgress,
               /* A sign-in returns the family's current licence, which is the
                  authoritative copy — it is why signing in on a new tablet

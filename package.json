@@ -21,7 +21,8 @@
     "preflight": "node scripts/preflight.mjs",
     "icons": "node scripts/make-icons.mjs",
     "serve": "node scripts/serve.mjs",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "cron": "node scripts/cron.mjs"
   },
   "dependencies": {
     "@fastify/helmet": "^13.1.0",
@@ -29,6 +30,7 @@
     "pg": "^8.22.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "web-push": "^3.6.7",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
