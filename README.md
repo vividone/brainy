@@ -8,7 +8,7 @@ Live at **brainy.fortbridge.app** — marketing site at the root, app at `/play/
 
 **What is authored:** the **Nigerian pack** carries the product — Mathematics, Quantitative Reasoning, Verbal Reasoning and English Grammar across all six classes. The **British** (Years 1–6) and **American** (Kindergarten–Grade 5) packs now carry **maths for every class**, written against the DfE programmes of study and the Common Core standards respectively. Their other subjects are declared but unwritten, so a family following those curricula gets a real maths product and nothing else yet. Science & Technology, Social Studies, History and Computer Studies are declared with their topic lists visible in the app but not yet written; they are fact-heavy, so they need vetted source material rather than generators. Adding them is content work against an unchanged engine.
 
-Full product spec and architecture: [prd.md](prd.md).
+Full product spec and architecture: [prd.md](prd.md). The design of everything that is not a question — coins, badges, the collection and Mission Earth — is [GAMIFY.md](GAMIFY.md).
 
 ---
 

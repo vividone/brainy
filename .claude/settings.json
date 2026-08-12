@@ -80,7 +80,8 @@
       "Bash(GA_MEASUREMENT_ID=G-T76WQTXYYE npx vite build)",
       "Bash(GA_MEASUREMENT_ID=G-T76WQTXYYE node scripts/build-site.mjs)",
       "Bash(node step6.mjs)",
-      "Bash(node finish.mjs)"
+      "Bash(node finish.mjs)",
+      "Bash(echo \"--- exit $? ---\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\AppData\\Local\\Temp\\claude\\c--Users-USER-Documents-Dev-edugame\\942b9d1f-abb1-42a0-a028-7c14c662c5d9\\scratchpad"

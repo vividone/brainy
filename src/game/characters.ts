@@ -7,6 +7,8 @@
  * everything is bought with earned coins, and nothing costs real money.
  */
 
+import type { BadgeRequirement } from './badges'
+
 export const APP_NAME = 'Brainy'
 /** Shown in the shareable usage summary so we know which build a report came from. */
 export const APP_VERSION = 'v1.0'
@@ -33,6 +35,8 @@ export interface CharacterDef {
   hairStyle: HairStyle
   outfit: string
   outfitTrim: string
+  /** An achievement needed as well as the coins. See cosmetics.ts. */
+  requires?: BadgeRequirement
 }
 
 /*
@@ -73,7 +77,17 @@ export const CHARACTERS: CharacterDef[] = [
   { id: 'char.yusuf', name: 'Yusuf', price: 260, skin: SKIN.warm, hair: '#181818', hairStyle: 'short', outfit: '#fb923c', outfitTrim: '#c2410c' },
   { id: 'char.temi', name: 'Temi', price: 300, skin: SKIN.deep, hair: '#4c1d95', hairStyle: 'afro', outfit: '#facc15', outfitTrim: '#a16207' },
   { id: 'char.ifeoma', name: 'Ifeoma', price: 380, skin: SKIN.rich, hair: '#7c2d12', hairStyle: 'curls', outfit: '#22d3ee', outfitTrim: '#0891b2' },
-  { id: 'char.musa', name: 'Musa', price: 450, skin: SKIN.tan, hair: '#0f0f0f', hairStyle: 'fade', outfit: '#1e293b', outfitTrim: '#0f172a' },
+  {
+    id: 'char.musa',
+    name: 'Musa',
+    price: 450,
+    skin: SKIN.tan,
+    hair: '#0f0f0f',
+    hairStyle: 'fade',
+    outfit: '#1e293b',
+    outfitTrim: '#0f172a',
+    requires: { anyOf: ['skill-10', 'five-hundred'] },
+  },
 ]
 
 export type Species =
@@ -97,6 +111,8 @@ export interface PetDef {
   species: Species
   body: string
   belly: string
+  /** An achievement needed as well as the coins. See badges.ts. */
+  requires?: BadgeRequirement
 }
 
 export const PETS: PetDef[] = [
@@ -112,7 +128,15 @@ export const PETS: PetDef[] = [
   { id: 'pet.fish', name: 'Bubbles the Fish', price: 240, species: 'fish', body: '#38bdf8', belly: '#e0f2fe' },
   { id: 'pet.monkey', name: 'Kelo the Monkey', price: 300, species: 'monkey', body: '#a16207', belly: '#fcd34d' },
   { id: 'pet.elephant', name: 'Dudu the Elephant', price: 420, species: 'elephant', body: '#94a3b8', belly: '#cbd5e1' },
-  { id: 'pet.dragon', name: 'Ember the Dragon', price: 600, species: 'dragon', body: '#ef4444', belly: '#fed7aa' },
+  {
+    id: 'pet.dragon',
+    name: 'Ember the Dragon',
+    price: 600,
+    species: 'dragon',
+    body: '#ef4444',
+    belly: '#fed7aa',
+    requires: { anyOf: ['subject-master', 'marathon'] },
+  },
 ]
 
 export const characterById = (id: string | undefined): CharacterDef =>

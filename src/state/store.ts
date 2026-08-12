@@ -17,7 +17,7 @@ import type { Difficulty, ProgressMap, SessionResult } from '../engine/types'
 import { DEFAULT_CURRICULUM_ID, DEFAULT_YEAR_BAND } from '../content'
 import type { CosmeticSlot } from '../game/cosmetics'
 import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
-import { evaluateBadges } from '../game/badges'
+import { evaluateBadges, requirementMet } from '../game/badges'
 import { shopItemById } from '../game/cosmetics'
 import { dayKey, daysBetween } from '../lib/dates'
 import type { StoredLicence } from '../lib/licence'
@@ -201,6 +201,17 @@ export interface FlaggedQuestion {
 /** The merged view the screens actually consume. */
 export type Settings = LearnerSettings & DeviceSettings
 
+/**
+ * Why a purchase did not happen.
+ *
+ * `locked` means the item needs a badge the child has not won; `coins` means
+ * they simply have not saved enough yet. The shop says something different for
+ * each, because they ask the child to do different things.
+ */
+export type PurchaseResult =
+  | { ok: true }
+  | { ok: false; reason: 'unknown' | 'owned' | 'coins' | 'locked' }
+
 export interface Economy {
   xp: number
   coins: number
@@ -352,7 +363,15 @@ interface Actions {
   /** Returns the scored result plus anything newly unlocked, for the results screen. */
   finishSession: (result: SessionResult) => { awards: Awards; result: SessionResult }
   clearAwards: () => void
-  purchase: (cosmeticId: string) => boolean
+  /**
+   * Buy an item, or say why not.
+   *
+   * Returns a reason rather than a bare false because the shop has to explain
+   * itself to a seven-year-old: "you need 40 more coins" and "win a Perfect
+   * Round to open this" are different sentences, and a card that just refuses
+   * to respond is the worst of the three.
+   */
+  purchase: (cosmeticId: string) => PurchaseResult
   equip: (slot: CosmeticSlot, cosmeticId: string | null) => void
 
   /* Multi-child */
@@ -946,9 +965,15 @@ export const useStore = create<Store>()(
           const s = get()
           const d = active(s)
           const item = shopItemById(cosmeticId)
-          if (!item) return false
-          if (d.economy.owned.includes(cosmeticId)) return false
-          if (d.economy.coins < item.price) return false
+          if (!item) return { ok: false, reason: 'unknown' }
+          if (d.economy.owned.includes(cosmeticId)) return { ok: false, reason: 'owned' }
+          /*
+           * The badge is checked before the coins, so a child who can afford a
+           * gated item is told what to go and win rather than being shown a
+           * price they have already met and a refusal they cannot explain.
+           */
+          if (!requirementMet(item.requires, d.badges)) return { ok: false, reason: 'locked' }
+          if (d.economy.coins < item.price) return { ok: false, reason: 'coins' }
           patchActive((cur) => ({
             economy: {
               ...cur.economy,
@@ -957,7 +982,7 @@ export const useStore = create<Store>()(
               equipped: { ...cur.economy.equipped, [item.slot]: cosmeticId },
             },
           }))
-          return true
+          return { ok: true }
         },
 
         equip: (slot, cosmeticId) =>

@@ -6,6 +6,7 @@ import { Character } from '../components/Character'
 import { Pet } from '../components/Pet'
 import { Btn, Card, IconBtn, Pill, Screen } from '../components/ui'
 import { COSMETICS, SLOT_LABEL, type CosmeticSlot } from '../game/cosmetics'
+import { badgeById, requirementMet, type BadgeRequirement } from '../game/badges'
 import { CHARACTERS, PETS, characterById, petById } from '../game/characters'
 import { sfx } from '../lib/sound'
 import { useLearnerData, useStore } from '../state/store'
@@ -16,23 +17,40 @@ const SLOTS: CosmeticSlot[] = ['character', 'pet', 'hat', 'eyes', 'neck', 'room'
 const slotOf = (id: string): CosmeticSlot =>
   id.startsWith('char.') ? 'character' : (id.split('.')[0] as CosmeticSlot)
 
+/**
+ * What a child has to go and do to open a locked item, in their words.
+ *
+ * Deliberately names the *easiest* route rather than listing every option. Two
+ * badge names on a shop card is a puzzle; one instruction is a goal. The order
+ * of `anyOf` decides which is offered, so the grit badge — the one any child
+ * reaches by turning up — is what a child who has neither is pointed at.
+ */
+function gateHint(requires: BadgeRequirement): string {
+  const options = requires.anyOf.map(badgeById).filter((b) => Boolean(b))
+  if (options.length === 0) return 'Keep playing to open this'
+  /* The grit badge, because it is the one any child reaches by turning up. */
+  const shown = options.find((b) => b!.family === 'grit') ?? options[0]
+  return `${shown!.description} to open`
+}
+
 export function Shop({ onBack }: { onBack: () => void }) {
-  const { economy } = useLearnerData()
+  const { economy, badges } = useLearnerData()
   const purchase = useStore((s) => s.purchase)
   const equip = useStore((s) => s.equip)
   const [slot, setSlot] = useState<CosmeticSlot>('character')
   const [preview, setPreview] = useState<string | null>(null)
 
   /* Rows for the current tab, whichever roster they come from. */
-  const rows: { id: string; name: string; price: number }[] =
+  const rows: { id: string; name: string; price: number; requires?: BadgeRequirement }[] =
     slot === 'character'
-      ? CHARACTERS.map((c) => ({ id: c.id, name: c.name, price: c.price }))
+      ? CHARACTERS.map((c) => ({ id: c.id, name: c.name, price: c.price, requires: c.requires }))
       : slot === 'pet'
-        ? PETS.map((p) => ({ id: p.id, name: p.name, price: p.price }))
+        ? PETS.map((p) => ({ id: p.id, name: p.name, price: p.price, requires: p.requires }))
         : COSMETICS.filter((c) => c.slot === slot).map((c) => ({
             id: c.id,
             name: c.name,
             price: c.price,
+            requires: c.requires,
           }))
 
   /* Show the avatar wearing or being whatever card is under the finger. */
@@ -111,11 +129,14 @@ export function Shop({ onBack }: { onBack: () => void }) {
           const isEquipped = economy.equipped[itemSlot] === item.id
           const affordable = economy.coins >= item.price
           const cosmetic = COSMETICS.find((c) => c.id === item.id)
+          const open = requirementMet(item.requires, badges)
 
           return (
             <Card
               key={item.id}
-              className={`p-3 text-center ${isEquipped ? 'border-emerald-400 bg-emerald-50' : ''}`}
+              className={`p-3 text-center ${isEquipped ? 'border-emerald-400 bg-emerald-50' : ''} ${
+                !isOwned && !open ? 'opacity-70' : ''
+              }`}
               onClick={() => setPreview(item.id)}
             >
               <div className="h-24 grid place-items-center">
@@ -145,6 +166,20 @@ export function Shop({ onBack }: { onBack: () => void }) {
                 >
                   {isEquipped ? 'Chosen ✓' : 'Choose'}
                 </Btn>
+              ) : !open ? (
+                /*
+                 * Locked by achievement rather than by price, and the card says
+                 * which. A padlock on its own is only a reminder of something
+                 * you have not done; the sentence underneath is something a
+                 * child can go and do this afternoon. The price still shows,
+                 * because saving towards it is not wasted.
+                 */
+                <>
+                  <p className="mt-2 text-xs font-black leading-tight text-brand-600">
+                    🔒 {gateHint(item.requires!)}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-brand-400">🪙 {item.price}</p>
+                </>
               ) : (
                 <Btn
                   size="sm"
@@ -153,7 +188,7 @@ export function Shop({ onBack }: { onBack: () => void }) {
                   variant={affordable ? 'gold' : 'secondary'}
                   disabled={!affordable}
                   onClick={() => {
-                    if (purchase(item.id)) sfx.unlock()
+                    if (purchase(item.id).ok) sfx.unlock()
                   }}
                 >
                   🪙 {item.price}

@@ -18,12 +18,20 @@
  *     child in the product — Basic 1 Nigerian maths, 7 skills across 2 islands —
  *     give them everything that class can offer, and assert the only badges
  *     still out of reach are the ones deliberately listed below.
+ *
+ * Since badges started gating the top of the shop, the same two failures apply
+ * one step downstream: a gate naming a badge that does not exist locks an item
+ * for ever and looks like a design choice, and a gate naming only badges a free
+ * family cannot win puts a cosmetic behind a licence. Check 5 covers both, plus
+ * the grit/craft rule that keeps every gate reachable by persistence as well as
+ * by accuracy.
  */
 
 import { registerAllCurricula } from '../src/content'
 import { buildLevels, includedBands, subjectsForBand } from '../src/engine/registry'
 import type { ProgressMap } from '../src/engine/types'
 import { BADGES, evaluateBadges, type BadgeContext } from '../src/game/badges'
+import { allShopItems } from '../src/game/cosmetics'
 
 registerAllCurricula()
 
@@ -179,6 +187,43 @@ for (const badge of BADGES) {
 }
 console.log(`  ${wonWhenFree.size}/${BADGES.length} badges reachable`)
 console.log(`  out of reach until the next class: ${[...CLASS_GATED].join(', ')}`)
+
+/* ------------------------------------------------------------------ *
+ * 5. Shop gates name real badges, and open for a free family
+ * ------------------------------------------------------------------ */
+
+console.log('\nShop gates')
+const badgeIds = new Set(BADGES.map((b) => b.id))
+const gated = allShopItems().filter((i) => i.requires)
+
+for (const item of gated) {
+  const ids = item.requires!.anyOf
+
+  /*
+   * A typo'd badge id locks an item for ever and looks exactly like a design
+   * decision from the outside — nothing errors, the card simply never opens.
+   */
+  for (const id of ids) {
+    if (!badgeIds.has(id)) fail(`"${item.name}" needs badge "${id}", which does not exist`)
+  }
+
+  /* The grit/craft rule from game/badges.ts, checked rather than trusted. */
+  const families = new Set(ids.map((id) => BADGES.find((b) => b.id === id)?.family).filter(Boolean))
+  if (!families.has('grit')) {
+    fail(`"${item.name}" is gated on craft alone — add a grit badge so persistence also opens it`)
+  }
+
+  /* And the one that matters most: a free family must be able to open it. */
+  if (!ids.some((id) => wonWhenFree.has(id))) {
+    fail(`"${item.name}" cannot be opened without paying — see prd.md §14.2`)
+  }
+}
+
+console.log(`  ${gated.length} of ${allShopItems().length} items gated, all openable free`)
+for (const item of gated) {
+  const via = item.requires!.anyOf.filter((id) => wonWhenFree.has(id))
+  console.log(`    ${item.name} (${item.price}) ← ${via.join(' or ')}`)
+}
 
 /* ------------------------------------------------------------------ */
 

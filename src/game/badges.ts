@@ -183,6 +183,34 @@ export const BADGES: Badge[] = [
 
 export const badgeById = (id: string): Badge | undefined => BADGES.find((b) => b.id === id)
 
+/**
+ * An achievement a shop item needs before coins can buy it.
+ *
+ * `anyOf` rather than "all of", and the rule for filling it is not negotiable:
+ * **every gate names at least one `craft` badge and at least one `grit` badge.**
+ * Coins prove a child turned up; the badge proves something happened while they
+ * were there — but a child finding the work hard must reach the same item by
+ * persistence that a child finding it easy reaches by accuracy. Gating the top
+ * of the collection on skill alone would punish exactly the child this app
+ * exists for.
+ *
+ * It lives here rather than beside the items it gates so that the rosters
+ * depend on the badge system and not the other way round, and so this comment
+ * sits next to the two families it is talking about.
+ *
+ * `npm run badges` enforces both halves: that every id named exists, and that
+ * at least one of them is winnable by a family who has never paid.
+ */
+export interface BadgeRequirement {
+  anyOf: string[]
+}
+
+/** Whether a child holding these badges has met a requirement. */
+export const requirementMet = (
+  requires: BadgeRequirement | undefined,
+  earned: readonly string[],
+): boolean => !requires || requires.anyOf.some((id) => earned.includes(id))
+
 /** Badges in display order: by group, then by threshold within a group. */
 export const badgesInOrder = (): Badge[] =>
   [...BADGES].sort((a, b) =>

@@ -12,14 +12,29 @@ export interface Cosmetic {
   price: number
   /** Shown on the shop card. */
   emoji: string
+  /** Absent means coins alone are enough, which is true of most of the list. */
+  requires?: BadgeRequirement
 }
 
+import type { BadgeRequirement } from './badges'
 import { CHARACTERS, PETS } from './characters'
 
+/*
+ * Only the top item in each slot is gated. The mid-range stays pure coins on
+ * purpose: a shop where everything needs an achievement is a shop with nothing
+ * to save towards on an ordinary Tuesday.
+ */
 export const COSMETICS: Cosmetic[] = [
   { id: 'hat.cap', name: 'Baseball Cap', slot: 'hat', price: 40, emoji: '🧢' },
   { id: 'hat.party', name: 'Party Hat', slot: 'hat', price: 60, emoji: '🎉' },
-  { id: 'hat.crown', name: 'Golden Crown', slot: 'hat', price: 250, emoji: '👑' },
+  {
+    id: 'hat.crown',
+    name: 'Golden Crown',
+    slot: 'hat',
+    price: 250,
+    emoji: '👑',
+    requires: { anyOf: ['island-master', 'streak-14'] },
+  },
   { id: 'hat.wizard', name: 'Wizard Hat', slot: 'hat', price: 180, emoji: '🧙' },
   { id: 'hat.cowboy', name: 'Cowboy Hat', slot: 'hat', price: 120, emoji: '🤠' },
 
@@ -29,13 +44,34 @@ export const COSMETICS: Cosmetic[] = [
 
   { id: 'neck.bowtie', name: 'Bow Tie', slot: 'neck', price: 45, emoji: '🎀' },
   { id: 'neck.scarf', name: 'Stripey Scarf', slot: 'neck', price: 80, emoji: '🧣' },
-  { id: 'neck.cape', name: 'Hero Cape', slot: 'neck', price: 200, emoji: '🦸' },
-  { id: 'neck.medal', name: 'Gold Medal', slot: 'neck', price: 300, emoji: '🏅' },
+  {
+    id: 'neck.cape',
+    name: 'Hero Cape',
+    slot: 'neck',
+    price: 200,
+    emoji: '🦸',
+    requires: { anyOf: ['perfect', 'century'] },
+  },
+  {
+    id: 'neck.medal',
+    name: 'Gold Medal',
+    slot: 'neck',
+    price: 300,
+    emoji: '🏅',
+    requires: { anyOf: ['island-perfect', 'streak-30'] },
+  },
 
   { id: 'room.sky', name: 'Blue Sky Room', slot: 'room', price: 70, emoji: '🌤️' },
   { id: 'room.night', name: 'Starry Night Room', slot: 'room', price: 140, emoji: '🌙' },
   { id: 'room.jungle', name: 'Jungle Room', slot: 'room', price: 140, emoji: '🌴' },
-  { id: 'room.space', name: 'Space Room', slot: 'room', price: 320, emoji: '🚀' },
+  {
+    id: 'room.space',
+    name: 'Space Room',
+    slot: 'room',
+    price: 320,
+    emoji: '🚀',
+    requires: { anyOf: ['level-10', 'thousand'] },
+  },
 ]
 
 export const SLOT_LABEL: Record<CosmeticSlot, string> = {
@@ -80,14 +116,44 @@ export interface ShopItem {
   name: string
   price: number
   slot: CosmeticSlot
+  requires?: BadgeRequirement
 }
 
 export function shopItemById(id: string): ShopItem | undefined {
   const cosmetic = COSMETICS.find((c) => c.id === id)
-  if (cosmetic) return { id: cosmetic.id, name: cosmetic.name, price: cosmetic.price, slot: cosmetic.slot }
+  if (cosmetic) {
+    return {
+      id: cosmetic.id,
+      name: cosmetic.name,
+      price: cosmetic.price,
+      slot: cosmetic.slot,
+      requires: cosmetic.requires,
+    }
+  }
   const character = CHARACTERS.find((c) => c.id === id)
-  if (character) return { id: character.id, name: character.name, price: character.price, slot: 'character' }
+  if (character) {
+    return {
+      id: character.id,
+      name: character.name,
+      price: character.price,
+      slot: 'character',
+      requires: character.requires,
+    }
+  }
   const pet = PETS.find((p) => p.id === id)
-  if (pet) return { id: pet.id, name: pet.name, price: pet.price, slot: 'pet' }
+  if (pet) {
+    return { id: pet.id, name: pet.name, price: pet.price, slot: 'pet', requires: pet.requires }
+  }
   return undefined
+}
+
+/** Everything buyable, from all three rosters, for tests and the shop. */
+export function allShopItems(): ShopItem[] {
+  return [
+    ...COSMETICS.map((c) => c.id),
+    ...CHARACTERS.map((c) => c.id),
+    ...PETS.map((p) => p.id),
+  ]
+    .map(shopItemById)
+    .filter((i): i is ShopItem => Boolean(i))
 }
