@@ -25,6 +25,7 @@ import { Btn, IconBtn, Modal, ProgressBar } from '../components/ui'
 import { CORRECT_WORDS, WRONG_WORDS } from '../game/theme'
 import { buzz, sfx } from '../lib/sound'
 import { cancelSpeech, speak } from '../lib/speech'
+import { setSafeToReload } from '../lib/updates'
 import { useLearnerData, useSettings, useStore } from '../state/store'
 
 const REVEAL_MS = 1100
@@ -89,6 +90,16 @@ export function Session({ plan, onFinish, onQuit }: Props) {
   }, [index, current, settings.speech, settings.timerSeconds])
 
   useEffect(() => () => cancelSpeech(), [])
+
+  /*
+   * Hold any pending update until the quest is over. A child three questions in
+   * who is bounced to a fresh screen has lost the session and the trust in one
+   * go; the new version can wait four minutes.
+   */
+  useEffect(() => {
+    setSafeToReload(false)
+    return () => setSafeToReload(true)
+  }, [])
 
   const finish = useCallback(
     (finalAnswers: AnsweredItem[]) => {

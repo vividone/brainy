@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { buildSession } from './engine/session'
 import { subjectsForBand, type Level } from './engine/registry'
 import type { SessionPlan, SessionResult } from './engine/types'
@@ -28,6 +28,7 @@ import { dayKey } from './lib/dates'
 import { APP_VERSION } from './game/characters'
 import { claim, daysSinceCheck, revalidate, type StoredLicence } from './lib/licence'
 import { subjectOpen, useEntitlement } from './state/entitlement'
+import type { Threat } from './game/planet'
 import { syncAfterSession, syncNow } from './state/syncRunner'
 
 /** How often a stored licence is checked against the server. */
@@ -38,10 +39,32 @@ type Route =
   | { name: 'subject'; subjectId: string }
   | { name: 'island'; strandId: string; subjectId: string }
   | { name: 'session'; plan: SessionPlan }
-  | { name: 'results'; result: SessionResult; awards: Awards }
+  | {
+      name: 'results'
+      result: SessionResult
+      awards: Awards
+      /** Set when this session was today's Mission Earth threat. */
+      mission?: { threat: Threat; points: number }
+    }
   | { name: 'shop' }
   | { name: 'room' }
+  | { name: 'planet' }
+  | { name: 'rush' }
   | { name: 'parent' }
+
+/*
+ * Mission Earth is the one screen loaded on demand.
+ *
+ * prd.md §10.5 budgets 500 KB gzipped for the whole app, and this is a section
+ * a child may never open — a family who only ever does the daily quest should
+ * not pay for a planet they have not unlocked. Everything else is on the path
+ * to answering a question, so it stays in the main bundle where it cannot cost
+ * a spinner.
+ */
+const Planet = lazy(() => import('./screens/Planet'))
+const MeteorRush = lazy(() =>
+  import('./screens/MeteorRush').then((m) => ({ default: m.MeteorRush })),
+)
 
 export default function App() {
   const onboarded = useStore((s) => s.onboarded)
@@ -85,6 +108,8 @@ export default function App() {
 
   const entitlement = useEntitlement()
   const setLicence = useStore((s) => s.setLicence)
+  const resolveThreat = useStore((s) => s.resolveThreat)
+  const finishRush = useStore((s) => s.finishRush)
   /** Set only when a parent has just come back from paying. */
   const [justUnlocked, setJustUnlocked] = useState<StoredLicence | null>(null)
   const [payProblem, setPayProblem] = useState<string | null>(null)
@@ -92,6 +117,12 @@ export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' })
   /** Remembered so "Play again" can rebuild the same kind of session. */
   const [lastLaunch, setLastLaunch] = useState<{ kind: 'daily' } | { kind: 'level'; level: Level } | null>(null)
+  /**
+   * Set while a session is standing in for today's Mission Earth threat, so
+   * finishing it restores the right region. Cleared on the way out either way —
+   * a mission that pays out twice would be a bug a child could farm.
+   */
+  const [pendingMission, setPendingMission] = useState<Threat | null>(null)
 
   /* Push settings into the media libraries, which are plain modules. */
   useEffect(() => setSoundEnabled(settings.sound), [settings.sound])
@@ -247,7 +278,13 @@ export default function App() {
       if (e.key !== 'Escape') return
       setRoute((r) => {
         if (r.name === 'island') return { name: 'subject', subjectId: r.subjectId }
-        if (r.name === 'subject' || r.name === 'shop' || r.name === 'room' || r.name === 'parent') {
+        if (
+          r.name === 'subject' ||
+          r.name === 'shop' ||
+          r.name === 'room' ||
+          r.name === 'planet' ||
+          r.name === 'parent'
+        ) {
           return { name: 'home' }
         }
         return r
@@ -262,19 +299,27 @@ export default function App() {
    * covers the range rather than seven days of maths. Keyed to the date so it
    * is stable within a day — the child gets the same quest if they reopen it.
    */
+  const playableSubjects = useMemo(
+    () =>
+      subjectsForBand(curriculum.id, yearBand).filter(
+        (s) =>
+          s.available &&
+          s.strands.some((strand) => strand.skills.length > 0) &&
+          /* A daily quest that rotates into a locked subject would put the one
+             screen a child taps without thinking behind a paywall. */
+          subjectOpen(s.id, entitlement.full),
+      ),
+    [curriculum.id, yearBand, entitlement.full],
+  )
+
+  /** False only when this class has nothing authored a child could play. */
+  const hasPlayableSubject = playableSubjects.length > 0
+
   const dailySubjectId = useMemo(() => {
-    const playable = subjectsForBand(curriculum.id, yearBand).filter(
-      (s) =>
-        s.available &&
-        s.strands.some((strand) => strand.skills.length > 0) &&
-        /* A daily quest that rotates into a locked subject would put the one
-           screen a child taps without thinking behind a paywall. */
-        subjectOpen(s.id, entitlement.full),
-    )
-    if (playable.length === 0) return 'maths'
+    if (playableSubjects.length === 0) return 'maths'
     const dayIndex = Math.floor(new Date().setHours(0, 0, 0, 0) / 86_400_000)
-    return playable[dayIndex % playable.length].id
-  }, [curriculum.id, yearBand, entitlement.full])
+    return playableSubjects[dayIndex % playableSubjects.length].id
+  }, [playableSubjects])
 
   const startDaily = useCallback(() => {
     const plan = buildSession({
@@ -291,6 +336,39 @@ export default function App() {
     setLastLaunch({ kind: 'daily' })
     setRoute({ name: 'session', plan })
   }, [bands, curriculum.id, dailySubjectId, progress, seenItems, settings.sessionLength, settings.difficultyOverride])
+
+  /**
+   * Start today's Mission Earth threat.
+   *
+   * The whole design of the feature is here: a mission is an ordinary session.
+   * Same builder, same subject rotation, same adaptive difficulty, and it pays
+   * coins, XP, mastery, streak and badges exactly as any other session does.
+   * The only difference is that finishing it also restores a region — so a
+   * child who believes they are saving the world is doing their maths.
+   *
+   * The title is overridden on the plan rather than taught to the engine. A new
+   * `SessionMode` would have to be understood by the parent report and by
+   * everything that switches on mode, to buy a string.
+   */
+  const startMission = useCallback(
+    (threat: Threat) => {
+      const plan = buildSession({
+        curriculumId: curriculum.id,
+        subjectId: dailySubjectId,
+        mode: 'daily',
+        bands,
+        progress,
+        length: settings.sessionLength,
+        difficultyOverride: settings.difficultyOverride,
+        avoid: seenItems,
+      })
+      if (plan.items.length === 0) return
+      setPendingMission(threat)
+      setLastLaunch({ kind: 'daily' })
+      setRoute({ name: 'session', plan: { ...plan, title: threat.name } })
+    },
+    [bands, curriculum.id, dailySubjectId, progress, seenItems, settings.sessionLength, settings.difficultyOverride],
+  )
 
   const startLevel = useCallback(
     (level: Level) => {
@@ -330,7 +408,24 @@ export default function App() {
       // Called from an event handler, not an effect, so StrictMode cannot
       // double-award coins and XP.
       const { awards, result } = finishSession(raw)
-      setRoute({ name: 'results', result, awards })
+
+      /*
+       * If this session stood in for today's threat, the region it was about
+       * recovers. Stars decide how much and zero still pays — finishing always
+       * pays (prd.md §5.4), and a child who found today hard has still turned
+       * up and still helped. `resolveThreat` is idempotent per day, so a second
+       * session cannot collect it twice.
+       */
+      let mission: { threat: Threat; points: number } | undefined
+      if (pendingMission) {
+        const points = resolveThreat(pendingMission.regionId, result.stars)
+        /* Zero means today's threat was already dealt with, so there is nothing
+           to celebrate and the results screen stays quiet about it. */
+        if (points > 0) mission = { threat: pendingMission, points }
+        setPendingMission(null)
+      }
+
+      setRoute({ name: 'results', result, awards, mission })
 
       /* Upload what just happened, a couple of seconds from now. Debounced, and
          silent whether it works or not. */
@@ -349,7 +444,7 @@ export default function App() {
         })
       }
     },
-    [finishSession],
+    [finishSession, pendingMission, resolveThreat],
   )
 
   /*
@@ -428,7 +523,13 @@ export default function App() {
           key={route.plan.id}
           plan={route.plan}
           onFinish={handleFinish}
-          onQuit={() => setRoute({ name: 'home' })}
+          onQuit={() => {
+            /* Left before answering anything, so nothing was finished and the
+               mission is still waiting. Quitting *after* answering runs through
+               onFinish instead, and does pay out. */
+            setPendingMission(null)
+            setRoute({ name: 'home' })
+          }}
         />
       )
 
@@ -437,6 +538,7 @@ export default function App() {
         <Results
           result={route.result}
           awards={route.awards}
+          mission={route.mission}
           onPlayAgain={playAgain}
           onHome={() =>
             setRoute(
@@ -473,6 +575,35 @@ export default function App() {
     case 'room':
       return <Room onBack={() => setRoute({ name: 'home' })} />
 
+    case 'planet':
+      return (
+        /* A plain card rather than a spinner: on a slow tablet this is a
+           fraction of a second, and a flash of "loading" reads as broken. */
+        <Suspense fallback={<div className="min-h-dvh bg-gradient-to-b from-slate-900 to-brand-900" />}>
+          <Planet
+            onBack={() => setRoute({ name: 'home' })}
+            /* Withheld when this class has nothing playable, so the card can
+               say so rather than offering a button that does nothing. */
+            onStartMission={hasPlayableSubject ? startMission : undefined}
+            onStartRush={hasPlayableSubject ? () => setRoute({ name: 'rush' }) : undefined}
+          />
+        </Suspense>
+      )
+
+    case 'rush':
+      return (
+        <Suspense fallback={<div className="min-h-dvh bg-gradient-to-b from-slate-900 to-brand-900" />}>
+          <MeteorRush
+            subjectId={dailySubjectId}
+            onQuit={() => setRoute({ name: 'planet' })}
+            onDone={(deflected, total) => {
+              finishRush(deflected, total)
+              setRoute({ name: 'planet' })
+            }}
+          />
+        </Suspense>
+      )
+
     case 'parent':
       return <Parent onBack={() => setRoute({ name: 'home' })} />
 
@@ -483,6 +614,7 @@ export default function App() {
           onDailyQuest={startDaily}
           onOpenShop={() => setRoute({ name: 'shop' })}
           onOpenRoom={() => setRoute({ name: 'room' })}
+          onOpenPlanet={() => setRoute({ name: 'planet' })}
           onOpenParent={() => setRoute({ name: 'parent' })}
         />
       )

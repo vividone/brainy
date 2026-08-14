@@ -11,6 +11,7 @@ import { levelProgress } from '../engine/scoring'
 import { Mascot } from '../components/Mascot'
 import { Btn, Card, Screen, Stars } from '../components/ui'
 import { badgeById, type Badge } from '../game/badges'
+import { regionById, type Threat } from '../game/planet'
 import { PRAISE } from '../game/theme'
 import { sfx } from '../lib/sound'
 import { speak } from '../lib/speech'
@@ -20,11 +21,20 @@ import type { Awards } from '../state/store'
 interface Props {
   result: SessionResult
   awards: Awards
+  /**
+   * Set when this session was today's Mission Earth threat.
+   *
+   * Without it the restoration happened silently on a screen the child was not
+   * on: they deflect the asteroid, and the results say stars, coins and XP and
+   * nothing whatever about Earth. The point of a mission is that helping is the
+   * reward, so it has to be said here, where it was earned.
+   */
+  mission?: { threat: Threat; points: number }
   onPlayAgain: () => void
   onHome: () => void
 }
 
-export function Results({ result, awards, onPlayAgain, onHome }: Props) {
+export function Results({ result, awards, mission, onPlayAgain, onHome }: Props) {
   const { economy, streak } = useLearnerData()
   const settings = useSettings()
   const [shownStars, setShownStars] = useState(0)
@@ -113,6 +123,25 @@ export function Results({ result, awards, onPlayAgain, onHome }: Props) {
 
         <p className="mt-3 text-center text-sm font-bold text-brand-500">{accuracy}% right first time</p>
       </Card>
+
+      {mission && (
+        <Card className="mt-4 p-5 border-emerald-400 bg-gradient-to-br from-emerald-50 to-sky-100 animate-pop">
+          <div className="flex items-center gap-4">
+            {/* The threat is named directly above, as `result.title`. This
+                card only has to say what it changed. */}
+            <span className="text-5xl shrink-0" aria-hidden>
+              {mission.threat.emoji}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl font-black text-emerald-900 leading-tight">You sorted it! 🌍</p>
+              <p className="font-bold text-emerald-700">
+                {regionById(mission.threat.regionId)?.name ?? 'Earth'} recovered{' '}
+                <span className="tabular-nums">+{mission.points}%</span> because of you.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {awards.leveledUpTo && (
         <Card className="mt-4 p-5 text-center border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-100 animate-pop">

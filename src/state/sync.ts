@@ -71,6 +71,12 @@ export function buildSyncPayload(profile: Profile, data: LearnerData, revision: 
       totals: data.totals,
       answerStreak: data.answerStreak,
       bestAnswerStreak: data.bestAnswerStreak,
+      /*
+       * Mission Earth. Restoration points and a threat id — what a child has
+       * built, not a record of when they were at the tablet, so it belongs on
+       * the same side of the line as coins and stars.
+       */
+      planet: data.planet,
     },
   }
 }
@@ -98,6 +104,7 @@ export function mergeRemoteState(local: LearnerData, remote: Record<string, unkn
     totals: pick('totals'),
     answerStreak: pick('answerStreak'),
     bestAnswerStreak: pick('bestAnswerStreak'),
+    planet: pick('planet'),
     /* Local only, by design. Never arrives, never overwritten. */
     history: local.history,
     byDay: local.byDay,

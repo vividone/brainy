@@ -55,6 +55,7 @@ const STATE_FIELDS = {
   totals: 'object',
   answerStreak: 'number',
   bestAnswerStreak: 'number',
+  planet: 'object',
 }
 
 /** Named explicitly so the error can say what was wrong rather than "bad key". */

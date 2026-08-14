@@ -278,7 +278,9 @@ Vercel holds no secrets at all — one place has the database credentials and th
 | `EMAIL_FROM` | with Resend | e.g. `Brainy <brainy@fortbridge.app>`. Must be on a domain verified in Resend |
 | `EMAIL_REPLY_TO` | optional | Where replies go, if not the From address |
 | `OPERATOR_EMAIL` | optional | Emails **you** on every sign-up, redemption and payment |
-| `CRON_SECRET` | for renewal warnings | Any long random string. Vercel sends it as a Bearer token; without it `/api/cron/expiring` refuses to run |
+| `CRON_SECRET` | for the scheduled jobs | Any long random string. Every `/api/cron/*` route refuses to run without it, and so does `npm run cron` |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | for daily reminders | **Railway only, and on both the API service and `cron-remind`, with identical values.** Generate one pair with `npx web-push generate-vapid-keys`. The API hands the public key to browsers and accepts subscriptions; the cron service signs the sends. Different pairs on the two services means every send is rejected and, after five failures, each family's reminder is deleted. Use a Railway shared variable rather than pasting twice. Rotating them invalidates every existing subscription |
+| `VAPID_SUBJECT` | with the keys | A `mailto:` or `https:` URL a push service can use to reach a human. Defaults to `mailto:brainy@fortbridge.app` |
 | `REPORT_WEBHOOK_URL` | optional | **Outbound only, and nothing to do with Paystack.** Pushes a copy of each sign-up, payment, transfer and feedback to somewhere you already look — Slack, Discord, Apps Script. Redundant once `OPERATOR_EMAIL` is set, and it must never point back at this deployment |
 | `GA_MEASUREMENT_ID` | optional | Overrides the Google Analytics property for the **website**. Defaults to the live one in `scripts/build-site.mjs`; set it to an empty string to build with analytics off |
 

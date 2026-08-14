@@ -32,6 +32,23 @@ import { buildLevels, includedBands, subjectsForBand } from '../src/engine/regis
 import type { ProgressMap } from '../src/engine/types'
 import { BADGES, evaluateBadges, type BadgeContext } from '../src/game/badges'
 import { allShopItems } from '../src/game/cosmetics'
+import {
+  ACTIONS,
+  BASE_RESTORED,
+  COINS_PER_POINT,
+  PLANET_UNLOCK,
+  REGIONS,
+  REGION_MAX,
+  RUSH_REWARD,
+  RUSH_SIZE,
+  THREAT_KINDS,
+  actionCost,
+  neediestRegion,
+  rushReward,
+  threatForDay,
+  threatReward,
+} from '../src/game/planet'
+import { dayKey } from '../src/lib/dates'
 
 registerAllCurricula()
 
@@ -224,6 +241,156 @@ for (const item of gated) {
   const via = item.requires!.anyOf.filter((id) => wonWhenFree.has(id))
   console.log(`    ${item.name} (${item.price}) ← ${via.join(' or ')}`)
 }
+
+/* ------------------------------------------------------------------ *
+ * 6. Mission Earth opens, and its prices are coherent
+ * ------------------------------------------------------------------ */
+
+console.log('\nMission Earth')
+
+for (const id of PLANET_UNLOCK.anyOf) {
+  if (!badgeIds.has(id)) fail(`Mission Earth needs badge "${id}", which does not exist`)
+}
+if (!PLANET_UNLOCK.anyOf.some((id) => wonWhenFree.has(id))) {
+  fail('Mission Earth cannot be opened without paying — see prd.md §14.2')
+}
+const unlockFamilies = new Set(
+  PLANET_UNLOCK.anyOf.map((id) => BADGES.find((b) => b.id === id)?.family).filter(Boolean),
+)
+if (!unlockFamilies.has('grit')) {
+  fail('Mission Earth is gated on craft alone — add a grit badge so persistence also opens it')
+}
+console.log(`  opens with: ${PLANET_UNLOCK.anyOf.filter((id) => wonWhenFree.has(id)).join(' or ')}`)
+
+/*
+ * Prices are derived from impact rather than typed, so this can only fail if
+ * somebody reintroduces a hand-written cost — which is exactly when one action
+ * quietly becomes better value than another and the choice stops being about
+ * what a child wants to do.
+ */
+for (const action of ACTIONS) {
+  if (actionCost(action) !== action.impact * COINS_PER_POINT) {
+    fail(`"${action.name}" is not priced at ${COINS_PER_POINT} coins per point`)
+  }
+  if (!action.fact.trim()) fail(`"${action.name}" has no fact`)
+}
+
+for (const region of REGIONS) {
+  const actions = ACTIONS.filter((a) => a.regionId === region.id)
+  if (actions.length === 0) fail(`region "${region.name}" has nothing to do in it`)
+  const reachable = actions.reduce((sum, a) => sum + a.impact, 0)
+  if (reachable === 0) fail(`region "${region.name}" can never be restored`)
+}
+
+/*
+ * Facts are claims about the real world, and a citation is a claim that the
+ * named body said this. A blank or whitespace source is the failure mode worth
+ * catching: it renders as an authority-shaped gap under a sentence nobody
+ * checked. Omitting the field is fine and means "definitional"; filling it
+ * badly is not.
+ */
+for (const a of ACTIONS) {
+  if (a.source !== undefined && !a.source.trim()) {
+    fail(`action "${a.name}" has an empty source — omit the field or name the body`)
+  }
+}
+
+const cited = ACTIONS.filter((a) => a.source?.trim()).length
+const fillOne = (REGION_MAX - BASE_RESTORED) * COINS_PER_POINT
+console.log(
+  `  ${ACTIONS.length} actions across ${REGIONS.length} regions · ${cited} cited, ${ACTIONS.length - cited} definitional`,
+)
+console.log(`  ${fillOne} coins to fill a region, ${fillOne * REGIONS.length} for the whole Earth`)
+
+/* Threats ------------------------------------------------------------ */
+
+const regionIds = new Set(REGIONS.map((r) => r.id))
+for (const kind of THREAT_KINDS) {
+  if (kind.regions.length === 0) fail(`threat "${kind.name}" can strike nowhere`)
+  for (const id of kind.regions) {
+    if (!regionIds.has(id)) fail(`threat "${kind.name}" names region "${id}", which does not exist`)
+  }
+}
+
+/*
+ * Zero stars must still pay. Finishing always pays (prd.md §5.4), and a child
+ * who found today hard has still turned up — a mission worth nothing on a bad
+ * day would be the one place in the app that punished effort.
+ */
+if (threatReward(0) <= 0) fail('a mission finished with no stars pays nothing')
+for (let stars = 1; stars <= 3; stars++) {
+  if (threatReward(stars) <= threatReward(stars - 1)) {
+    fail(`a ${stars}-star mission pays no more than a ${stars - 1}-star one`)
+  }
+}
+
+/*
+ * A year of threats, to prove the rotation is not stuck on one kind or one
+ * region. Derived from the date, so this walks real days rather than a mock.
+ */
+const seenKinds = new Set<string>()
+const seenRegions = new Set<string>()
+const start = new Date(2026, 0, 1)
+for (let i = 0; i < 365; i++) {
+  const d = new Date(start)
+  d.setDate(start.getDate() + i)
+  const threat = threatForDay(dayKey(d))
+  seenKinds.add(threat.id)
+  seenRegions.add(threat.regionId)
+  /* Same day, same threat — a child who reopens the app mid-mission must not
+     find a different one waiting. */
+  if (threatForDay(dayKey(d)).id !== threat.id) fail('threatForDay is not stable within a day')
+}
+if (seenKinds.size < THREAT_KINDS.length) {
+  fail(`only ${seenKinds.size} of ${THREAT_KINDS.length} threats appear in a year`)
+}
+if (seenRegions.size < REGIONS.length) {
+  fail(`only ${seenRegions.size} of ${REGIONS.length} regions are ever threatened in a year`)
+}
+
+/* Meteor Rush -------------------------------------------------------- */
+
+/*
+ * Turning up is worth something, even on a round where nothing was deflected.
+ * The same rule missions follow, and the one the whole no-fail posture rests
+ * on: the app never pays a child nothing for having played.
+ */
+if (rushReward(0, RUSH_SIZE) < 1) fail('a Meteor Rush round with no hits pays nothing')
+if (rushReward(RUSH_SIZE, RUSH_SIZE) !== RUSH_REWARD) {
+  fail(`a perfect round pays ${rushReward(RUSH_SIZE, RUSH_SIZE)}, not ${RUSH_REWARD}`)
+}
+for (let i = 1; i <= RUSH_SIZE; i++) {
+  if (rushReward(i, RUSH_SIZE) < rushReward(i - 1, RUSH_SIZE)) {
+    fail(`deflecting ${i} meteors pays less than deflecting ${i - 1}`)
+  }
+}
+/* An empty round must not divide by zero on the way to paying nothing. */
+if (rushReward(0, 0) !== 0) fail('an empty Meteor Rush round pays something')
+
+/*
+ * The reward has to land somewhere it shows. Sending it to whichever region the
+ * child happened to finish would make the one part of Mission Earth that is
+ * pure play feel like it did nothing.
+ */
+if (neediestRegion({}) !== REGIONS[0].id) fail('an untouched planet has no neediest region')
+const lopsided = Object.fromEntries(REGIONS.map((r, i) => [r.id, i === 3 ? 0 : 50]))
+if (neediestRegion(lopsided) !== REGIONS[3].id) {
+  fail('neediestRegion does not find the least-restored region')
+}
+
+console.log(
+  `  Meteor Rush: ${RUSH_SIZE} meteors, ${rushReward(0, RUSH_SIZE)}–${RUSH_REWARD} points, no coins and no mastery`,
+)
+
+const perDay = (threatReward(1) + threatReward(2) + threatReward(3)) / 3
+console.log(
+  `  ${THREAT_KINDS.length} threats, all ${seenRegions.size} regions reachable, ${threatReward(0)}–${threatReward(3)} points a mission`,
+)
+console.log(
+  `  missions alone restore Earth in about ${Math.round(
+    ((REGION_MAX - BASE_RESTORED) * REGIONS.length) / perDay,
+  )} days of daily play`,
+)
 
 /* ------------------------------------------------------------------ */
 

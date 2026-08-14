@@ -21,6 +21,8 @@ import {
   useProgress,
 } from '../state/selectors'
 import { subjectsForBand } from '../engine/registry'
+import { badgeById, requirementMet } from '../game/badges'
+import { PLANET_UNLOCK, earthRestored, threatDone } from '../game/planet'
 import { subjectOpen, useEntitlement } from '../state/entitlement'
 import { sfx } from '../lib/sound'
 import { nudgeFor } from '../lib/nudge'
@@ -30,19 +32,36 @@ interface Props {
   onDailyQuest: () => void
   onOpenShop: () => void
   onOpenRoom: () => void
+  onOpenPlanet: () => void
   onOpenParent: () => void
 }
 
-export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOpenParent }: Props) {
+export function Home({
+  onOpenSubject,
+  onDailyQuest,
+  onOpenShop,
+  onOpenRoom,
+  onOpenPlanet,
+  onOpenParent,
+}: Props) {
   const curriculum = useCurriculum()
   const bands = useBands()
   const progress = useProgress()
   const levelStars = useLevelStars()
   const profile = useProfile()
-  const { economy, streak } = useLearnerData()
+  const { economy, streak, badges, planet } = useLearnerData()
   /* What today looks like for this child: waiting, at risk, or done. */
   const nudge = useMemo(() => nudgeFor(streak), [streak])
   const { full } = useEntitlement()
+
+  /* Mission Earth: opened by a badge, never by spending. See game/planet.ts. */
+  const planetOpen = requirementMet(PLANET_UNLOCK, badges)
+  const earthPct = useMemo(() => earthRestored(planet?.regions ?? {}), [planet])
+  const missionWaiting = planetOpen && !threatDone(planet?.lastThreatDay)
+  const planetHint = useMemo(() => {
+    const grit = PLANET_UNLOCK.anyOf.map(badgeById).find((b) => b?.family === 'grit')
+    return grit ? `${grit.description} to open this` : 'Keep playing to open this'
+  }, [])
 
   const level = levelProgress(economy.xp)
   const stars = totalStarsEarned(levelStars)
@@ -61,7 +80,17 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
   return (
     <Screen>
       {/* Top bar ------------------------------------------------------- */}
-      <header className="flex items-center gap-3 pt-1">
+      {/*
+        Wraps, because it does not fit.
+
+        At 320px the row has 288px to work with, and the fixed parts — a 64px
+        mascot, a 48px grown-up button, three pills that grow with the numbers in
+        them, and the gaps between — use all of it before the greeting gets a
+        pixel. The name truncated to nothing and the level bar became a sliver.
+        So below sm the pills drop to their own line, and the top row keeps the
+        three things a child navigates by.
+      */}
+      <header className="flex flex-wrap items-center gap-3 pt-1">
         <button
           onClick={() => {
             sfx.tap()
@@ -82,26 +111,50 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
           />
         </button>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-xl sm:text-2xl font-black text-brand-900 truncate">Hi {profile.name}!</p>
+        {/*
+          basis-40, not just flex-1.
+
+          Everything else on this row is shrink-0, and flex-1 alone means a
+          flex-basis of 0%: the name claims no width when the browser decides
+          where to break the line, so it never pushes the pills down. It just
+          takes whatever is left over, and once the fixed parts fill the row that
+          is nothing — the greeting truncates to zero and vanishes while the
+          mascot, pills and button stay exactly where they were. Claiming 10rem
+          up front means a tight row wraps the pills instead, which is the layout
+          the small screens already use.
+        */}
+        <div className="min-w-0 flex-1 basis-40">
+          {/*
+            Wraps rather than truncates.
+
+            A child seeing "Hi J…" on their own home screen is worse than a
+            greeting on two lines: the name is the one word on this screen that
+            is theirs. Long Nigerian names are normal, not an edge case, so the
+            greeting drops a size on phones, breaks mid-word if it has to, and is
+            capped at two lines so a very long name cannot push the quest card
+            off the screen.
+          */}
+          <p className="text-lg sm:text-2xl font-black text-brand-900 leading-tight [overflow-wrap:anywhere] line-clamp-2">
+            {/* A blank name would render "Hi !", which reads as a broken row
+                rather than a missing name. */}
+            Hi {profile.name?.trim() || 'there'}!
+          </p>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-xs font-black text-brand-500 shrink-0">LVL {level.level}</span>
             <ProgressBar pct={level.pct} className="h-2.5" label={`Level ${level.level} progress`} />
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <div className="flex gap-1.5">
-            <Pill className="bg-amber-100 text-amber-900" title="Coins">
-              🪙 {economy.coins}
-            </Pill>
-            <Pill
-              className={streak.current > 0 ? 'bg-orange-100 text-orange-900' : 'bg-slate-100 text-slate-500'}
-              title="Day streak"
-            >
-              🔥 {streak.current}
-            </Pill>
-          </div>
+        <div className="order-last flex w-full shrink-0 flex-wrap gap-1.5 sm:order-none sm:w-auto sm:justify-end">
+          <Pill className="bg-amber-100 text-amber-900" title="Coins">
+            🪙 {economy.coins}
+          </Pill>
+          <Pill
+            className={streak.current > 0 ? 'bg-orange-100 text-orange-900' : 'bg-slate-100 text-slate-500'}
+            title="Day streak"
+          >
+            🔥 {streak.current}
+          </Pill>
           <Pill className="bg-yellow-100 text-yellow-900" title="Total stars">
             ⭐ {stars}
           </Pill>
@@ -209,6 +262,46 @@ export function Home({ onOpenSubject, onDailyQuest, onOpenShop, onOpenRoom, onOp
           )
         })}
       </div>
+
+      {/* Mission Earth -------------------------------------------------- */}
+      {/*
+        Shown locked rather than hidden, with the goal stated, on the same
+        principle as the shop: a child who cannot see a thing exists cannot
+        want it, and a padlock with an instruction under it is something to go
+        and do this afternoon.
+      */}
+      <Card
+        className="mt-4 p-0 overflow-hidden"
+        onClick={
+          planetOpen
+            ? () => {
+                sfx.whoosh()
+                onOpenPlanet()
+              }
+            : undefined
+        }
+      >
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-brand-800 p-4 flex items-center gap-4">
+          <span className="text-4xl sm:text-5xl shrink-0" aria-hidden>
+            {!planetOpen ? '🔒' : missionWaiting ? '⚠️' : '🌍'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black uppercase tracking-wide text-brand-200">Mission Earth</p>
+            {planetOpen ? (
+              <>
+                <p className="text-xl font-black text-white">{earthPct}% restored</p>
+                <p className="text-sm font-bold text-brand-100">
+                  {missionWaiting
+                    ? 'A mission is waiting for you today.'
+                    : 'Spend your coins on putting something right.'}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-bold text-brand-100">{planetHint}</p>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {/* Bottom actions ------------------------------------------------ */}
       <div className="mt-6 grid grid-cols-2 gap-3">

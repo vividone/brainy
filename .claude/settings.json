@@ -93,7 +93,26 @@
       "Bash(CRON_SECRET=test node scripts/cron.mjs remind)",
       "Bash(echo \"exit: $?\")",
       "Bash(CRON_SECRET=test DATABASE_URL= node scripts/cron.mjs nonsense)",
-      "Bash(node --check scripts/preflight.mjs)"
+      "Bash(node --check scripts/preflight.mjs)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(echo \"typecheck exit $?\")",
+      "Bash(echo \"--- typecheck exit $? ---\")",
+      "Bash(echo \"TYPECHECK=$?\")",
+      "Bash(command -v chromium-cli)",
+      "Bash(command -v npx)",
+      "Bash(npx playwright *)",
+      "Bash(timeout 40 bash -c 'until curl -sf http://localhost:5173/play/ >/dev/null 2>&1 || curl -sf http://localhost:5173/ >/dev/null 2>&1; do sleep 1; done')",
+      "Bash(node drive.mjs)",
+      "Read(//c/Users/USER/AppData/Local/ms-playwright/**)",
+      "Read(//c/Users/USER/.npm/**)",
+      "Bash(npm init *)",
+      "Bash(npm i *)",
+      "Bash(sed -i 's/:not\\(\\\\[aria-label\\\\]\\)/:not\\([aria-label*=\"aloud\"]\\)/g' drive.mjs)",
+      "Bash(rm -rf shots)",
+      "Bash(sed -i 's/main button:visible:not\\(\\\\[aria-label\\\\*=\"aloud\"\\\\]\\)/main button:visible:not\\([disabled]\\):not\\([aria-label*=\"aloud\"]\\)/g' drive.mjs)",
+      "Bash(sed -i 's/      await choice.click\\(\\)/      await choice.click\\({ timeout: 3000 }\\).catch\\(\\(\\) => {}\\)/' drive.mjs)",
+      "Bash(sed -i 's/      await gotIt.click\\(\\)/      await gotIt.click\\({ timeout: 3000 }\\).catch\\(\\(\\) => {}\\)/' drive.mjs)",
+      "Bash(echo \"exit $?\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\AppData\\Local\\Temp\\claude\\c--Users-USER-Documents-Dev-edugame\\942b9d1f-abb1-42a0-a028-7c14c662c5d9\\scratchpad"

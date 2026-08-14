@@ -19,6 +19,14 @@ import type { CosmeticSlot } from '../game/cosmetics'
 import { CHARACTERS, PETS, STARTER_OWNED } from '../game/characters'
 import { evaluateBadges, requirementMet } from '../game/badges'
 import { shopItemById } from '../game/cosmetics'
+import {
+  REGION_MAX,
+  actionById,
+  actionCost,
+  neediestRegion,
+  rushReward,
+  threatReward,
+} from '../game/planet'
 import { dayKey, daysBetween } from '../lib/dates'
 import type { StoredLicence } from '../lib/licence'
 import { mergeRemoteProfile, mergeRemoteState, type SyncLearner } from './sync'
@@ -242,6 +250,42 @@ export interface Awards {
   freezeUsed: boolean
 }
 
+/**
+ * Mission Earth, per child.
+ *
+ * Siblings restore their own planet. Sharing one would mean the older child's
+ * spending silently filled in the younger one's world, and the point of this is
+ * that it is visibly *yours*.
+ */
+export interface PlanetState {
+  /** Restoration points by region id. Only ever goes up — see game/planet.ts. */
+  regions: Record<string, number>
+  /** Missions completed, all time. */
+  threatsResolved: number
+  /**
+   * Day key of the threat most recently dealt with, or null.
+   *
+   * The threat itself is *derived* from the date rather than stored (see
+   * `threatForDay`), so this single string is the whole of what the save needs
+   * to know: which day's mission is already done. A child who closes the app
+   * mid-mission returns to the same one, and two tablets agree without having
+   * to sync a threat between them.
+   */
+  lastThreatDay: string | null
+  /** Day key of the last Meteor Rush round that paid out. Once a day. */
+  lastRushDay: string | null
+  /** Actions whose fact has been read, so a new one can be marked as new. */
+  factsSeen: string[]
+}
+
+export const emptyPlanet = (): PlanetState => ({
+  regions: {},
+  threatsResolved: 0,
+  lastThreatDay: null,
+  lastRushDay: null,
+  factsSeen: [],
+})
+
 /** Everything one child accumulates. Never shared between siblings. */
 export interface LearnerData {
   settings: LearnerSettings
@@ -265,6 +309,8 @@ export interface LearnerData {
    * repeat them is what makes practice actually feel fresh day to day.
    */
   seenItems: Record<string, string[]>
+  /** Mission Earth. See game/planet.ts. */
+  planet: PlanetState
   /**
    * Counts up on every change worth keeping in the account.
    *
@@ -375,6 +421,27 @@ interface Actions {
    */
   purchase: (cosmeticId: string) => PurchaseResult
   equip: (slot: CosmeticSlot, cosmeticId: string | null) => void
+  /**
+   * Spend coins restoring part of Earth. Returns false if they cannot afford
+   * it or the region is already fully restored.
+   */
+  restorePlanet: (actionId: string) => boolean
+  /**
+   * Record that today's mission was played, and restore the region it was
+   * about. Idempotent per day, so a second session cannot farm it.
+   *
+   * Returns the points actually applied — 0 when today's threat was already
+   * dealt with — so the results screen reports what really happened rather
+   * than recomputing the reward and risking a different answer.
+   */
+  resolveThreat: (regionId: string, stars: number) => number
+  /**
+   * Pay out a Meteor Rush round, once a day.
+   *
+   * Restoration points only. Nothing here reaches coins, XP, the streak or the
+   * mastery model — see `rushReward` for why that separation matters.
+   */
+  finishRush: (deflected: number, total: number) => void
 
   /* Multi-child */
   addLearner: (learner: NewLearner) => string
@@ -458,6 +525,7 @@ export const emptyLearnerData = (): LearnerData => ({
   answerStreak: 0,
   bestAnswerStreak: 0,
   seenItems: {},
+  planet: emptyPlanet(),
   revision: 0,
 })
 
@@ -994,6 +1062,81 @@ export const useStore = create<Store>()(
           return { ok: true }
         },
 
+        restorePlanet: (actionId) => {
+          const s = get()
+          const d = active(s)
+          const action = actionById(actionId)
+          if (!action) return false
+
+          const cost = actionCost(action)
+          if (d.economy.coins < cost) return false
+
+          const planet = d.planet ?? emptyPlanet()
+          const current = planet.regions[action.regionId] ?? 0
+          /* Refuse rather than take the coins for nothing. */
+          if (current >= REGION_MAX) return false
+
+          patchActive((cur) => {
+            const p = cur.planet ?? emptyPlanet()
+            return {
+              economy: { ...cur.economy, coins: cur.economy.coins - cost },
+              planet: {
+                ...p,
+                regions: {
+                  ...p.regions,
+                  [action.regionId]: Math.min(REGION_MAX, (p.regions[action.regionId] ?? 0) + action.impact),
+                },
+                factsSeen: p.factsSeen.includes(actionId) ? p.factsSeen : [...p.factsSeen, actionId],
+              },
+            }
+          })
+          return true
+        },
+
+        resolveThreat: (regionId, stars) => {
+          const p = active(get()).planet ?? emptyPlanet()
+          const today = dayKey()
+          /* One a day. A child playing four sessions has earned the coins four
+             times over, but there is only one threat to deal with. */
+          if (p.lastThreatDay === today) return 0
+
+          const gain = threatReward(stars)
+          patchActive((cur) => {
+            const cp = cur.planet ?? emptyPlanet()
+            return {
+              planet: {
+                ...cp,
+                regions: {
+                  ...cp.regions,
+                  [regionId]: Math.min(REGION_MAX, (cp.regions[regionId] ?? 0) + gain),
+                },
+                threatsResolved: cp.threatsResolved + 1,
+                lastThreatDay: today,
+              },
+            }
+          })
+          return gain
+        },
+
+        finishRush: (deflected, total) =>
+          patchActive((d) => {
+            const p = d.planet ?? emptyPlanet()
+            const today = dayKey()
+            if (p.lastRushDay === today) return {}
+            const regionId = neediestRegion(p.regions)
+            const gain = rushReward(deflected, total)
+            return {
+              planet: {
+                ...p,
+                regions: {
+                  ...p.regions,
+                  [regionId]: Math.min(REGION_MAX, (p.regions[regionId] ?? 0) + gain),
+                },
+                lastRushDay: today,
+              },
+            }
+          }),
+
         equip: (slot, cosmeticId) =>
           patchActive((d) => {
             const equipped = { ...d.economy.equipped }
@@ -1276,6 +1419,8 @@ export const useStore = create<Store>()(
           answerStreak: (old.answerStreak as number) ?? 0,
           bestAnswerStreak: (old.bestAnswerStreak as number) ?? 0,
           seenItems: (old.seenItems as Record<string, string[]>) ?? {},
+          /* Predates Mission Earth entirely, so it starts untouched. */
+          planet: emptyPlanet(),
           revision: 0,
         }
 

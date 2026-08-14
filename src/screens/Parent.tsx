@@ -24,6 +24,7 @@ import { PinGate } from '../components/PinGate'
 import { APP_VERSION, CHARACTERS } from '../game/characters'
 import { formatDuration, friendlyDate, recentDays } from '../lib/dates'
 import { installState } from '../lib/install'
+import { checkForUpdate, applyNow, updateReady } from '../lib/updates'
 import {
   remindersAvailable,
   reminderState,
@@ -178,7 +179,9 @@ export function Parent({ onBack }: { onBack: () => void }) {
           ←
         </IconBtn>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-black text-slate-900 truncate">{profile.name}'s progress</h1>
+          <h1 className="text-2xl font-black text-slate-900 truncate">
+            {profile.name?.trim() ? `${profile.name}'s progress` : 'Progress'}
+          </h1>
           <p className="text-sm font-bold text-slate-500">
             {curriculum.flag} {curriculum.name} ·{' '}
             {curriculum.yearBands.find((b) => b.id === profile.yearBand)?.label}
@@ -237,7 +240,9 @@ export function Parent({ onBack }: { onBack: () => void }) {
         <div className="mt-4 space-y-4">
           <Card className="p-5 border-slate-200">
             <h2 className="font-black text-slate-900 mb-3">This week</h2>
-            <div className="grid grid-cols-4 gap-2 text-center">
+            {/* Two by two on a phone: four columns inside a padded card leaves
+                about 50px each, which is narrower than the word "Questions". */}
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               {[
                 ['Days', week.daysPlayed],
                 ['Quests', week.sessions],
@@ -613,7 +618,11 @@ function ChildrenTab() {
               <div className="min-w-0 flex-1">
                 <input
                   value={l.name}
-                  onChange={(e) => store.renameLearner(l.id, e.target.value)}
+                  /* The same 16 characters the add form allows. Renaming had no
+                     cap, so a long name typed here reached the home screen and
+                     had nowhere to go. */
+                  onChange={(e) => store.renameLearner(l.id, e.target.value.slice(0, 16))}
+                  maxLength={16}
                   className="w-full min-h-12 rounded-xl border-2 border-transparent bg-transparent px-2
                     text-lg font-black text-slate-900 outline-none hover:border-slate-200
                     focus:border-slate-900 focus:bg-white"
@@ -670,7 +679,9 @@ function ChildrenTab() {
             </p>
           )}
           <p className="mt-3 font-black text-slate-800">Character</p>
-          <div className="mt-2 grid grid-cols-6 gap-2">
+          {/* Four across on a phone. Six left each tile about 31px, which is
+              below the size a child can reliably hit. */}
+          <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
             {CHARACTERS.filter((c) => c.price === 0).map((c) => (
               <button
                 key={c.id}
@@ -1848,6 +1859,68 @@ const GUESSABLE = new Set([
  * our end: each is named, because "nothing happened" is the one outcome a parent
  * cannot act on.
  */
+/**
+ * "Am I on the latest Brainy?", and the button that makes it so.
+ *
+ * The app updates itself: it looks whenever it comes back to the foreground and
+ * hourly while open, and swaps over the moment nobody is mid-quest. This card
+ * exists for the two occasions that is not enough — a support conversation where
+ * you need to say "tap this", and a parent who simply wants to know.
+ *
+ * It never clears storage. An update is new code, not a fresh start, and a
+ * button in a children's app that could wipe a month of progress has no business
+ * being one tap from a settings screen.
+ */
+function UpdateCard() {
+  const [state, setState] = useState<'idle' | 'checking' | 'ready' | 'current'>(
+    updateReady() ? 'ready' : 'idle',
+  )
+
+  return (
+    <Card className="p-5 border-slate-200">
+      <h2 className="font-black text-slate-900 mb-1">Brainy {APP_VERSION}</h2>
+      <p className="text-sm font-semibold text-slate-500 mb-3">
+        Updates arrive on their own, usually within a day, and never in the middle of a quest. This is
+        the same check, now.
+      </p>
+
+      {state === 'ready' ? (
+        <>
+          <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">
+            A newer Brainy is downloaded and ready.
+          </p>
+          <Btn size="md" className="mt-3" onClick={() => applyNow()}>
+            Restart into it
+          </Btn>
+        </>
+      ) : (
+        <>
+          <Btn
+            variant="secondary"
+            size="md"
+            disabled={state === 'checking'}
+            onClick={async () => {
+              setState('checking')
+              const found = await checkForUpdate()
+              setState(found ? 'ready' : 'current')
+            }}
+          >
+            {state === 'checking' ? 'Looking…' : 'Check for updates'}
+          </Btn>
+          {state === 'current' && (
+            <p className="mt-3 text-sm font-bold text-slate-600">
+              This is the latest version. Nothing to do.
+            </p>
+          )}
+        </>
+      )}
+      <p className="mt-3 text-xs font-semibold text-slate-400">
+        Updating replaces the app, never your children&apos;s progress.
+      </p>
+    </Card>
+  )
+}
+
 function RemindersCard() {
   const token = useStore((s) => s.device.authToken)
   const [state, setState] = useState<ReminderState | 'loading'>('loading')
@@ -2434,6 +2507,8 @@ function SettingsTab({ autoHint, stats }: { autoHint: string; stats: Analytics }
           />
         </Row>
       </Card>
+
+      <UpdateCard />
 
       <RemindersCard />
 

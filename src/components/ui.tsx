@@ -182,7 +182,12 @@ export function Screen({
 }) {
   return (
     <div className={`min-h-full w-full ${bg}`}>
-      <div className={`mx-auto w-full max-w-5xl px-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))] ${className}`}>
+      {/* The bottom inset matters as much as the top: on a phone with a home
+          indicator, pb-8 alone puts the last button under the bar you swipe. */}
+      <div
+        className={`mx-auto w-full max-w-5xl px-4 pt-[max(1rem,env(safe-area-inset-top))]
+          pb-[max(2rem,env(safe-area-inset-bottom))] ${className}`}
+      >
         {children}
       </div>
     </div>
